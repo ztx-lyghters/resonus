@@ -267,13 +267,31 @@ export async function getAlbumList(
   type: AlbumListType = 'newest',
   size = 20,
   offset = 0,
+  musicFolderId?: string,
 ): Promise<Album[]> {
   const res = await request<{ albumList2?: { album?: Album[] } }>(
     auth,
     'getAlbumList2.view',
-    { type, size, offset },
+    { type, size, offset, ...(musicFolderId ? { musicFolderId } : {}) },
   );
   return res.albumList2?.album ?? [];
+}
+
+/** Una biblioteca del servidor (Navidrome expone cada "library" como carpeta). */
+export interface MusicFolder {
+  id: string;
+  name: string;
+}
+
+/** Bibliotecas/carpetas raíz accesibles para el usuario. */
+export async function getMusicFolders(auth: SubsonicAuth): Promise<MusicFolder[]> {
+  const res = await request<{
+    musicFolders?: { musicFolder?: { id: string | number; name?: string }[] };
+  }>(auth, 'getMusicFolders.view');
+  return (res.musicFolders?.musicFolder ?? []).map((f) => ({
+    id: String(f.id),
+    name: f.name ?? String(f.id),
+  }));
 }
 
 export interface Genre {
@@ -292,11 +310,12 @@ export async function getAlbumsByGenre(
   genre: string,
   size = 30,
   offset = 0,
+  musicFolderId?: string,
 ): Promise<Album[]> {
   const res = await request<{ albumList2?: { album?: Album[] } }>(
     auth,
     'getAlbumList2.view',
-    { type: 'byGenre', genre, size, offset },
+    { type: 'byGenre', genre, size, offset, ...(musicFolderId ? { musicFolderId } : {}) },
   );
   return res.albumList2?.album ?? [];
 }
@@ -415,10 +434,17 @@ export interface SearchResult {
 export async function search(
   auth: SubsonicAuth,
   query: string,
+  musicFolderId?: string,
 ): Promise<SearchResult> {
   const res = await request<{
     searchResult3?: { artist?: Artist[]; album?: Album[]; song?: Song[] };
-  }>(auth, 'search3.view', { query, songCount: 20, albumCount: 20, artistCount: 20 });
+  }>(auth, 'search3.view', {
+    query,
+    songCount: 20,
+    albumCount: 20,
+    artistCount: 20,
+    ...(musicFolderId ? { musicFolderId } : {}),
+  });
   const r = res.searchResult3 ?? {};
   return {
     artists: r.artist ?? [],
@@ -427,10 +453,10 @@ export async function search(
   };
 }
 
-export async function getArtists(auth: SubsonicAuth): Promise<Artist[]> {
+export async function getArtists(auth: SubsonicAuth, musicFolderId?: string): Promise<Artist[]> {
   const res = await request<{
     artists?: { index?: { artist?: Artist[] }[] };
-  }>(auth, 'getArtists.view');
+  }>(auth, 'getArtists.view', musicFolderId ? { musicFolderId } : undefined);
   // La respuesta agrupa los artistas por letra inicial; los aplanamos.
   return (res.artists?.index ?? []).flatMap((i) => i.artist ?? []);
 }
@@ -510,10 +536,10 @@ export interface Starred {
   artists: Artist[];
 }
 
-export async function getStarred(auth: SubsonicAuth): Promise<Starred> {
+export async function getStarred(auth: SubsonicAuth, musicFolderId?: string): Promise<Starred> {
   const res = await request<{
     starred2?: { song?: Song[]; album?: Album[]; artist?: Artist[] };
-  }>(auth, 'getStarred2.view');
+  }>(auth, 'getStarred2.view', musicFolderId ? { musicFolderId } : undefined);
   const s = res.starred2 ?? {};
   return {
     songs: s.song ?? [],

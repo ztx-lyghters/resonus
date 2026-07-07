@@ -14,7 +14,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { getGenres, type Genre } from '@/api/backend';
+import { type Genre } from '@/api/backend';
+import { getGenres } from '@/api/data';
 import { EmptyState } from '@/components/EmptyState';
 import { GenreCard } from '@/components/GenreCard';
 import { GenreGridSkeleton } from '@/components/GenreGridSkeleton';
@@ -36,7 +37,7 @@ export default function GenresScreen() {
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['genres'],
-    queryFn: () => getGenres(auth!),
+    queryFn: () => getGenres(),
     enabled: !!auth,
   });
 

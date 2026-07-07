@@ -21,6 +21,7 @@ import {
   type Artist,
   type ArtistInfo,
   type Genre,
+  type MusicFolder,
   type Playlist,
   type RadioStation,
   type SavedQueue,
@@ -283,11 +284,17 @@ const ALBUM_SORT: Record<AlbumListType, { SortBy: string; SortOrder?: string; Fi
     starred: { SortBy: 'SortName', Filters: 'IsFavorite' },
   };
 
+/** Jellyfin tiene sus propias librerías, pero el filtro por carpeta es Subsonic. */
+export async function getMusicFolders(_auth: SubsonicAuth): Promise<MusicFolder[]> {
+  return [];
+}
+
 export async function getAlbumList(
   auth: SubsonicAuth,
   type: AlbumListType = 'newest',
   size = 20,
   offset = 0,
+  _musicFolderId?: string,
 ): Promise<Album[]> {
   const res = await request<JfItems>(auth, `/Users/${auth.jfUserId}/Items`, {
     IncludeItemTypes: 'MusicAlbum',
@@ -315,6 +322,7 @@ export async function getAlbumsByGenre(
   genre: string,
   size = 30,
   offset = 0,
+  _musicFolderId?: string,
 ): Promise<Album[]> {
   const res = await request<JfItems>(auth, `/Users/${auth.jfUserId}/Items`, {
     IncludeItemTypes: 'MusicAlbum',
@@ -344,7 +352,7 @@ export async function getAlbum(
   return { album: toAlbum(item), songs: (children.Items ?? []).map(toSong) };
 }
 
-export async function getArtists(auth: SubsonicAuth): Promise<Artist[]> {
+export async function getArtists(auth: SubsonicAuth, _musicFolderId?: string): Promise<Artist[]> {
   const res = await request<JfItems>(auth, '/Artists/AlbumArtists', {
     UserId: auth.jfUserId,
     SortBy: 'SortName',
@@ -418,7 +426,11 @@ export async function getSimilarSongs(
   return (res.Items ?? []).filter((it) => it.Id !== id).slice(0, count).map(toSong);
 }
 
-export async function search(auth: SubsonicAuth, query: string): Promise<SearchResult> {
+export async function search(
+  auth: SubsonicAuth,
+  query: string,
+  _musicFolderId?: string,
+): Promise<SearchResult> {
   const items = (kind: 'MusicAlbum' | 'Audio') =>
     request<JfItems>(auth, `/Users/${auth.jfUserId}/Items`, {
       SearchTerm: query,
@@ -441,7 +453,7 @@ export async function search(auth: SubsonicAuth, query: string): Promise<SearchR
 
 // ── Favoritos ──
 
-export async function getStarred(auth: SubsonicAuth): Promise<Starred> {
+export async function getStarred(auth: SubsonicAuth, _musicFolderId?: string): Promise<Starred> {
   const fav = (kind: 'MusicAlbum' | 'Audio') =>
     request<JfItems>(auth, `/Users/${auth.jfUserId}/Items`, {
       Filters: 'IsFavorite',

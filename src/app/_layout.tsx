@@ -20,6 +20,7 @@ import { queryClient } from '@/lib/query';
 import { useAuthStore } from '@/store/auth';
 import { useDownloads } from '@/store/downloads';
 import { useLastPlayed } from '@/store/lastPlayed';
+import { useLibraries } from '@/store/libraries';
 import { usePins } from '@/store/pins';
 import { initRemoteIntegration, usePlayerStore } from '@/store/player';
 import { usePlayCounts } from '@/store/playCounts';
@@ -51,6 +52,14 @@ export default function RootLayout() {
     void useLastPlayed.getState().hydrate();
     void usePins.getState().hydrate();
     void useDownloads.getState().hydrate();
+    // Bibliotecas: hidrata el filtro guardado y refresca la lista del servidor.
+    void useLibraries
+      .getState()
+      .hydrate()
+      .then(() => {
+        const current = useAuthStore.getState().auth;
+        if (current) void useLibraries.getState().load(current);
+      });
     initRemoteIntegration();
   }, [hydrate, activeProfile]);
 

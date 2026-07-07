@@ -17,6 +17,7 @@ export type {
   ArtistInfo,
   Genre,
   LyricLine,
+  MusicFolder,
   Playlist,
   RadioStation,
   SavedQueue,
@@ -47,21 +48,30 @@ export function makeAuth(
 
 export const ping = (auth: SubsonicAuth) => api(auth).ping(auth);
 
+export const getMusicFolders = (auth: SubsonicAuth) => api(auth).getMusicFolders(auth);
+
 export const getAlbumList = (
   auth: SubsonicAuth,
   type?: AlbumListType,
   size?: number,
   offset?: number,
-) => api(auth).getAlbumList(auth, type, size, offset);
+  musicFolderId?: string,
+) => api(auth).getAlbumList(auth, type, size, offset, musicFolderId);
 
 export const getGenres = (auth: SubsonicAuth) => api(auth).getGenres(auth);
 
-export const getAlbumsByGenre = (auth: SubsonicAuth, genre: string, size?: number, offset?: number) =>
-  api(auth).getAlbumsByGenre(auth, genre, size, offset);
+export const getAlbumsByGenre = (
+  auth: SubsonicAuth,
+  genre: string,
+  size?: number,
+  offset?: number,
+  musicFolderId?: string,
+) => api(auth).getAlbumsByGenre(auth, genre, size, offset, musicFolderId);
 
 export const getAlbum = (auth: SubsonicAuth, id: string) => api(auth).getAlbum(auth, id);
 
-export const getArtists = (auth: SubsonicAuth) => api(auth).getArtists(auth);
+export const getArtists = (auth: SubsonicAuth, musicFolderId?: string) =>
+  api(auth).getArtists(auth, musicFolderId);
 
 export const getArtist = (auth: SubsonicAuth, id: string) => api(auth).getArtist(auth, id);
 
@@ -73,9 +83,11 @@ export const getTopSongs = (auth: SubsonicAuth, artist: string, count?: number) 
 export const getSimilarSongs = (auth: SubsonicAuth, id: string, count?: number) =>
   api(auth).getSimilarSongs(auth, id, count);
 
-export const search = (auth: SubsonicAuth, query: string) => api(auth).search(auth, query);
+export const search = (auth: SubsonicAuth, query: string, musicFolderId?: string) =>
+  api(auth).search(auth, query, musicFolderId);
 
-export const getStarred = (auth: SubsonicAuth) => api(auth).getStarred(auth);
+export const getStarred = (auth: SubsonicAuth, musicFolderId?: string) =>
+  api(auth).getStarred(auth, musicFolderId);
 
 export const star = (auth: SubsonicAuth, id: string, type?: StarType) =>
   api(auth).star(auth, id, type);

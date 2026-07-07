@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { getAlbumsByGenre } from '@/api/backend';
+import { getAlbumsByGenre } from '@/api/data';
 import { AlbumCard } from '@/components/AlbumCard';
 import { AlbumCardsSkeleton } from '@/components/AlbumCardsSkeleton';
 import { EmptyState } from '@/components/EmptyState';
@@ -38,7 +38,7 @@ export default function GenreScreen() {
   const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery({
       queryKey: ['genreAlbums', genre],
-      queryFn: ({ pageParam }) => getAlbumsByGenre(auth!, genre, PAGE, pageParam),
+      queryFn: ({ pageParam }) => getAlbumsByGenre(genre, PAGE, pageParam),
       initialPageParam: 0,
       getNextPageParam: (last, pages) => (last.length === PAGE ? pages.length * PAGE : undefined),
       enabled: !!auth && !!genre,

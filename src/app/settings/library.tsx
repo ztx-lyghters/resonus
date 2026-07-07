@@ -9,12 +9,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { rescanLocal } from '@/api/data';
 import { getScanStatus, startScan } from '@/api/backend';
 import { Dialog } from '@/components/Dialog';
-import { Field, SettingRow, SettingsPage, settingsStyles } from '@/components/SettingsUI';
+import { Field, SettingRow, SettingsPage, SwitchList, settingsStyles } from '@/components/SettingsUI';
 import { songsLabel, useT } from '@/i18n';
 import { ensureAudioPermission, pickFolder } from '@/lib/localLibrary';
 import { queryClient } from '@/lib/query';
 import { useAuthStore } from '@/store/auth';
 import { useDownloads } from '@/store/downloads';
+import { profileKeyOf, useLibraries } from '@/store/libraries';
 import { useSettings } from '@/store/settings';
 import { useToast } from '@/store/toast';
 import { colors, fontSize, radius, spacing } from '@/theme';
@@ -38,6 +39,29 @@ export default function LibrarySettings() {
   const files = useDownloads((s) => s.files);
   const usageBytes = useDownloads((s) => s.usageBytes);
   const clearAll = useDownloads((s) => s.clearAll);
+  // Bibliotecas del servidor (Navidrome multi-library): un switch por carpeta.
+  const foldersMap = useLibraries((s) => s.folders);
+  const disabledMap = useLibraries((s) => s.disabled);
+  const setEnabled = useLibraries((s) => s.setEnabled);
+  const profileKey = profileKeyOf(auth);
+  const folders = profileKey ? foldersMap[profileKey] ?? [] : [];
+  const disabled = new Set(profileKey ? disabledMap[profileKey] ?? [] : []);
+  const enabledCount = folders.filter((f) => !disabled.has(f.id)).length;
+
+  useEffect(() => {
+    if (auth) void useLibraries.getState().load(auth);
+  }, [auth]);
+
+  function toggleLibrary(id: string, enabled: boolean) {
+    if (!auth) return;
+    // Nunca dejar todas apagadas: al menos una biblioteca visible.
+    if (!enabled && enabledCount <= 1) {
+      toast(t('Keep at least one library on'));
+      return;
+    }
+    setEnabled(auth, id, enabled);
+  }
+
   const [rescanning, setRescanning] = useState(false);
   const [changing, setChanging] = useState(false);
   const [usage, setUsage] = useState<number | null>(null);
@@ -147,6 +171,22 @@ export default function LibrarySettings() {
                 destructive
                 onPress={() => setConfirmDelete(true)}
               />
+            ) : null}
+
+            {folders.length >= 2 ? (
+              <>
+                <Text style={settingsStyles.sectionTitle}>{t('Libraries')}</Text>
+                <Text style={settingsStyles.sectionDescription}>
+                  {t('Choose which libraries appear across the app.')}
+                </Text>
+                <SwitchList
+                  options={folders.map((f) => ({
+                    label: f.name,
+                    value: !disabled.has(f.id),
+                    onChange: (v) => toggleLibrary(f.id, v),
+                  }))}
+                />
+              </>
             ) : null}
           </>
         )}

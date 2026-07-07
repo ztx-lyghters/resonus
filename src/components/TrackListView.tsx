@@ -6,7 +6,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useRef, type ReactNode } from 'react';
+import { useMemo, useRef, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -81,7 +81,7 @@ interface Props {
   emptyState?: ReactNode;
   /** Muestra la mini carátula del álbum en cada fila (playlists/favoritos). */
   showArtwork?: boolean;
-  onPlay: (startIndex: number) => void;
+  onPlay: (startIndex: number) => void | Promise<void>;
 }
 
 export function TrackListView({
@@ -116,6 +116,13 @@ export function TrackListView({
   const headerColor = accentColor ?? dominant;
   const shuffle = usePlayerStore((s) => s.shuffle);
   const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
+  // El botón de aleatorio se tiñe solo si esta lista es la que está sonando; si
+  // no, el modo aleatorio (global) teñía también los botones de álbumes/listas
+  // ajenos, que despistaba.
+  const shuffleActive = useMemo(
+    () => shuffle && !!currentId && songs.some((s) => s.id === currentId),
+    [shuffle, currentId, songs],
+  );
   const openArtistPicker = useArtistPicker((s) => s.open);
   const subtitleTargets = artistTargets({ artistId, artists });
   const onSubtitlePress =
@@ -148,12 +155,15 @@ export function TrackListView({
     extrapolate: 'clamp',
   });
 
-  function shufflePlay() {
+  async function shufflePlay() {
     if (songs.length === 0) return;
-    // Arranca en una pista aleatoria y activa el modo aleatorio. playQueue
-    // (dentro de onPlay) resetea shuffle a false, así que leemos el estado
-    // fresco con getState() en vez de la variable del render (desactualizada).
-    onPlay(Math.floor(Math.random() * songs.length));
+    // Arranca en una pista aleatoria y, una vez cargada, activa el modo
+    // aleatorio. Hay que ESPERAR a que playQueue (dentro de onPlay) termine:
+    // si no, su escritura asíncrona del índice pisa el reordenado de
+    // toggleShuffle y el reproductor acaba mostrando una canción distinta de la
+    // que suena. Leemos shuffle fresco con getState() porque playQueue lo
+    // resetea a false.
+    await onPlay(Math.floor(Math.random() * songs.length));
     if (!usePlayerStore.getState().shuffle) toggleShuffle();
   }
 
@@ -280,7 +290,7 @@ export function TrackListView({
                   <Ionicons
                     name="shuffle"
                     size={26}
-                    color={shuffle ? colors.accent : colors.textSecondary}
+                    color={shuffleActive ? colors.accent : colors.textSecondary}
                   />
                 </Pressable>
                 <Pressable

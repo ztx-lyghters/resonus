@@ -6,7 +6,7 @@ body:
   - type: textarea
     id: idea
     attributes:
-      label: What would you like?
-      description: Describe the feature or improvement.
+      label: Description
+      description: Describe the feature or improvement you'd like.
     validations:
       required: true

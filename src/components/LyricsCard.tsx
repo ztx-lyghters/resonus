@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
+  ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -211,11 +212,21 @@ const LyricRow = memo(({
   // la siguiente que va a sonar un poco, las demás bastante más.
   const focus = useSharedValue(active ? 1 : 0);
   const dim = useSharedValue(active ? 1 : next ? 0.55 : 0.3);
+  // reduceMotion Never: la transición entre líneas (karaoke) es la esencia de
+  // la pantalla; sin esto, los móviles con "reducir movimiento" la saltan.
   useEffect(() => {
-    focus.value = withSpring(active ? 1 : 0, { damping: 20, stiffness: 180, mass: 0.5 });
+    focus.value = withSpring(active ? 1 : 0, {
+      damping: 20,
+      stiffness: 180,
+      mass: 0.5,
+      reduceMotion: ReduceMotion.Never,
+    });
   }, [active, focus]);
   useEffect(() => {
-    dim.value = withTiming(active ? 1 : next ? 0.55 : 0.3, { duration: 300 });
+    dim.value = withTiming(active ? 1 : next ? 0.55 : 0.3, {
+      duration: 300,
+      reduceMotion: ReduceMotion.Never,
+    });
   }, [active, next, dim]);
   // El crecimiento (8 %) se compensa con el hueco derecho de `content` para que
   // la línea activa, al escalar desde la izquierda, no se salga por el borde.

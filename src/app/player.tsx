@@ -20,6 +20,7 @@ import Animated, {
   Easing,
   Extrapolation,
   interpolate,
+  ReduceMotion,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
@@ -147,7 +148,9 @@ export default function PlayerScreen() {
   const targetBg = colorBackground ? dominant : '#3a4042';
   const bgColor = useSharedValue(targetBg);
   useEffect(() => {
-    bgColor.value = withTiming(targetBg, { duration: 600 });
+    // reduceMotion Never: el fundido de color es parte del look y algunos
+    // móviles (ahorro de batería / "reducir movimiento") lo saltarían.
+    bgColor.value = withTiming(targetBg, { duration: 600, reduceMotion: ReduceMotion.Never });
   }, [targetBg, bgColor]);
   const bgStyle = useAnimatedStyle(() => ({ backgroundColor: bgColor.value }));
   // Misma query que usa la tarjeta de letra (cacheada): aquí solo para saber

@@ -30,6 +30,7 @@ import { FavoriteButton } from '@/components/FavoriteButton';
 import { Message } from '@/components/Message';
 import { TrackRow } from '@/components/TrackRow';
 import { useDominantColor } from '@/hooks/useDominantColor';
+import { useFavoriteIds } from '@/hooks/useFavoriteIds';
 import { useT } from '@/i18n';
 import { useAuthStore } from '@/store/auth';
 import { currentSong, usePlayerStore } from '@/store/player';
@@ -95,6 +96,10 @@ export default function ArtistScreen() {
     enabled: canFetch && !!id,
   });
 
+  // Como en el álbum: el corazón lee de la lista central de favoritos, que sí
+  // se refresca al marcar (el `starred` de getArtist se queda obsoleto).
+  const favArtistIds = useFavoriteIds(canFetch, 'artist');
+
   if (isLoading) {
     return (
       <View style={styles.center}>
@@ -147,7 +152,12 @@ export default function ArtistScreen() {
         </View>
 
         <View style={styles.actions}>
-          <FavoriteButton id={data.artist.id} type="artist" starred={!!data.artist.starred} size={30} />
+          <FavoriteButton
+            id={data.artist.id}
+            type="artist"
+            starred={favArtistIds ? favArtistIds.has(data.artist.id) : !!data.artist.starred}
+            size={30}
+          />
           <Pressable
             hitSlop={10}
             accessibilityRole="button"

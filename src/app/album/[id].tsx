@@ -12,6 +12,7 @@ import { Message } from '@/components/Message';
 import { MoreFromArtist } from '@/components/MoreFromArtist';
 import { TrackListSkeleton } from '@/components/TrackListSkeleton';
 import { TrackListView } from '@/components/TrackListView';
+import { useFavoriteIds } from '@/hooks/useFavoriteIds';
 import { songsLabel, useT } from '@/i18n';
 import { formatTotalDuration } from '@/lib/format';
 import { useAuthStore } from '@/store/auth';
@@ -32,6 +33,9 @@ export default function AlbumScreen() {
   const [confirmDownload, setConfirmDownload] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
+  // El corazón lee de la lista central de favoritos (se refresca al marcar);
+  // `data.album.starred` del detalle se queda obsoleto tras marcar/desmarcar.
+  const favAlbumIds = useFavoriteIds(canFetch, 'album');
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['album', id],
@@ -85,7 +89,11 @@ export default function AlbumScreen() {
         songs={data.songs}
         currentId={playing?.id}
         numbered
-        favorite={{ id: data.album.id, type: 'album', starred: !!data.album.starred }}
+        favorite={{
+          id: data.album.id,
+          type: 'album',
+          starred: favAlbumIds ? favAlbumIds.has(data.album.id) : !!data.album.starred,
+        }}
         download={
           !offline
             ? {

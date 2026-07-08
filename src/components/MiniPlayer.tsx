@@ -23,6 +23,7 @@ import { useFavoriteIds } from '@/hooks/useFavoriteIds';
 import { useT } from '@/i18n';
 import { useAuthStore } from '@/store/auth';
 import { currentSong, usePlayerStore } from '@/store/player';
+import { useSettings } from '@/store/settings';
 import { colors, fontSize, radius, spacing } from '@/theme';
 import { Cover } from './Cover';
 import { FavoriteButton } from './FavoriteButton';
@@ -98,7 +99,10 @@ export function MiniPlayer() {
   }, [song?.id, translateX, translateY]);
 
   const cover = song ? coverArtUrl(song.coverArt ?? song.albumId, 100) : undefined;
-  const bg = useDominantColor(cover);
+  // Color dominante de la carátula, si el ajuste está activo; si no, superficie neutra.
+  const miniColor = useSettings((s) => s.miniPlayerColorBackground);
+  const dominant = useDominantColor(miniColor ? cover : undefined);
+  const bg = miniColor ? dominant : colors.surfaceHighlight;
   const offline = useAuthStore((s) => s.offline);
   const favIds = useFavoriteIds(!!song && (!song.localUri || offline));
 

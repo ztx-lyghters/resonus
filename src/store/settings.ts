@@ -65,6 +65,8 @@ interface SettingsState {
   showArtistPhoto: boolean;
   /** Fondo del reproductor teñido con el color dominante de la carátula. */
   playerColorBackground: boolean;
+  /** Mini-reproductor teñido con el color dominante de la carátula. */
+  miniPlayerColorBackground: boolean;
   /** Visibilidad de botones opcionales, para quien prefiera una UI mínima. */
   showHistoryButton: boolean;
   showProfileButton: boolean;
@@ -86,6 +88,7 @@ interface SettingsState {
   setLyricsOnlineFallback: (value: boolean) => void;
   setShowArtistPhoto: (value: boolean) => void;
   setPlayerColorBackground: (value: boolean) => void;
+  setMiniPlayerColorBackground: (value: boolean) => void;
   setShowHistoryButton: (value: boolean) => void;
   setShowProfileButton: (value: boolean) => void;
   setLibrarySort: (value: LibrarySort) => void;
@@ -115,6 +118,7 @@ function snapshot(get: () => SettingsState) {
     lyricsOnlineFallback: s.lyricsOnlineFallback,
     showArtistPhoto: s.showArtistPhoto,
     playerColorBackground: s.playerColorBackground,
+    miniPlayerColorBackground: s.miniPlayerColorBackground,
     showHistoryButton: s.showHistoryButton,
     showProfileButton: s.showProfileButton,
     librarySort: s.librarySort,
@@ -137,6 +141,7 @@ const DEFAULTS = {
   lyricsOnlineFallback: false,
   showArtistPhoto: true,
   playerColorBackground: true,
+  miniPlayerColorBackground: true,
   showHistoryButton: true,
   showProfileButton: true,
   librarySort: 'recent' as LibrarySort,
@@ -207,6 +212,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
     persist(snapshot(get));
   },
 
+  setMiniPlayerColorBackground: (miniPlayerColorBackground) => {
+    set({ miniPlayerColorBackground });
+    persist(snapshot(get));
+  },
+
   setShowHistoryButton: (showHistoryButton) => {
     set({ showHistoryButton });
     persist(snapshot(get));
@@ -257,6 +267,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
           lyricsOnlineFallback: boolean;
           showArtistPhoto: boolean;
           playerColorBackground: boolean;
+          miniPlayerColorBackground: boolean;
           showHistoryButton: boolean;
           showProfileButton: boolean;
           librarySort: LibrarySort;
@@ -310,6 +321,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
         }
         if (typeof parsed.playerColorBackground === 'boolean') {
           set({ playerColorBackground: parsed.playerColorBackground });
+        }
+        if (typeof parsed.miniPlayerColorBackground === 'boolean') {
+          set({ miniPlayerColorBackground: parsed.miniPlayerColorBackground });
         }
         if (typeof parsed.showHistoryButton === 'boolean') {
           set({ showHistoryButton: parsed.showHistoryButton });

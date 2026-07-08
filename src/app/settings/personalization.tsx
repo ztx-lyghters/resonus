@@ -33,6 +33,8 @@ export default function AppearanceSettings() {
   const setShowArtistPhoto = useSettings((s) => s.setShowArtistPhoto);
   const playerColorBackground = useSettings((s) => s.playerColorBackground);
   const setPlayerColorBackground = useSettings((s) => s.setPlayerColorBackground);
+  const miniPlayerColorBackground = useSettings((s) => s.miniPlayerColorBackground);
+  const setMiniPlayerColorBackground = useSettings((s) => s.setMiniPlayerColorBackground);
   const showHistoryButton = useSettings((s) => s.showHistoryButton);
   const setShowHistoryButton = useSettings((s) => s.setShowHistoryButton);
   const showProfileButton = useSettings((s) => s.showProfileButton);
@@ -58,13 +60,19 @@ export default function AppearanceSettings() {
               onChange: setPlayerColorBackground,
             },
             {
-              label: t('Quality label'),
+              label: t('Colored mini player'),
+              description: t('Tint the mini player with the cover color.'),
+              value: miniPlayerColorBackground,
+              onChange: setMiniPlayerColorBackground,
+            },
+            {
+              label: t('Show quality label'),
               description: t('Show format, bitrate and Lossless / Hi-Res in the player.'),
               value: showAudioQuality,
               onChange: setShowAudioQuality,
             },
             {
-              label: t('Rating'),
+              label: t('Show rating'),
               description: t('Show a star rating bar to rate the current song.'),
               value: showRating,
               onChange: setShowRating,
@@ -76,13 +84,13 @@ export default function AppearanceSettings() {
         <SwitchList
           options={[
             {
-              label: t('With artwork'),
+              label: t('Show artwork'),
               description: t('Show the album artwork next to each song in playlists and favorites.'),
               value: showListArtwork,
               onChange: setShowListArtwork,
             },
             {
-              label: t('Song duration'),
+              label: t('Show song duration'),
               value: showSongDuration,
               onChange: setShowSongDuration,
             },

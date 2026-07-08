@@ -14,6 +14,7 @@ const LANGUAGES: { value: Language; label: string }[] = [
   { value: 'en', label: 'English' },
   { value: 'es', label: 'Español' },
   { value: 'de', label: 'Deutsch' },
+  { value: 'ca', label: 'Català' },
 ];
 
 export default function LanguageSettings() {

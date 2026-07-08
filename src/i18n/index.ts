@@ -14,11 +14,13 @@
 import { useCallback } from 'react';
 
 import { useSettings, type Language } from '@/store/settings';
+import ca from './locales/ca.json';
 import de from './locales/de.json';
 import es from './locales/es.json';
 
 /** Diccionarios por idioma. El inglés es la clave, así que no lleva tabla. */
 const dictionaries: Partial<Record<Language, Record<string, string>>> = {
+  ca,
   de,
   es,
 };
@@ -54,8 +56,8 @@ export function useT(): TFunction {
  * es obligatorio (fallback); el resto son opcionales.
  */
 const PLURALS: Record<string, Partial<Record<Language, [string, string]>>> = {
-  song: { es: ['canción', 'canciones'], en: ['song', 'songs'], de: ['Titel', 'Titel'] },
-  album: { es: ['álbum', 'álbumes'], en: ['album', 'albums'], de: ['Album', 'Alben'] },
+  song: { es: ['canción', 'canciones'], en: ['song', 'songs'], de: ['Titel', 'Titel'], ca: ['cançó', 'cançons'] },
+  album: { es: ['álbum', 'álbumes'], en: ['album', 'albums'], de: ['Album', 'Alben'], ca: ['àlbum', 'àlbums'] },
 };
 
 function countLabel(kind: keyof typeof PLURALS, n: number, lang: Language): string {

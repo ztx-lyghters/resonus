@@ -15,6 +15,7 @@
  * (`normKey(nombre)`) para que los artistas se fusionen con los del escaneo.
  */
 import * as FileSystem from 'expo-file-system/legacy';
+import * as Network from 'expo-network';
 import { create } from 'zustand';
 
 import {
@@ -289,6 +290,16 @@ interface DownloadsState {
   usageBytes: () => Promise<number>;
 }
 
+/** true solo si la conexión activa son datos móviles (para el modo "solo Wi-Fi"). */
+async function onMobileData(): Promise<boolean> {
+  try {
+    const state = await Network.getNetworkStateAsync();
+    return state.type === Network.NetworkStateType.CELLULAR;
+  } catch {
+    return false; // ante la duda, no bloquear la descarga
+  }
+}
+
 export const useDownloads = create<DownloadsState>((set, get) => {
   /** Descarga un grupo de canciones y actualiza catálogo + progreso. */
   async function downloadGroup(groupKey: string, songs: Song[], albums: Album[]): Promise<void> {
@@ -304,6 +315,12 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       return true;
     });
     if (pending.length === 0) return;
+
+    // Modo "solo Wi-Fi": no arrancar con datos móviles.
+    if (useSettings.getState().downloadWifiOnly && (await onMobileData())) {
+      useToast.getState().show(tg('Connect to Wi-Fi to download'));
+      return;
+    }
 
     const dir = serverDir(auth);
     set((st) => ({ active: { ...st.active, [groupKey]: { done: 0, total: pending.length, fraction: 0 } } }));

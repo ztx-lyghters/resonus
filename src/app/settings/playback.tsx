@@ -17,6 +17,8 @@ export default function PlaybackSettings() {
   const setMaxBitRate = useSettings((s) => s.setMaxBitRate);
   const downloadBitRate = useSettings((s) => s.downloadBitRate);
   const setDownloadBitRate = useSettings((s) => s.setDownloadBitRate);
+  const downloadWifiOnly = useSettings((s) => s.downloadWifiOnly);
+  const setDownloadWifiOnly = useSettings((s) => s.setDownloadWifiOnly);
   const autoplaySimilar = useSettings((s) => s.autoplaySimilar);
   const setAutoplaySimilar = useSettings((s) => s.setAutoplaySimilar);
   const crossfadeSec = useSettings((s) => s.crossfadeSec);
@@ -43,6 +45,16 @@ export default function PlaybackSettings() {
               options={bitrateOptions}
               value={downloadBitRate}
               onChange={setDownloadBitRate}
+            />
+            <SwitchList
+              options={[
+                {
+                  label: t('Download over Wi-Fi only'),
+                  description: t('Block downloads on mobile data.'),
+                  value: downloadWifiOnly,
+                  onChange: setDownloadWifiOnly,
+                },
+              ]}
             />
           </>
         )}

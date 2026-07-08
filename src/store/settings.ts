@@ -42,6 +42,8 @@ interface SettingsState {
   maxBitRate: number;
   /** Calidad de descarga: 0 = fichero original; resto, bitrate transcodificado. */
   downloadBitRate: number;
+  /** Descargar solo con Wi-Fi (bloquea descargas con datos móviles). */
+  downloadWifiOnly: boolean;
   language: Language;
   /** Mostrar la etiqueta de formato/bitrate/Hi-Res (solo en el reproductor). */
   showAudioQuality: boolean;
@@ -78,6 +80,7 @@ interface SettingsState {
   accentColor: string;
   setMaxBitRate: (value: number) => void;
   setDownloadBitRate: (value: number) => void;
+  setDownloadWifiOnly: (value: boolean) => void;
   setLanguage: (language: Language) => void;
   setShowAudioQuality: (value: boolean) => void;
   setShowRating: (value: boolean) => void;
@@ -108,6 +111,7 @@ function snapshot(get: () => SettingsState) {
   return {
     maxBitRate: s.maxBitRate,
     downloadBitRate: s.downloadBitRate,
+    downloadWifiOnly: s.downloadWifiOnly,
     language: s.language,
     showAudioQuality: s.showAudioQuality,
     showRating: s.showRating,
@@ -131,6 +135,7 @@ function snapshot(get: () => SettingsState) {
 const DEFAULTS = {
   maxBitRate: 0,
   downloadBitRate: 0,
+  downloadWifiOnly: false,
   language: 'en' as Language,
   showAudioQuality: false,
   showRating: false,
@@ -159,6 +164,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
 
   setDownloadBitRate: (downloadBitRate) => {
     set({ downloadBitRate });
+    persist(snapshot(get));
+  },
+
+  setDownloadWifiOnly: (downloadWifiOnly) => {
+    set({ downloadWifiOnly });
     persist(snapshot(get));
   },
 
@@ -257,6 +267,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
         const parsed = JSON.parse(raw) as Partial<{
           maxBitRate: number;
           downloadBitRate: number;
+          downloadWifiOnly: boolean;
           language: Language;
           showAudioQuality: string | boolean;
           showRating: boolean;
@@ -279,6 +290,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
         }
         if (typeof parsed.downloadBitRate === 'number') {
           set({ downloadBitRate: parsed.downloadBitRate });
+        }
+        if (typeof parsed.downloadWifiOnly === 'boolean') {
+          set({ downloadWifiOnly: parsed.downloadWifiOnly });
         }
         if (
           parsed.language === 'es' ||

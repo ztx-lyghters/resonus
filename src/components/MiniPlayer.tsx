@@ -106,7 +106,9 @@ export function MiniPlayer() {
 
   const duration = durationSec || song.duration || 0;
   const progress = duration > 0 ? Math.min(1, positionSec / duration) : 0;
-  const favorited = !!song.starred || (favIds?.has(song.id) ?? false);
+  // La lista central manda cuando está cargada; `song.starred` de la cola se
+  // queda obsoleto (solo reserva para locales o mientras carga).
+  const favorited = favIds ? favIds.has(song.id) : !!song.starred;
 
   return (
     <GestureDetector gesture={pan}>

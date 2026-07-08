@@ -282,7 +282,10 @@ export default function PlayerScreen() {
   if (!song) return null;
 
   const isLocal = !!song.localUri;
-  const favorited = !!song.starred || (favIds?.has(song.id) ?? false);
+  // La lista central manda cuando está cargada (se refresca al marcar desde
+  // cualquier sitio); `song.starred` de la cola queda obsoleto, así que solo
+  // sirve de reserva para canciones locales o mientras carga.
+  const favorited = favIds ? favIds.has(song.id) : !!song.starred;
   // Las estrellas (setRating) son cosa de Subsonic: se activan en Ajustes y no
   // aplican en Jellyfin, offline, radio (url directa) ni pistas locales.
   const canRate =

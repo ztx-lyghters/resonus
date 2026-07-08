@@ -6,6 +6,7 @@ import { Text, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
 import { coverArtUrl, getAlbum } from '@/api/data';
+import { CoverViewer } from '@/components/CoverViewer';
 import { Dialog } from '@/components/Dialog';
 import { Message } from '@/components/Message';
 import { MoreFromArtist } from '@/components/MoreFromArtist';
@@ -30,6 +31,7 @@ export default function AlbumScreen() {
   const playQueue = usePlayerStore((s) => s.playQueue);
   const [confirmDownload, setConfirmDownload] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [coverOpen, setCoverOpen] = useState(false);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['album', id],
@@ -79,6 +81,7 @@ export default function AlbumScreen() {
         }
         meta={metaParts.join(' · ')}
         coverUri={coverArtUrl(data.album.coverArt ?? data.album.id, 500)}
+        onCoverPress={() => setCoverOpen(true)}
         songs={data.songs}
         currentId={playing?.id}
         numbered
@@ -119,6 +122,11 @@ export default function AlbumScreen() {
           ) : undefined
         }
         onPlay={(start) => playQueue(data.songs, start, data.album.name, `/album/${id}`)}
+      />
+      <CoverViewer
+        visible={coverOpen}
+        uri={coverArtUrl(data.album.coverArt ?? data.album.id, 1200)}
+        onClose={() => setCoverOpen(false)}
       />
       <Dialog
         visible={confirmDownload}

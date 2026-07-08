@@ -50,6 +50,8 @@ interface Props {
   coverUri?: string;
   /** Carátula personalizada (p. ej. el arte de Favoritos); sustituye a coverUri. */
   renderCover?: (size: number) => ReactNode;
+  /** Si se pasa, la carátula es pulsable (p. ej. abrir el visor a pantalla completa). */
+  onCoverPress?: () => void;
   /** Oculta la carátula de la cabecera y recupera ese espacio (p. ej. Favoritos). */
   hideCover?: boolean;
   /** Color del degradado/barra si no hay carátula con color dominante. */
@@ -93,6 +95,7 @@ export function TrackListView({
   meta,
   coverUri,
   renderCover,
+  onCoverPress,
   hideCover,
   accentColor,
   songs,
@@ -196,7 +199,19 @@ export function TrackListView({
           <View style={styles.header}>
             {hideCover ? null : (
               <Animated.View style={[styles.coverCenter, { opacity: coverOpacity }]}>
-                {renderCover ? renderCover(COVER) : <Cover uri={coverUri} size={COVER} />}
+                {onCoverPress ? (
+                  <Pressable
+                    onPress={onCoverPress}
+                    accessibilityRole="imagebutton"
+                    accessibilityLabel={t('View cover')}
+                  >
+                    {renderCover ? renderCover(COVER) : <Cover uri={coverUri} size={COVER} />}
+                  </Pressable>
+                ) : renderCover ? (
+                  renderCover(COVER)
+                ) : (
+                  <Cover uri={coverUri} size={COVER} />
+                )}
               </Animated.View>
             )}
             <Text style={styles.title} numberOfLines={2}>

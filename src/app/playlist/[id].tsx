@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
 import { coverArtUrl, deletePlaylist, getPlaylist, updatePlaylist } from '@/api/data';
+import { CoverViewer } from '@/components/CoverViewer';
 import { Dialog } from '@/components/Dialog';
 import { EmptyState } from '@/components/EmptyState';
 import { Message } from '@/components/Message';
@@ -43,6 +44,7 @@ export default function PlaylistScreen() {
   const [deleting, setDeleting] = useState(false);
   const [confirmDownload, setConfirmDownload] = useState(false);
   const [confirmRemoveDl, setConfirmRemoveDl] = useState(false);
+  const [coverOpen, setCoverOpen] = useState(false);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['playlist', id],
@@ -113,6 +115,9 @@ export default function PlaylistScreen() {
         title={data.playlist.name}
         meta={metaParts.join(' · ')}
         coverUri={coverArtUrl(data.playlist.coverArt ?? data.playlist.id, 500)}
+        onCoverPress={
+          data.playlist.coverArt || data.songs.length > 0 ? () => setCoverOpen(true) : undefined
+        }
         songs={displaySongs}
         playlistIndices={playlistIndices}
         currentId={playing?.id}
@@ -139,6 +144,11 @@ export default function PlaylistScreen() {
           />
         }
         onPlay={(start) => playQueue(displaySongs, start, data.playlist.name, `/playlist/${id}`)}
+      />
+      <CoverViewer
+        visible={coverOpen}
+        uri={coverArtUrl(data.playlist.coverArt ?? data.playlist.id, 1200)}
+        onClose={() => setCoverOpen(false)}
       />
       {sortSheet}
 

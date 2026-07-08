@@ -82,7 +82,12 @@ export function TrackRow({
           <Ionicons name="list" size={22} color={colors.text} />
         </View>
       )}
-      leftThreshold={48}
+      // Menos sensible a propósito: `dragOffsetFromLeftEdge` obliga a un
+      // recorrido horizontal claro antes de que el gesto se active (así un
+      // scroll vertical con algo de lateral ya no lo dispara sin querer), y
+      // `leftThreshold` pide arrastrar bastante para confirmar el encolado.
+      dragOffsetFromLeftEdge={30}
+      leftThreshold={90}
       friction={1}
       overshootLeft={false}
       onSwipeableWillOpen={(direction) => {

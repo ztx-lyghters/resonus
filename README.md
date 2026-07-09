@@ -28,13 +28,17 @@ Get the latest APK from the [Releases](https://github.com/juananzzz/resonus/rele
 
 ## Features
 
-- **Navidrome / OpenSubsonic / Jellyfin / Ampache** — multi-profile login
+- **Navidrome / OpenSubsonic / Jellyfin / Ampache** — multi-profile login, multi-library support
 - **Local mode** — play music offline from device or folder
-- **Offline downloads** — save albums, playlists or songs to your device (original quality or transcoded) and play them from the local profile, no connection needed
-- **Browse & search** — home, artists, albums, genres, playlists, favorites
-- **Playback** — background playback, lock-screen controls, queue, shuffle, repeat, sleep timer, lyrics
+- **Offline downloads** — albums, playlists or songs, original quality or transcoded
+- **Synced lyrics** — karaoke view with tap-to-seek, full-screen mode, optional LRCLIB lookup
+- **Cast to speakers** — UPnP/DLNA renderers
+- **Playback** — crossfade, autoplay similar songs, sleep timer, queue with undo, shuffle, repeat, background & lock-screen controls
+- **Organize** — multi-select (queue, playlist or download in batch), star ratings, pinned items, play history
+- **Make it yours** — accent colors, and show/hide almost any UI element
 - **Android Auto**
 - **Queue sync across devices**
+- **In 4 languages** — English, Spanish, German, Catalan
 
 ## Screenshots
 

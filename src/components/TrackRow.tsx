@@ -38,6 +38,11 @@ interface Props {
   showMenu?: boolean;
   /** Muestra la mini carátula del álbum a la izquierda (estilo Spotify). */
   showArtwork?: boolean;
+  /** Modo selección múltiple: círculo de marcado y sin swipe/menú/corazón. */
+  selecting?: boolean;
+  /** Marcada dentro del modo selección. */
+  selected?: boolean;
+  onLongPress?: () => void;
   onPress: () => void;
 }
 
@@ -49,6 +54,9 @@ export function TrackRow({
   showFavorite = true,
   showMenu = true,
   showArtwork = false,
+  selecting = false,
+  selected = false,
+  onLongPress,
   onPress,
 }: Props) {
   const openMenu = useSongMenu((s) => s.open);
@@ -90,6 +98,7 @@ export function TrackRow({
       leftThreshold={90}
       friction={1}
       overshootLeft={false}
+      enabled={!selecting}
       onSwipeableWillOpen={(direction) => {
         // `direction` es la dirección del GESTO (no el lado del panel):
         // deslizar a la derecha (abre la acción izquierda) llega como RIGHT.
@@ -99,7 +108,15 @@ export function TrackRow({
     <Pressable
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
       onPress={onPress}
+      onLongPress={onLongPress}
     >
+      {selecting ? (
+        <Ionicons
+          name={selected ? 'checkmark-circle' : 'ellipse-outline'}
+          size={22}
+          color={selected ? colors.accent : colors.textMuted}
+        />
+      ) : null}
       {showArtwork ? (
         <View style={styles.artwork}>
           <Cover uri={coverArtUrl(song.coverArt ?? song.albumId, 100)} size={44} />
@@ -129,9 +146,9 @@ export function TrackRow({
         ) : null}
       </View>
 
-      {favorited ? <FavoriteButton id={song.id} starred size={20} /> : null}
+      {favorited && !selecting ? <FavoriteButton id={song.id} starred size={20} /> : null}
       {showDuration ? <Text style={styles.duration}>{formatDuration(song.duration)}</Text> : null}
-      {showMenu ? (
+      {showMenu && !selecting ? (
         <Pressable
           hitSlop={8}
           accessibilityRole="button"

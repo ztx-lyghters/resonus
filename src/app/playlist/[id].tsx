@@ -7,12 +7,14 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
-import { coverArtUrl, deletePlaylist, getPlaylist, updatePlaylist } from '@/api/data';
+import { coverArtUrl, deletePlaylist, getPlaylist, removeFromPlaylist, updatePlaylist } from '@/api/data';
+import { type Song } from '@/api/subsonic';
 import { CoverViewer } from '@/components/CoverViewer';
 import { Dialog } from '@/components/Dialog';
 import { EmptyState } from '@/components/EmptyState';
 import { Message } from '@/components/Message';
 import { PlaylistEditSheet, type PlaylistEdit } from '@/components/PlaylistEditSheet';
+import { PlaylistPickerSheet } from '@/components/PlaylistPickerSheet';
 import { TrackListSkeleton } from '@/components/TrackListSkeleton';
 import { TrackListView } from '@/components/TrackListView';
 import { useSongSort } from '@/hooks/useSongSort';
@@ -45,6 +47,8 @@ export default function PlaylistScreen() {
   const [confirmDownload, setConfirmDownload] = useState(false);
   const [confirmRemoveDl, setConfirmRemoveDl] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
+  // Canciones marcadas en el modo selección pendientes de "añadir a otra".
+  const [addingSongs, setAddingSongs] = useState<Song[] | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['playlist', id],
@@ -58,6 +62,7 @@ export default function PlaylistScreen() {
   );
   const downloadPlaylist = useDownloads((s) => s.downloadPlaylist);
   const deleteSongs = useDownloads((s) => s.deleteSongs);
+  const downloadSongs = useDownloads((s) => s.downloadSongs);
 
   const { songs: displaySongs, indices: playlistIndices, openSort, sortSheet } = useSongSort(
     data?.songs ?? [],
@@ -102,6 +107,48 @@ export default function PlaylistScreen() {
         else queryClient.invalidateQueries({ queryKey: ['playlists'] });
       },
     });
+  }
+
+  /** Quita varias canciones (índices reales) con borrado diferido y deshacer. */
+  function removeMany(indices: number[]) {
+    if ((!auth && !offline) || indices.length === 0) return;
+    const key = ['playlist', id];
+    const drop = new Set(indices);
+    // Optimista: desaparecen ya de la vista; el borrado real se difiere hasta
+    // que caduca el toast. «Deshacer» lo cancela y las restaura en su sitio.
+    const prev = queryClient.getQueryData<{ playlist: unknown; songs: unknown[] }>(key);
+    if (prev) {
+      queryClient.setQueryData(key, {
+        ...prev,
+        songs: prev.songs.filter((_, i) => !drop.has(i)),
+      });
+    }
+    showUndoToast(
+      indices.length === 1
+        ? t('Removed from playlist')
+        : t('{n} removed from playlist', { n: indices.length }),
+      t('Undo'),
+      {
+        commit: () => {
+          void (async () => {
+            try {
+              // De mayor a menor: así los índices no se desplazan entre borrados.
+              for (const i of [...indices].sort((a, b) => b - a)) {
+                await removeFromPlaylist(id, i);
+              }
+            } catch {
+              useToast.getState().show(t("Couldn't complete the action"));
+            }
+            queryClient.invalidateQueries({ queryKey: key });
+            queryClient.invalidateQueries({ queryKey: ['playlists'] });
+          })();
+        },
+        undo: () => {
+          if (prev) queryClient.setQueryData(key, prev);
+          else queryClient.invalidateQueries({ queryKey: key });
+        },
+      },
+    );
   }
 
   if (isLoading) {
@@ -157,7 +204,22 @@ export default function PlaylistScreen() {
             subtitle={t('Add songs from the ⋯ menu of any song.')}
           />
         }
+        selection={{
+          onRemove: (_sel, indices) => removeMany(indices),
+          onAddTo: (sel) => setAddingSongs(sel),
+          onDownload: !offline
+            ? (sel) => {
+                void downloadSongs(sel);
+                toast(t('Downloading…'));
+              }
+            : undefined,
+        }}
         onPlay={(start) => playQueue(displaySongs, start, data.playlist.name, `/playlist/${id}`)}
+      />
+      <PlaylistPickerSheet
+        songs={addingSongs}
+        excludeId={id}
+        onClose={() => setAddingSongs(null)}
       />
       <CoverViewer
         visible={coverOpen}

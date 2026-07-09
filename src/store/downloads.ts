@@ -284,6 +284,8 @@ interface DownloadsState {
   /** Descarga todas las canciones favoritas (grupo 'favorites'). */
   downloadFavorites: (songs: Song[]) => Promise<void>;
   downloadSong: (song: Song) => Promise<void>;
+  /** Descarga un lote suelto de canciones (selección múltiple). */
+  downloadSongs: (songs: Song[]) => Promise<void>;
   /** Borra los ficheros de esas canciones y las quita del catálogo. */
   deleteSongs: (songIds: string[]) => Promise<void>;
   clearAll: () => Promise<void>;
@@ -413,6 +415,17 @@ export const useDownloads = create<DownloadsState>((set, get) => {
 
     downloadSong: async (song) => {
       await downloadGroup(`song:${song.id}`, [song], [albumFromSong(song)]);
+    },
+
+    downloadSongs: async (songs) => {
+      // Álbumes implicados: los de las canciones (entrada parcial si hace falta).
+      const byId = new Map<string, Album>();
+      for (const s of songs) {
+        const al = albumFromSong(s);
+        if (!byId.has(al.id)) byId.set(al.id, al);
+      }
+      // Clave única: cada lote es un grupo efímero sin UI de progreso propia.
+      await downloadGroup(`batch:${Date.now()}`, songs, Array.from(byId.values()));
     },
 
     downloadPlaylist: async (playlist, songs) => {

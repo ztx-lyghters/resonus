@@ -6,7 +6,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useMemo, useRef, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -83,6 +83,19 @@ interface Props {
   emptyState?: ReactNode;
   /** Muestra la mini carátula del álbum en cada fila (playlists/favoritos). */
   showArtwork?: boolean;
+  /**
+   * Habilita la selección múltiple (entrar con pulsación larga en una fila).
+   * Cada acción recibe las canciones marcadas; `indices` son sus posiciones
+   * reales (vía `playlistIndices` si la lista va reordenada).
+   */
+  selection?: {
+    /** Quitar de esta lista (playlist: por índice; favoritos: unstar). */
+    onRemove?: (songs: Song[], indices: number[]) => void;
+    /** Añadir a otra playlist. */
+    onAddTo?: (songs: Song[]) => void;
+    /** Descargar en lote. */
+    onDownload?: (songs: Song[]) => void;
+  };
   onPlay: (startIndex: number) => void | Promise<void>;
 }
 
@@ -110,6 +123,7 @@ export function TrackListView({
   footer,
   emptyState,
   showArtwork,
+  selection,
   onPlay,
 }: Props) {
   const router = useRouter();
@@ -136,6 +150,35 @@ export function TrackListView({
         : undefined;
 
   const scrollY = useRef(new Animated.Value(0)).current;
+
+  // ── Selección múltiple ──────────────────────────────────────────────────
+  // null = modo normal; un Set (aunque esté vacío) = seleccionando.
+  const [selectedIds, setSelectedIds] = useState<Set<string> | null>(null);
+  const selecting = selectedIds !== null;
+  const allSelected = selecting && selectedIds.size === songs.length && songs.length > 0;
+
+  function toggleSelect(id: string) {
+    setSelectedIds((cur) => {
+      const next = new Set(cur ?? []);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  /** Ejecuta una acción del modo selección con lo marcado y sale del modo. */
+  function runSelectionAction(fn: (sel: Song[], indices: number[]) => void) {
+    const sel: Song[] = [];
+    const indices: number[] = [];
+    songs.forEach((s, i) => {
+      if (selectedIds?.has(s.id)) {
+        sel.push(s);
+        indices.push(playlistIndices ? playlistIndices[i] : i);
+      }
+    });
+    setSelectedIds(null);
+    if (sel.length > 0) fn(sel, indices);
+  }
 
   // Sin carátula la cabecera es más corta: el degradado y el colapso de la
   // barra se ajustan a una distancia menor para que la transición cuadre.
@@ -320,6 +363,7 @@ export function TrackListView({
             </View>
           </View>
         }
+        extraData={selectedIds}
         renderItem={({ item, index }) => (
           <TrackRow
             song={item}
@@ -331,32 +375,139 @@ export function TrackListView({
                 ? { playlistId, index: playlistIndices ? playlistIndices[index] : index }
                 : undefined
             }
-            onPress={() => onPlay(index)}
+            selecting={selecting}
+            selected={!!selectedIds?.has(item.id)}
+            onLongPress={
+              selection && !selecting ? () => setSelectedIds(new Set([item.id])) : undefined
+            }
+            onPress={() => (selecting ? toggleSelect(item.id) : onPlay(index))}
           />
         )}
         ListEmptyComponent={emptyState ? <>{emptyState}</> : null}
         ListFooterComponent={footer ? <>{footer}</> : null}
       />
 
-      {/* Barra fija superior: el fondo y el título aparecen al colapsar. */}
+      {/* Barra fija superior: el fondo y el título aparecen al colapsar. En
+          modo selección se sustituye por ✕ + contador + seleccionar todo. */}
       <View style={[styles.bar, { height: insets.top + TOPBAR_H, paddingTop: insets.top }]}>
-        <Animated.View
-          pointerEvents="none"
-          style={[StyleSheet.absoluteFill, { backgroundColor: headerColor, opacity: barBgOpacity }]}
-        />
-        <Pressable
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel={t('Close')}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="chevron-back" size={28} color={colors.text} />
-        </Pressable>
-        <Animated.Text style={[styles.barTitle, { opacity: barContentOpacity }]} numberOfLines={1}>
-          {title}
-        </Animated.Text>
+        {selecting ? (
+          <>
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: headerColor }]} />
+            <Pressable
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel={t('Close')}
+              onPress={() => setSelectedIds(null)}
+            >
+              <Ionicons name="close" size={26} color={colors.text} />
+            </Pressable>
+            <Text style={styles.barTitle} numberOfLines={1}>
+              {t('{n} selected', { n: selectedIds.size })}
+            </Text>
+            <Pressable
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel={t('Select all')}
+              onPress={() =>
+                setSelectedIds(allSelected ? new Set() : new Set(songs.map((s) => s.id)))
+              }
+            >
+              <Ionicons
+                name="checkmark-done"
+                size={24}
+                color={allSelected ? colors.accent : colors.text}
+              />
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                StyleSheet.absoluteFill,
+                { backgroundColor: headerColor, opacity: barBgOpacity },
+              ]}
+            />
+            <Pressable
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel={t('Close')}
+              onPress={() => router.back()}
+            >
+              <Ionicons name="chevron-back" size={28} color={colors.text} />
+            </Pressable>
+            <Animated.Text
+              style={[styles.barTitle, { opacity: barContentOpacity }]}
+              numberOfLines={1}
+            >
+              {title}
+            </Animated.Text>
+          </>
+        )}
       </View>
+
+      {/* Barra flotante de acciones del modo selección (sobre el mini player,
+          a la altura del toast). */}
+      {selecting ? (
+        <View style={[styles.selectionBar, { bottom: insets.bottom + 96 }]}>
+          {selection?.onAddTo ? (
+            <SelectionAction
+              icon="add-circle-outline"
+              label={t('Add to a playlist')}
+              enabled={selectedIds.size > 0}
+              onPress={() => runSelectionAction((sel) => selection.onAddTo!(sel))}
+            />
+          ) : null}
+          {selection?.onDownload ? (
+            <SelectionAction
+              icon="download-outline"
+              label={t('Download')}
+              enabled={selectedIds.size > 0}
+              onPress={() => runSelectionAction((sel) => selection.onDownload!(sel))}
+            />
+          ) : null}
+          {selection?.onRemove ? (
+            <SelectionAction
+              icon="remove-circle-outline"
+              label={t('Remove')}
+              enabled={selectedIds.size > 0}
+              onPress={() => runSelectionAction((sel, idx) => selection.onRemove!(sel, idx))}
+            />
+          ) : null}
+        </View>
+      ) : null}
     </View>
+  );
+}
+
+/** Botón (icono + etiqueta) de la barra flotante del modo selección. */
+function SelectionAction({
+  icon,
+  label,
+  enabled,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  enabled: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.selectionAction,
+        (pressed || !enabled) && { opacity: 0.5 },
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      disabled={!enabled}
+      onPress={onPress}
+    >
+      <Ionicons name={icon} size={22} color={colors.text} />
+      <Text style={styles.selectionLabel} numberOfLines={1}>
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -464,5 +615,25 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: fontSize.md,
     fontWeight: '700',
+  },
+  selectionBar: {
+    position: 'absolute',
+    left: spacing.xl,
+    right: spacing.xl,
+    flexDirection: 'row',
+    backgroundColor: '#2E2E2E',
+    borderRadius: 16,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+  },
+  selectionAction: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+  },
+  selectionLabel: {
+    color: colors.text,
+    fontSize: fontSize.xs,
+    fontWeight: '600',
   },
 });

@@ -1,0 +1,165 @@
+/**
+ * Hoja inferior para elegir una playlist destino y añadirle canciones en lote
+ * (selección múltiple). Permite crear una playlist nueva. Hace el añadido y
+ * los toasts ella misma, para reutilizarla desde cualquier pantalla.
+ */
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { addToPlaylist, coverArtUrl, createPlaylist, getPlaylists } from '@/api/data';
+import { type Song } from '@/api/subsonic';
+import { useBottomSheetAnim } from '@/hooks/useBottomSheetAnim';
+import { useT } from '@/i18n';
+import { useToast } from '@/store/toast';
+import { colors, fontSize, radius, spacing } from '@/theme';
+import { Cover } from './Cover';
+import { Dialog } from './Dialog';
+
+export function PlaylistPickerSheet({
+  songs,
+  excludeId,
+  onClose,
+}: {
+  /** Canciones a añadir; null = hoja oculta. */
+  songs: Song[] | null;
+  /** Playlist a ocultar de la lista (la de origen). */
+  excludeId?: string;
+  onClose: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
+  const toast = useToast((s) => s.show);
+  const t = useT();
+  const visible = !!songs && songs.length > 0;
+  const { dismiss, backdropStyle, sheetStyle, onSheetLayout } = useBottomSheetAnim(visible);
+  const close = () => dismiss(onClose);
+  const [creating, setCreating] = useState(false);
+
+  const { data: playlists, isLoading } = useQuery({
+    queryKey: ['playlists'],
+    queryFn: () => getPlaylists(),
+    enabled: visible,
+  });
+
+  if (!songs || songs.length === 0) return null;
+
+  async function addAllTo(playlistId: string, name: string) {
+    if (!songs) return;
+    close();
+    try {
+      for (const s of songs) await addToPlaylist(playlistId, s.id);
+      queryClient.invalidateQueries({ queryKey: ['playlist', playlistId] });
+      queryClient.invalidateQueries({ queryKey: ['playlists'] });
+      toast(
+        songs.length === 1
+          ? t('Added to “{name}”', { name })
+          : t('{n} added to “{name}”', { n: songs.length, name }),
+      );
+    } catch {
+      toast(t("Couldn't add to the playlist"));
+    }
+  }
+
+  async function createAndAdd(name: string) {
+    setCreating(false);
+    if (!name.trim()) return;
+    try {
+      const id = await createPlaylist(name.trim());
+      await addAllTo(id, name.trim());
+    } catch {
+      close();
+      toast(t("Couldn't create the playlist"));
+    }
+  }
+
+  return (
+    <Modal transparent animationType="none" visible onRequestClose={close}>
+      <Animated.View style={[styles.backdrop, backdropStyle]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={close} />
+      </Animated.View>
+      <Animated.View
+        style={[styles.sheet, { paddingBottom: insets.bottom + spacing.md }, sheetStyle]}
+        onLayout={onSheetLayout}
+      >
+        <Text style={styles.title}>{t('Add to a playlist')}</Text>
+        <View style={styles.divider} />
+        <View style={{ maxHeight: 400 }}>
+          <Pressable
+            style={({ pressed }) => [styles.row, pressed && { opacity: 0.6 }]}
+            onPress={() => setCreating(true)}
+          >
+            <View style={styles.newPlaylistIcon}>
+              <Ionicons name="add" size={24} color={colors.text} />
+            </View>
+            <Text style={styles.rowText}>{t('New playlist')}</Text>
+          </Pressable>
+          {isLoading ? (
+            <ActivityIndicator style={{ marginVertical: spacing.lg }} color={colors.accent} />
+          ) : (
+            <ScrollView>
+              {(playlists ?? [])
+                .filter((p) => p.id !== excludeId)
+                .map((p) => (
+                  <Pressable
+                    key={p.id}
+                    style={({ pressed }) => [styles.row, pressed && { opacity: 0.6 }]}
+                    onPress={() => addAllTo(p.id, p.name)}
+                  >
+                    <Cover uri={coverArtUrl(p.coverArt ?? p.id, 100)} size={40} />
+                    <Text style={styles.rowText} numberOfLines={1}>
+                      {p.name}
+                    </Text>
+                  </Pressable>
+                ))}
+            </ScrollView>
+          )}
+        </View>
+      </Animated.View>
+
+      <Dialog
+        visible={creating}
+        title={t('New playlist')}
+        input={{ placeholder: t('Playlist name') }}
+        confirmLabel={t('Create')}
+        onCancel={() => setCreating(false)}
+        onConfirm={createAndAdd}
+      />
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
+  sheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+  },
+  title: { color: colors.text, fontSize: fontSize.md, fontWeight: '700', paddingBottom: spacing.md },
+  divider: { height: 1, backgroundColor: colors.border, marginBottom: spacing.sm },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  rowText: { color: colors.text, fontSize: fontSize.md, flex: 1 },
+  newPlaylistIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

@@ -1,13 +1,15 @@
 /** Pantalla de Favoritos: canciones marcadas con estrella, estilo Spotify. */
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
-import { getStarred } from '@/api/data';
+import { getStarred, unstar } from '@/api/data';
+import { type Song } from '@/api/subsonic';
 import { Dialog } from '@/components/Dialog';
 import { EmptyState } from '@/components/EmptyState';
 import { Message } from '@/components/Message';
+import { PlaylistPickerSheet } from '@/components/PlaylistPickerSheet';
 import { TrackListView } from '@/components/TrackListView';
 import { useSongSort } from '@/hooks/useSongSort';
 import { songsLabel, useT } from '@/i18n';
@@ -16,6 +18,7 @@ import { useAuthStore } from '@/store/auth';
 import { groupDownloadState, useDownloads } from '@/store/downloads';
 import { currentSong, SOURCE_FAVORITES, usePlayerStore } from '@/store/player';
 import { useSettings } from '@/store/settings';
+import { showUndoToast, useToast } from '@/store/toast';
 import { colors } from '@/theme';
 
 // Cabecera índigo → negro (estilo "Canciones que te gustan" de Spotify): el
@@ -33,9 +36,13 @@ export default function FavoritesScreen() {
   const showListArtwork = useSettings((s) => s.showListArtwork);
   const playing = usePlayerStore(currentSong);
   const playQueue = usePlayerStore((s) => s.playQueue);
+  const queryClient = useQueryClient();
+  const toast = useToast((s) => s.show);
 
   const [confirmDownload, setConfirmDownload] = useState(false);
   const [confirmRemoveDl, setConfirmRemoveDl] = useState(false);
+  // Canciones marcadas en el modo selección pendientes de "añadir a otra".
+  const [addingSongs, setAddingSongs] = useState<Song[] | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['starred'],
@@ -47,8 +54,42 @@ export default function FavoritesScreen() {
   const download = useDownloads(useShallow((s) => groupDownloadState(s, 'favorites', songIds)));
   const downloadFavorites = useDownloads((s) => s.downloadFavorites);
   const deleteSongs = useDownloads((s) => s.deleteSongs);
+  const downloadSongs = useDownloads((s) => s.downloadSongs);
 
   const { songs: displaySongs, openSort, sortSheet } = useSongSort(data?.songs ?? [], 'favorites');
+
+  /** Desmarca varias favoritas con borrado diferido y deshacer. */
+  function removeMany(sel: Song[]) {
+    if (sel.length === 0) return;
+    const ids = new Set(sel.map((s) => s.id));
+    // Optimista sobre la lista central de favoritos: desaparecen ya (también
+    // los corazones de las filas, que beben de ['starred']). El unstar real se
+    // difiere hasta que caduca el toast; «Deshacer» lo cancela.
+    const prev = queryClient.getQueryData<{ songs: Song[] }>(['starred']);
+    if (prev) {
+      queryClient.setQueryData(['starred'], {
+        ...prev,
+        songs: prev.songs.filter((s) => !ids.has(s.id)),
+      });
+    }
+    showUndoToast(
+      sel.length === 1
+        ? t('Removed from favorites')
+        : t('{n} removed from favorites', { n: sel.length }),
+      t('Undo'),
+      {
+        commit: () => {
+          Promise.all(sel.map((s) => unstar(s.id)))
+            .catch(() => useToast.getState().show(t("Couldn't complete the action")))
+            .finally(() => queryClient.invalidateQueries({ queryKey: ['starred'] }));
+        },
+        undo: () => {
+          if (prev) queryClient.setQueryData(['starred'], prev);
+          else queryClient.invalidateQueries({ queryKey: ['starred'] });
+        },
+      },
+    );
+  }
 
   if (isLoading) {
     return (
@@ -104,8 +145,19 @@ export default function FavoritesScreen() {
               }
             : undefined
         }
+        selection={{
+          onRemove: (sel) => removeMany(sel),
+          onAddTo: (sel) => setAddingSongs(sel),
+          onDownload: !offline
+            ? (sel) => {
+                void downloadSongs(sel);
+                toast(t('Downloading…'));
+              }
+            : undefined,
+        }}
         onPlay={(start) => playQueue(displaySongs, start, SOURCE_FAVORITES, '/favorites')}
       />
+      <PlaylistPickerSheet songs={addingSongs} onClose={() => setAddingSongs(null)} />
       {sortSheet}
 
       <Dialog

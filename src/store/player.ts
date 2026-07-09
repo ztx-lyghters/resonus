@@ -251,6 +251,32 @@ async function loadIndex(index: number, autoplay: boolean) {
   }
 }
 
+// ── Historial "atrás" estilo Spotify ────────────────────────────────────────
+// Pila de contextos ya reproducidos para que el botón/gesto anterior vuelva a
+// la canción previa aunque venga de otra lista o álbum (no a la pista anterior
+// del contexto actual). Se apila en cada avance/salto hacia delante y se
+// desapila en previous(). Las entradas comparten la referencia de `queue`
+// dentro de un mismo contexto, así que solo pesan lo que cambia entre saltos.
+type HistoryEntry = {
+  queue: Song[];
+  index: number;
+  source: string | null;
+  sourceHref: string | null;
+  originalQueue: Song[] | null;
+  shuffle: boolean;
+};
+const HISTORY_MAX = 100;
+let playedHistory: HistoryEntry[] = [];
+
+/** Apila el contexto actual antes de avanzar o saltar a otra pista. */
+function pushHistory() {
+  const { queue, index, source, sourceHref, originalQueue, shuffle } =
+    usePlayerStore.getState();
+  if (!queue[index]) return;
+  playedHistory.push({ queue, index, source, sourceHref, originalQueue, shuffle });
+  if (playedHistory.length > HISTORY_MAX) playedHistory.shift();
+}
+
 /** Scrobble / contador local + sincroniza la cola al cambiar de pista. */
 function onTrackChanged(song: Song) {
   const auth = useAuthStore.getState().auth;
@@ -377,6 +403,7 @@ function startCrossfade(index: number, fadeSec: number) {
   } catch {
     return; // sin crossfade: el fin de pista normal hará el cambio
   }
+  pushHistory();
   consumeQueuedOnIndexChange(index);
   fadingOut = out;
   activeIdx = 1 - activeIdx;
@@ -483,6 +510,7 @@ function onStatus(status: AudioStatus) {
     if (ni == null) {
       usePlayerStore.setState({ isPlaying: false });
     } else {
+      pushHistory();
       void loadIndex(ni, true);
     }
   }
@@ -732,6 +760,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (songs.length === 0) return;
     attachAppState();
     autoplayFetchedFor = null;
+    // Antes de saltar a otra lista/álbum, guarda la canción actual en el
+    // historial "atrás" para poder volver a ella (estilo Spotify).
+    pushHistory();
     // Marca el origen como recién escuchado (orden "Recientes" de Biblioteca).
     if (sourceHref) useLastPlayed.getState().touch(sourceHref);
     set({
@@ -828,13 +859,34 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   next: () => {
     const ni = nextIndex(true);
-    if (ni != null) void loadIndex(ni, true);
+    if (ni != null) {
+      pushHistory();
+      void loadIndex(ni, true);
+    }
   },
 
   previous: () => {
     const { index, positionSec } = get();
+    // Como Spotify: pasados unos segundos, "anterior" reinicia la canción.
     if (positionSec > 3) {
       get().seekTo(0);
+      return;
+    }
+    // Vuelve a la canción previa del historial, aunque sea de otra lista/álbum.
+    const entry = playedHistory.pop();
+    if (entry) {
+      set({
+        queue: entry.queue,
+        index: entry.index,
+        source: entry.source,
+        sourceHref: entry.sourceHref,
+        originalQueue: entry.originalQueue,
+        shuffle: entry.shuffle,
+        queuedCount: 0,
+        positionSec: 0,
+        durationSec: 0,
+      });
+      void loadIndex(entry.index, true);
       return;
     }
     if (index > 0) void loadIndex(index - 1, true);
@@ -1098,6 +1150,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       // ignore
     }
     clearLockScreen();
+    playedHistory = [];
     set({
       queue: [],
       index: 0,

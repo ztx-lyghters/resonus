@@ -12,7 +12,6 @@ minimumReleaseAgeExclude:
   - expo@55.0.27
   - expo-audio@55.0.15
   - expo-crypto@55.0.16
-  - expo-device@55.0.18
   - expo-linking@55.0.16
   - expo-secure-store@55.0.15
   - expo-splash-screen@55.0.22

@@ -10,7 +10,7 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { addToPlaylist, coverArtUrl, createPlaylist, getPlaylists } from '@/api/data';
+import { addToPlaylist, coverArtUrl, createPlaylist, getPlaylist, getPlaylists } from '@/api/data';
 import { type Song } from '@/api/subsonic';
 import { useBottomSheetAnim } from '@/hooks/useBottomSheetAnim';
 import { useT } from '@/i18n';
@@ -38,6 +38,8 @@ export function PlaylistPickerSheet({
   const { dismiss, backdropStyle, sheetStyle, onSheetLayout } = useBottomSheetAnim(visible);
   const close = () => dismiss(onClose);
   const [creating, setCreating] = useState(false);
+  // Aviso "ya está(n) en la playlist" pendiente de confirmar (estilo Spotify).
+  const [dupPrompt, setDupPrompt] = useState<{ playlistId: string; name: string } | null>(null);
 
   const { data: playlists, isLoading } = useQuery({
     queryKey: ['playlists'],
@@ -47,7 +49,8 @@ export function PlaylistPickerSheet({
 
   if (!songs || songs.length === 0) return null;
 
-  async function addAllTo(playlistId: string, name: string) {
+  /** Añade de verdad (sin comprobar duplicados) y cierra con toast. */
+  async function doAdd(playlistId: string, name: string) {
     if (!songs) return;
     close();
     try {
@@ -62,6 +65,23 @@ export function PlaylistPickerSheet({
     } catch {
       toast(t("Couldn't add to the playlist"));
     }
+  }
+
+  async function addAllTo(playlistId: string, name: string) {
+    if (!songs) return;
+    // Aviso de duplicados estilo Spotify: si alguna ya está, preguntar antes.
+    // Si la comprobación falla (red), se añade sin aviso: mejor que bloquear.
+    try {
+      const { songs: existing } = await getPlaylist(playlistId);
+      const have = new Set(existing.map((s) => s.id));
+      if (songs.some((s) => have.has(s.id))) {
+        setDupPrompt({ playlistId, name });
+        return;
+      }
+    } catch {
+      // ignore
+    }
+    await doAdd(playlistId, name);
   }
 
   async function createAndAdd(name: string) {
@@ -127,6 +147,25 @@ export function PlaylistPickerSheet({
         confirmLabel={t('Create')}
         onCancel={() => setCreating(false)}
         onConfirm={createAndAdd}
+      />
+
+      <Dialog
+        visible={!!dupPrompt}
+        title={t('Already added')}
+        message={
+          dupPrompt
+            ? songs.length === 1
+              ? t('This song is already in “{name}”.', { name: dupPrompt.name })
+              : t('Some of these songs are already in “{name}”.', { name: dupPrompt.name })
+            : undefined
+        }
+        confirmLabel={t('Add anyway')}
+        onCancel={() => setDupPrompt(null)}
+        onConfirm={() => {
+          const d = dupPrompt;
+          setDupPrompt(null);
+          if (d) void doAdd(d.playlistId, d.name);
+        }}
       />
     </Modal>
   );

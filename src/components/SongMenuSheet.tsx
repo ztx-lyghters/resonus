@@ -20,6 +20,7 @@ import {
   addToPlaylist,
   coverArtUrl,
   createPlaylist,
+  getPlaylist,
   getPlaylists,
   removeFromPlaylist,
   star,
@@ -90,6 +91,8 @@ export function SongMenuSheet() {
 
   const [mode, setMode] = useState<'actions' | 'playlists' | 'sleep'>('actions');
   const [creating, setCreating] = useState(false);
+  // Aviso "ya está en la playlist" pendiente de confirmar (estilo Spotify).
+  const [dupPrompt, setDupPrompt] = useState<{ playlistId: string; name: string } | null>(null);
 
   // Al abrir el menú para una canción, volvemos siempre a la vista de acciones.
   useEffect(() => {
@@ -109,8 +112,9 @@ export function SongMenuSheet() {
     router.push(path);
   };
 
-  async function addTo(playlistId: string, playlistName: string) {
-    if ((!auth && !offline) || !song) return;
+  /** Añade de verdad (sin comprobar duplicados) y cierra con toast. */
+  async function doAdd(playlistId: string, playlistName: string) {
+    if (!song) return;
     close();
     try {
       await addToPlaylist(playlistId, song.id);
@@ -119,6 +123,22 @@ export function SongMenuSheet() {
     } catch {
       toast(t("Couldn't add to the playlist"));
     }
+  }
+
+  async function addTo(playlistId: string, playlistName: string) {
+    if ((!auth && !offline) || !song) return;
+    // Aviso de duplicado estilo Spotify: si ya está, preguntar antes. Si la
+    // comprobación falla (red), se añade sin aviso: mejor que bloquear.
+    try {
+      const { songs } = await getPlaylist(playlistId);
+      if (songs.some((s) => s.id === song.id)) {
+        setDupPrompt({ playlistId, name: playlistName });
+        return;
+      }
+    } catch {
+      // ignore
+    }
+    await doAdd(playlistId, playlistName);
   }
 
   async function createAndAdd(name: string) {
@@ -398,6 +418,19 @@ export function SongMenuSheet() {
         confirmLabel={t('Create')}
         onCancel={() => setCreating(false)}
         onConfirm={createAndAdd}
+      />
+
+      <Dialog
+        visible={!!dupPrompt}
+        title={t('Already added')}
+        message={dupPrompt ? t('This song is already in “{name}”.', { name: dupPrompt.name }) : undefined}
+        confirmLabel={t('Add anyway')}
+        onCancel={() => setDupPrompt(null)}
+        onConfirm={() => {
+          const d = dupPrompt;
+          setDupPrompt(null);
+          if (d) void doAdd(d.playlistId, d.name);
+        }}
       />
     </Modal>
   );

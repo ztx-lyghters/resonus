@@ -22,7 +22,7 @@ import { useAuthStore } from '@/store/auth';
 import { groupDownloadState, useDownloads } from '@/store/downloads';
 import { currentSong, usePlayerStore } from '@/store/player';
 import { useSettings } from '@/store/settings';
-import { useToast } from '@/store/toast';
+import { showUndoToast, useToast } from '@/store/toast';
 import { colors, fontSize, spacing } from '@/theme';
 
 export default function PlaylistScreen() {
@@ -77,17 +77,31 @@ export default function PlaylistScreen() {
     }
   }
 
-  async function onDelete() {
+  function onDelete() {
     setDeleting(false);
     if (!auth && !offline) return;
-    try {
-      await deletePlaylist(id);
-      queryClient.invalidateQueries({ queryKey: ['playlists'] });
-      toast(t('Playlist deleted'));
-      router.back();
-    } catch {
-      toast(t("Couldn't complete the action"));
+    // Optimista: desaparece de la lista y salimos de la pantalla; el borrado
+    // real se difiere hasta que caduca el toast. «Deshacer» lo cancela (el
+    // servidor no llegó a enterarse).
+    const prev = queryClient.getQueryData<{ id: string }[]>(['playlists']);
+    if (prev) {
+      queryClient.setQueryData(['playlists'], prev.filter((p) => p.id !== id));
     }
+    router.back();
+    showUndoToast(t('Playlist deleted'), t('Undo'), {
+      commit: () => {
+        deletePlaylist(id)
+          .then(() => queryClient.invalidateQueries({ queryKey: ['playlists'] }))
+          .catch(() => {
+            useToast.getState().show(t("Couldn't complete the action"));
+            queryClient.invalidateQueries({ queryKey: ['playlists'] });
+          });
+      },
+      undo: () => {
+        if (prev) queryClient.setQueryData(['playlists'], prev);
+        else queryClient.invalidateQueries({ queryKey: ['playlists'] });
+      },
+    });
   }
 
   if (isLoading) {
@@ -223,7 +237,6 @@ export default function PlaylistScreen() {
       <Dialog
         visible={deleting}
         title={t('Delete “{name}”?', { name: data.playlist.name })}
-        message={t("This can't be undone.")}
         confirmLabel={t('Delete')}
         destructive
         onCancel={() => setDeleting(false)}

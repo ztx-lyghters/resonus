@@ -33,7 +33,7 @@ import { useAuthStore } from '@/store/auth';
 import { useDownloads } from '@/store/downloads';
 import { usePlayerStore } from '@/store/player';
 import { useSongMenu } from '@/store/songMenu';
-import { useToast } from '@/store/toast';
+import { showUndoToast, useToast } from '@/store/toast';
 import { useT } from '@/i18n';
 import { colors, fontSize, radius, spacing } from '@/theme';
 import { Cover } from './Cover';
@@ -135,17 +135,35 @@ export function SongMenuSheet() {
     }
   }
 
-  async function removeFromList() {
+  function removeFromList() {
     if ((!auth && !offline) || !context) return;
     close();
-    try {
-      await removeFromPlaylist(context.playlistId, context.index);
-      queryClient.invalidateQueries({ queryKey: ['playlist', context.playlistId] });
-      queryClient.invalidateQueries({ queryKey: ['playlists'] });
-      toast(t('Removed from playlist'));
-    } catch {
-      toast(t("Couldn't complete the action"));
+    const { playlistId, index } = context;
+    const key = ['playlist', playlistId];
+    // Optimista: la canción desaparece ya de la lista; el borrado real se
+    // difiere hasta que el toast caduca. «Deshacer» lo cancela y la restaura
+    // en su posición (el servidor no llegó a enterarse).
+    const prev = queryClient.getQueryData<{ playlist: unknown; songs: unknown[] }>(key);
+    if (prev) {
+      queryClient.setQueryData(key, { ...prev, songs: prev.songs.filter((_, i) => i !== index) });
     }
+    showUndoToast(t('Removed from playlist'), t('Undo'), {
+      commit: () => {
+        removeFromPlaylist(playlistId, index)
+          .then(() => {
+            queryClient.invalidateQueries({ queryKey: key });
+            queryClient.invalidateQueries({ queryKey: ['playlists'] });
+          })
+          .catch(() => {
+            useToast.getState().show(t("Couldn't complete the action"));
+            queryClient.invalidateQueries({ queryKey: key });
+          });
+      },
+      undo: () => {
+        if (prev) queryClient.setQueryData(key, prev);
+        else queryClient.invalidateQueries({ queryKey: key });
+      },
+    });
   }
 
   return (
@@ -337,8 +355,12 @@ export function SongMenuSheet() {
                 icon="arrow-down-circle"
                 label={t('Remove download')}
                 onPress={() => {
+                  // El fichero se borra ya; «Deshacer» vuelve a descargarlo.
                   void deleteDownloads([song.id]);
-                  toast(t('Download removed'));
+                  toast(t('Download removed'), {
+                    label: t('Undo'),
+                    run: () => void downloadSong(song),
+                  });
                   close();
                 }}
               />

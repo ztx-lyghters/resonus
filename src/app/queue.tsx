@@ -25,6 +25,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { formatTotalDuration } from '@/lib/format';
 import { SOURCE_FAVORITES, SOURCE_HISTORY, usePlayerStore } from '@/store/player';
 import { useSettings } from '@/store/settings';
+import { useToast } from '@/store/toast';
 import { useT } from '@/i18n';
 import { colors, fontSize, spacing } from '@/theme';
 import { listPerf } from '@/lib/listPerf';
@@ -73,7 +74,14 @@ function UpcomingRow({ item, absIndex }: { item: Song; absIndex: number }) {
   const jumpTo = usePlayerStore((s) => s.jumpTo);
   const removeAt = usePlayerStore((s) => s.removeAt);
   const showListArtwork = useSettings((s) => s.showListArtwork);
+  const toast = useToast((s) => s.show);
+  const t = useT();
   const drag = useReorderableDrag();
+
+  const remove = async () => {
+    const undo = await removeAt(absIndex);
+    if (undo) toast(t('Removed from queue'), { label: t('Undo'), run: undo });
+  };
 
   return (
     <View style={styles.row}>
@@ -96,7 +104,7 @@ function UpcomingRow({ item, absIndex }: { item: Song; absIndex: number }) {
       </Pressable>
 
       <View style={styles.actions}>
-        <Pressable hitSlop={6} onPress={() => removeAt(absIndex)}>
+        <Pressable hitSlop={6} onPress={() => void remove()}>
           <Ionicons name="close" size={22} color={colors.textSecondary} />
         </Pressable>
         <Pressable hitSlop={6} onPressIn={drag}>
@@ -117,6 +125,7 @@ export default function QueueScreen() {
   const source = usePlayerStore((s) => s.source);
   const moveTrack = usePlayerStore((s) => s.moveTrack);
   const clearQueue = usePlayerStore((s) => s.clearQueue);
+  const toast = useToast((s) => s.show);
   const [confirmClear, setConfirmClear] = useState(false);
 
   const current = queue[index] ?? null;
@@ -213,7 +222,8 @@ export default function QueueScreen() {
         onCancel={() => setConfirmClear(false)}
         onConfirm={() => {
           setConfirmClear(false);
-          clearQueue();
+          const undo = clearQueue();
+          if (undo) toast(t('Queue cleared'), { label: t('Undo'), run: undo });
         }}
       />
     </SafeAreaView>

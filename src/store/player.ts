@@ -733,12 +733,16 @@ interface PlayerState {
   seekTo: (sec: number) => void;
   setVolume: (v: number) => void;
   jumpTo: (index: number) => void;
-  removeAt: (index: number) => void;
+  /** Quita la canción en `index`. Devuelve la función que la reinserta en su
+   *  sitio (para el toast «Deshacer»), salvo al quitar la actual o vaciar. */
+  removeAt: (index: number) => Promise<(() => void) | undefined>;
   moveTrack: (from: number, to: number) => void;
   /** Guarda la valoración (1-5; 0 = sin valorar) en las copias de la cola. */
   rateSong: (id: string, rating: number) => void;
-  /** Vacía la cola dejando solo la canción actual (sigue sonando). */
-  clearQueue: () => void;
+  /** Vacía la cola dejando solo la canción actual (sigue sonando). Devuelve
+   *  la función que deshace el vaciado (para el toast «Deshacer»), o nada si
+   *  no había cola. */
+  clearQueue: () => (() => void) | undefined;
   toggleShuffle: () => void;
   cycleRepeat: () => void;
   setSleepTimer: (minutes: number) => void;
@@ -942,12 +946,13 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   removeAt: async (index) => {
     const { queue, index: cur, queuedCount } = get();
-    if (index < 0 || index >= queue.length) return;
+    if (index < 0 || index >= queue.length) return undefined;
+    const removed = queue[index];
     const next = queue.filter((_, i) => i !== index);
     if (next.length === 0) {
       clearQueueLocal();
       await get().reset();
-      return;
+      return undefined;
     }
     if (index === cur) {
       // Quitamos la actual: cargamos la que ocupa ahora esa posición. Si era
@@ -955,23 +960,45 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       const newIndex = Math.min(cur, next.length - 1);
       set({ queue: next, index: newIndex, queuedCount: Math.max(0, queuedCount - 1) });
       await loadIndex(newIndex, get().isPlaying);
-    } else {
-      const inQueuedBlock = index > cur && index <= cur + queuedCount;
-      set({
-        queue: next,
-        index: index < cur ? cur - 1 : cur,
-        queuedCount: inQueuedBlock ? queuedCount - 1 : queuedCount,
-      });
+      scheduleSync();
+      return undefined;
     }
+    const inQueuedBlock = index > cur && index <= cur + queuedCount;
+    set({
+      queue: next,
+      index: index < cur ? cur - 1 : cur,
+      queuedCount: inQueuedBlock ? queuedCount - 1 : queuedCount,
+    });
     scheduleSync();
+    return () => {
+      // Solo si la cola no ha cambiado desde entonces (misma referencia; el
+      // avance automático no la sustituye, así que se ajusta el índice).
+      const st = get();
+      if (st.queue !== next) return;
+      const q = [...st.queue];
+      q.splice(index, 0, removed);
+      set({
+        queue: q,
+        index: st.index >= index ? st.index + 1 : st.index,
+        queuedCount: inQueuedBlock ? st.queuedCount + 1 : st.queuedCount,
+      });
+      scheduleSync();
+    };
   },
 
   clearQueue: () => {
-    const { queue, index } = get();
+    const { queue, index, queuedCount, originalQueue } = get();
     const current = queue[index];
-    if (!current) return;
+    if (!current) return undefined;
     set({ queue: [current], index: 0, queuedCount: 0, originalQueue: null });
     scheduleSync();
+    return () => {
+      // Solo si la cola sigue como la dejó el vaciado (no se pisa nada nuevo).
+      const st = get();
+      if (st.queue.length !== 1 || st.queue[0]?.id !== current.id) return;
+      set({ queue, index, queuedCount, originalQueue });
+      scheduleSync();
+    };
   },
 
   rateSong: (id, rating) => {

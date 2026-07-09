@@ -38,7 +38,9 @@ interface PlayHistoryState {
   entries: HistoryEntry[];
   hydrated: boolean;
   record: (song: Song) => void;
-  clear: () => void;
+  /** Vacía el historial. Devuelve la función que lo restaura (para el toast
+   *  «Deshacer»), o nada si ya estaba vacío. */
+  clear: () => (() => void) | undefined;
   hydrate: () => Promise<void>;
 }
 
@@ -65,8 +67,18 @@ export const usePlayHistory = create<PlayHistoryState>((set, get) => ({
   },
 
   clear: () => {
+    const prev = get().entries;
+    if (prev.length === 0) return undefined;
     set({ entries: [] });
     scheduleSave(storageKey(), []);
+    return () => {
+      // Se conserva lo que haya sonado mientras el toast estaba visible.
+      const cur = get().entries;
+      const ids = new Set(cur.map((e) => e.song.id));
+      const entries = [...cur, ...prev.filter((e) => !ids.has(e.song.id))].slice(0, MAX);
+      set({ entries });
+      scheduleSave(storageKey(), entries);
+    };
   },
 
   hydrate: async () => {

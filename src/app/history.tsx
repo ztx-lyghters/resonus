@@ -19,6 +19,7 @@ import { listPerf } from '@/lib/listPerf';
 import { currentSong, SOURCE_HISTORY, usePlayerStore } from '@/store/player';
 import { usePlayHistory, type HistoryEntry } from '@/store/playHistory';
 import { useSettings } from '@/store/settings';
+import { useToast } from '@/store/toast';
 import { colors, fontSize, spacing, SCREEN_BOTTOM_PADDING } from '@/theme';
 
 interface DaySection {
@@ -53,6 +54,7 @@ export default function HistoryScreen() {
   const clear = usePlayHistory((s) => s.clear);
   const playing = usePlayerStore(currentSong);
   const playQueue = usePlayerStore((s) => s.playQueue);
+  const toast = useToast((s) => s.show);
   const [confirmClear, setConfirmClear] = useState(false);
 
   const songs = entries.map((e) => e.song);
@@ -120,13 +122,13 @@ export default function HistoryScreen() {
       <Dialog
         visible={confirmClear}
         title={t('Clear history')}
-        message={t("This can't be undone.")}
         confirmLabel={t('Clear all')}
         destructive
         onCancel={() => setConfirmClear(false)}
         onConfirm={() => {
           setConfirmClear(false);
-          clear();
+          const undo = clear();
+          if (undo) toast(t('History cleared'), { label: t('Undo'), run: undo });
         }}
       />
     </SafeAreaView>

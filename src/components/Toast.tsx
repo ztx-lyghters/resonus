@@ -1,6 +1,6 @@
 /** Mensaje breve tipo píldora en la parte inferior (estilo Spotify). */
 import { useEffect } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 import Animated, { FadeInDown, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -9,14 +9,17 @@ import { colors, fontSize, radius, spacing } from '@/theme';
 
 export function Toast() {
   const message = useToast((s) => s.message);
+  const actionLabel = useToast((s) => s.actionLabel);
+  const runAction = useToast((s) => s.runAction);
   const hide = useToast((s) => s.hide);
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (!message) return;
-    const id = setTimeout(hide, 2600);
+    // Con acción («Deshacer») damos más margen para reaccionar.
+    const id = setTimeout(hide, actionLabel ? 4000 : 2600);
     return () => clearTimeout(id);
-  }, [message, hide]);
+  }, [message, actionLabel, hide]);
 
   if (!message) return null;
 
@@ -24,12 +27,26 @@ export function Toast() {
     <Animated.View
       entering={FadeInDown.duration(200)}
       exiting={FadeOut.duration(150)}
-      style={[styles.pill, { bottom: insets.bottom + 96 }]}
-      pointerEvents="none"
+      style={[styles.pill, actionLabel ? styles.pillRow : null, { bottom: insets.bottom + 96 }]}
+      // Sin acción el toast es solo informativo y no debe robar toques.
+      pointerEvents={actionLabel ? 'box-none' : 'none'}
     >
-      <Text style={styles.text} numberOfLines={2}>
+      <Text style={[styles.text, actionLabel ? styles.textLeft : null]} numberOfLines={2}>
         {message}
       </Text>
+      {actionLabel ? (
+        <Pressable
+          hitSlop={12}
+          accessibilityRole="button"
+          onPress={() => {
+            runAction?.();
+            hide();
+          }}
+          style={({ pressed }) => pressed && { opacity: 0.6 }}
+        >
+          <Text style={styles.action}>{actionLabel}</Text>
+        </Pressable>
+      ) : null}
     </Animated.View>
   );
 }
@@ -45,5 +62,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     alignItems: 'center',
   },
+  pillRow: { flexDirection: 'row', gap: spacing.lg },
   text: { color: colors.text, fontSize: fontSize.sm, fontWeight: '600' },
+  textLeft: { flex: 1 },
+  action: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700' },
 });

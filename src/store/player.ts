@@ -226,6 +226,7 @@ function consumeQueuedOnIndexChange(next: number) {
 /** Carga la pista en `index` y (opcionalmente) la reproduce. */
 async function loadIndex(index: number, autoplay: boolean) {
   cutCrossfade();
+  pendingSeek = null;
   consumeQueuedOnIndexChange(index);
   if (remoteKind()) return remoteLoadIndex(index, autoplay);
   const { queue, repeat } = usePlayerStore.getState();
@@ -478,6 +479,13 @@ function fadeVolume(p: AudioPlayer, from: number, to: number, onDone?: () => voi
   }, 25);
 }
 
+// Tras un seek, el player nativo sigue emitiendo estados con la posición
+// antigua hasta que la búsqueda termina; si se dejaran pasar, la UI (slider,
+// letra karaoke) rebotaría a la posición vieja y volvería a saltar. Mientras
+// el seek está pendiente se mantiene la posición pedida y no se evalúa el
+// crossfade (un estado viejo cerca del final lo dispararía en falso).
+let pendingSeek: { sec: number; at: number } | null = null;
+
 /** Listener de estado de expo-audio: progreso, play/pausa y fin de pista. */
 function onStatus(status: AudioStatus) {
   // Con salida remota (UPnP/DLNA) el player local está en pausa y sus
@@ -489,8 +497,16 @@ function onStatus(status: AudioStatus) {
   const intendPlay = status.playing || prev.isPlaying;
   const buffering =
     intendPlay && !status.didJustFinish && (status.isBuffering || !status.isLoaded);
+  let positionSec = status.currentTime ?? 0;
+  if (pendingSeek) {
+    if (Math.abs(positionSec - pendingSeek.sec) < 1 || Date.now() - pendingSeek.at > 2000) {
+      pendingSeek = null; // el player ya alcanzó el destino (o nos rendimos)
+    } else {
+      positionSec = pendingSeek.sec;
+    }
+  }
   usePlayerStore.setState({
-    positionSec: status.currentTime ?? 0,
+    positionSec,
     durationSec: status.duration || prev.durationSec,
     // Durante el fundido de pausa/reanudación el player nativo sigue sonando
     // unos ms; mantenemos el estado ya fijado para que el botón no parpadee.
@@ -503,7 +519,7 @@ function onStatus(status: AudioStatus) {
     stopPeriodicSync();
     if (prev.isPlaying) scheduleSync(); // acaba de pausar
   }
-  maybeStartCrossfade(status);
+  if (!pendingSeek) maybeStartCrossfade(status);
   if (status.didJustFinish) {
     if (handleSleepAtSongEnd()) return;
     const ni = nextIndex(false);
@@ -642,7 +658,10 @@ export function initRemoteIntegration() {
       if (!queue[index]) return;
       void (async () => {
         await loadIndex(index, false);
-        if (lastPositionSec > 0) activePlayer()?.seekTo(lastPositionSec);
+        if (lastPositionSec > 0) {
+          pendingSeek = { sec: lastPositionSec, at: Date.now() };
+          activePlayer()?.seekTo(lastPositionSec);
+        }
         usePlayerStore.setState({ positionSec: lastPositionSec, isPlaying: false });
       })();
     },
@@ -896,7 +915,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   seekTo: (sec) => {
     cutCrossfade();
     if (remoteKind()) remoteSeek(sec);
-    else activePlayer()?.seekTo(sec);
+    else {
+      pendingSeek = { sec, at: Date.now() };
+      activePlayer()?.seekTo(sec);
+    }
     set({ positionSec: sec });
   },
 
@@ -1088,7 +1110,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     });
     // Cargamos la pista (sin reproducir) y dejamos la posición lista.
     await loadIndex(index, false);
-    if (positionSec > 0) activePlayer()?.seekTo(positionSec);
+    if (positionSec > 0) {
+      pendingSeek = { sec: positionSec, at: Date.now() };
+      activePlayer()?.seekTo(positionSec);
+    }
     usePlayerStore.setState({ positionSec, isPlaying: false });
   },
 
@@ -1121,7 +1146,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       sourceHref: null,
     });
     await loadIndex(index, false);
-    if (positionSec > 0) activePlayer()?.seekTo(positionSec);
+    if (positionSec > 0) {
+      pendingSeek = { sec: positionSec, at: Date.now() };
+      activePlayer()?.seekTo(positionSec);
+    }
     usePlayerStore.setState({ positionSec, isPlaying: false });
   },
 

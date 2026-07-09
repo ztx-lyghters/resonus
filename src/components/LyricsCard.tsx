@@ -110,6 +110,18 @@ export function SyncedLyricsView({
     offsets.current[index] = y;
   }, []);
 
+  // Tocar una línea es un salto deliberado: se cancela la pausa del auto-scroll
+  // por scroll manual (el usuario suele haber hecho scroll para llegar a la
+  // línea) y así el foco recentra la línea elegida al instante.
+  const onLineTap = useCallback(
+    (sec: number) => {
+      if (resumeTimer.current) clearTimeout(resumeTimer.current);
+      userScroll.current = false;
+      seekTo(sec);
+    },
+    [seekTo],
+  );
+
   useEffect(() => {
     if (current < 0 || viewH === 0 || userScroll.current) return;
     const y = offsets.current[current];
@@ -163,7 +175,7 @@ export function SyncedLyricsView({
             active={i === current}
             next={i === current + 1}
             large={large}
-            seekTo={seekTo}
+            seekTo={onLineTap}
             onMeasure={onMeasure}
           />
         ))}

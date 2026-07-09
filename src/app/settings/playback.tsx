@@ -1,7 +1,8 @@
 /**
- * Ajustes › Calidad y reproducción: bitrate de streaming/descarga, crossfade,
- * autoplay y letras online. En modo offline solo se muestran los ajustes que
- * aplican en local (crossfade y letras online); el resto es de servidor.
+ * Ajustes › Calidad y reproducción: bitrate de streaming, crossfade, autoplay
+ * y letras online. En modo offline solo se muestran los ajustes que aplican
+ * en local (crossfade y letras online); el resto es de servidor. Lo relativo
+ * a descargas vive en Ajustes › Descargas.
  */
 import { ScrollView } from 'react-native';
 
@@ -15,10 +16,6 @@ export default function PlaybackSettings() {
   const offline = useAuthStore((s) => s.offline);
   const maxBitRate = useSettings((s) => s.maxBitRate);
   const setMaxBitRate = useSettings((s) => s.setMaxBitRate);
-  const downloadBitRate = useSettings((s) => s.downloadBitRate);
-  const setDownloadBitRate = useSettings((s) => s.setDownloadBitRate);
-  const downloadWifiOnly = useSettings((s) => s.downloadWifiOnly);
-  const setDownloadWifiOnly = useSettings((s) => s.setDownloadWifiOnly);
   const autoplaySimilar = useSettings((s) => s.autoplaySimilar);
   const setAutoplaySimilar = useSettings((s) => s.setAutoplaySimilar);
   const crossfadeSec = useSettings((s) => s.crossfadeSec);
@@ -32,31 +29,13 @@ export default function PlaybackSettings() {
     <SettingsPage title={t('Quality & playback')}>
       <ScrollView contentContainerStyle={settingsStyles.content}>
         {offline ? null : (
-          <>
-            <SelectList
-              label={t('Streaming quality')}
-              description={t('“Original” uses the highest quality; a lower bitrate saves data.')}
-              options={bitrateOptions}
-              value={maxBitRate}
-              onChange={setMaxBitRate}
-            />
-            <SelectList
-              label={t('Download quality')}
-              options={bitrateOptions}
-              value={downloadBitRate}
-              onChange={setDownloadBitRate}
-            />
-            <SwitchList
-              options={[
-                {
-                  label: t('Download over Wi-Fi only'),
-                  description: t('Block downloads on mobile data.'),
-                  value: downloadWifiOnly,
-                  onChange: setDownloadWifiOnly,
-                },
-              ]}
-            />
-          </>
+          <SelectList
+            label={t('Streaming quality')}
+            description={t('“Original” uses the highest quality; a lower bitrate saves data.')}
+            options={bitrateOptions}
+            value={maxBitRate}
+            onChange={setMaxBitRate}
+          />
         )}
         <SliderRow
           label={t('Crossfade')}

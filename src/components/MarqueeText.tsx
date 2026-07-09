@@ -30,14 +30,23 @@ const SPEED = 30;
 /** Espera antes de cada pasada. */
 const PAUSE_MS = 2500;
 
-export function MarqueeText({ text, style }: { text: string; style?: StyleProp<TextStyle> }) {
+export function MarqueeText({
+  text,
+  style,
+  enabled = true,
+}: {
+  text: string;
+  style?: StyleProp<TextStyle>;
+  /** Con false no se desplaza nunca: el texto largo se corta con puntos. */
+  enabled?: boolean;
+}) {
   // Ancho del contenedor (con texto corto ≈ el propio texto; con texto largo,
   // el hueco disponible, porque maxWidth lo capa) y ancho real del texto.
   const [containerW, setContainerW] = useState(0);
   const [textW, setTextW] = useState(0);
   const offset = useSharedValue(0);
 
-  const overflows = containerW > 0 && textW > containerW + 1;
+  const overflows = enabled && containerW > 0 && textW > containerW + 1;
 
   useEffect(() => {
     cancelAnimation(offset);

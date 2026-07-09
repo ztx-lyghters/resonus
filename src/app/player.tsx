@@ -128,12 +128,17 @@ export default function PlayerScreen() {
   const t = useT();
   const showQualityBadge = useSettings((s) => s.showAudioQuality);
   const showRating = useSettings((s) => s.showRating);
+  const showLyricsCard = useSettings((s) => s.showLyricsCard);
+  const marqueeTitles = useSettings((s) => s.marqueeTitles);
+  const showQueueButton = useSettings((s) => s.showQueueButton);
+  const showDevicesButton = useSettings((s) => s.showDevicesButton);
   const offline = useAuthStore((s) => s.offline);
   const serverType = useAuthStore((s) => s.auth?.serverType);
   const remoteDevice = useUpnp((s) => (s.connected ? s.deviceName : null));
   const [outputOpen, setOutputOpen] = useState(false);
   // Con letra local (.lrc/USLT/LRCLIB) el modo offline también tiene lyrics;
-  // solo la radio (url directa) queda fuera.
+  // solo la radio (url directa) queda fuera. Ocultar la tarjeta (ajuste) no
+  // desactiva las letras: tocar la carátula sigue abriendo pantalla completa.
   const canLyrics = !song?.url;
   const favIds = useFavoriteIds(!!song && (!song?.localUri || offline));
 
@@ -319,7 +324,11 @@ export default function PlayerScreen() {
           scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
         >
-        <View style={{ height: pageH ? pageH - (lyrics ? LYRICS_PEEK : 0) : SCREEN_H * 0.85 }}>
+        <View
+          style={{
+            height: pageH ? pageH - (lyrics && showLyricsCard ? LYRICS_PEEK : 0) : SCREEN_H * 0.85,
+          }}
+        >
         <View style={styles.topBar}>
           <CircleButton name="chevron-down" label={t('Close')} onPress={() => router.back()} />
           <Pressable
@@ -389,15 +398,21 @@ export default function PlayerScreen() {
                   hitSlop={6}
                   onPress={() => router.push(`/album/${song.albumId}` as never)}
                 >
-                  <MarqueeText text={song.title} style={styles.title} />
+                  <MarqueeText text={song.title} style={styles.title} enabled={marqueeTitles} />
                 </Pressable>
               ) : (
-                <MarqueeText text={song.title} style={styles.title} />
+                <MarqueeText text={song.title} style={styles.title} enabled={marqueeTitles} />
               )}
               {(() => {
                 const targets = artistTargets(song);
                 if (targets.length === 0) {
-                  return <MarqueeText text={song.artist ?? t('Unknown')} style={styles.artist} />;
+                  return (
+                    <MarqueeText
+                      text={song.artist ?? t('Unknown')}
+                      style={styles.artist}
+                      enabled={marqueeTitles}
+                    />
+                  );
                 }
                 return (
                   <Pressable
@@ -409,7 +424,11 @@ export default function PlayerScreen() {
                         : router.push(`/artist/${targets[0].id}`)
                     }
                   >
-                    <MarqueeText text={song.artist ?? t('Unknown')} style={styles.artist} />
+                    <MarqueeText
+                      text={song.artist ?? t('Unknown')}
+                      style={styles.artist}
+                      enabled={marqueeTitles}
+                    />
                   </Pressable>
                 );
               })()}
@@ -505,40 +524,48 @@ export default function PlayerScreen() {
             </Pressable>
           </View>
 
-          <View style={styles.bottomRow}>
-            <View style={styles.bottomSlot}>
-              <Pressable
-                hitSlop={10}
-                accessibilityRole="button"
-                accessibilityLabel={t('Devices')}
-                disabled={offline}
-                onPress={() => setOutputOpen(true)}
-                style={styles.deviceRow}
-              >
-                <MaterialIcons
-                  name="devices"
-                  size={22}
-                  color={remoteDevice ? colors.accent : offline ? colors.textMuted : colors.text}
-                />
-                {remoteDevice ? (
-                  <Text style={[styles.deviceName, { color: colors.accent }]} numberOfLines={1}>
-                    {remoteDevice}
-                  </Text>
+          {showDevicesButton || showQueueButton || remoteDevice ? (
+            <View style={styles.bottomRow}>
+              <View style={styles.bottomSlot}>
+                {/* Conectado a un dispositivo remoto se muestra siempre: es la
+                    única vía para desconectar el cast. */}
+                {showDevicesButton || remoteDevice ? (
+                  <Pressable
+                    hitSlop={10}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('Devices')}
+                    disabled={offline}
+                    onPress={() => setOutputOpen(true)}
+                    style={styles.deviceRow}
+                  >
+                    <MaterialIcons
+                      name="devices"
+                      size={22}
+                      color={remoteDevice ? colors.accent : offline ? colors.textMuted : colors.text}
+                    />
+                    {remoteDevice ? (
+                      <Text style={[styles.deviceName, { color: colors.accent }]} numberOfLines={1}>
+                        {remoteDevice}
+                      </Text>
+                    ) : null}
+                  </Pressable>
                 ) : null}
-              </Pressable>
+              </View>
+              {showQueueButton ? (
+                <Pressable
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('View queue')}
+                  onPress={() => router.push('/queue')}
+                >
+                  <MaterialIcons name="queue-music" size={24} color={colors.text} />
+                </Pressable>
+              ) : null}
             </View>
-            <Pressable
-              hitSlop={10}
-              accessibilityRole="button"
-              accessibilityLabel={t('View queue')}
-              onPress={() => router.push('/queue')}
-            >
-              <MaterialIcons name="queue-music" size={24} color={colors.text} />
-            </Pressable>
-          </View>
+          ) : null}
         </View>
         </View>
-        {canLyrics ? <LyricsCard /> : null}
+        {canLyrics && showLyricsCard ? <LyricsCard /> : null}
         </ScrollView>
         </SafeAreaView>
         <OutputSheet visible={outputOpen} onClose={() => setOutputOpen(false)} />

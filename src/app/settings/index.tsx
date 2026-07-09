@@ -1,17 +1,20 @@
 /**
  * Ajustes estilo Spotify: la cuenta arriba como fila de perfil (avatar +
- * nombre + servidor), tres categorías como filas planas, el botón píldora de
- * cerrar sesión y un pie con el enlace al repositorio.
+ * nombre + servidor), las categorías como filas planas, restaurar ajustes,
+ * el botón píldora de cerrar sesión y un pie con el enlace al repositorio.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Dialog } from '@/components/Dialog';
 import { ScreenHeader, settingsStyles } from '@/components/SettingsUI';
 import { useT } from '@/i18n';
 import { useAuthStore } from '@/store/auth';
 import { useSettings } from '@/store/settings';
+import { useToast } from '@/store/toast';
 import { colors, fontSize, spacing } from '@/theme';
 
 export default function SettingsScreen() {
@@ -20,8 +23,13 @@ export default function SettingsScreen() {
   const auth = useAuthStore((s) => s.auth);
   // El anillo del avatar lee el acento del store para recolorearse al cambiarlo.
   const accentColor = useSettings((s) => s.accentColor);
+  const resetToDefaults = useSettings((s) => s.resetToDefaults);
   const logout = useAuthStore((s) => s.logout);
   const offline = useAuthStore((s) => s.offline);
+  const toast = useToast((s) => s.show);
+  // Restaurar valores por defecto: afecta a todos los ajustes, por eso vive
+  // aquí (en el índice) y no dentro de una categoría concreta.
+  const [confirmReset, setConfirmReset] = useState(false);
 
   const initial = offline ? 'O' : (auth?.username ?? '?').charAt(0).toUpperCase();
   const name = offline ? t('Local profile') : auth?.username ?? '—';
@@ -34,13 +42,18 @@ export default function SettingsScreen() {
   // (crossfade, letras online). "Biblioteca" pasa a ser la música local.
   const sections: { key: string; title: string; icon: keyof typeof Ionicons.glyphMap }[] = [
     { key: 'playback', title: 'Quality & playback', icon: 'musical-notes-outline' as const },
+    { key: 'player', title: 'Player', icon: 'play-circle-outline' as const },
+    // Sin servidor no se descarga: la sección solo aparece online.
+    ...(offline
+      ? []
+      : [{ key: 'downloads', title: 'Downloads', icon: 'download-outline' as const }]),
     {
       key: 'library',
       title: offline ? 'Local music' : 'Library',
       icon: offline ? ('phone-portrait-outline' as const) : ('server-outline' as const),
     },
+    // Tema vive dentro de Aspecto (fila con chevron, como Idioma).
     { key: 'personalization', title: 'Appearance', icon: 'color-palette-outline' as const },
-    { key: 'theme', title: 'Theme', icon: 'contrast-outline' as const },
     { key: 'about', title: 'About', icon: 'information-circle-outline' as const },
   ];
 
@@ -72,12 +85,35 @@ export default function SettingsScreen() {
           </Pressable>
         ))}
 
+        <Pressable
+          style={({ pressed }) => [styles.sectionRow, pressed && { opacity: 0.6 }]}
+          onPress={() => setConfirmReset(true)}
+        >
+          <Ionicons name="arrow-undo-outline" size={24} color={colors.textSecondary} />
+          <Text style={[styles.sectionRowTitle, { color: colors.textSecondary }]}>
+            {t('Restore default settings')}
+          </Text>
+        </Pressable>
+
         <Pressable style={settingsStyles.pillButton} onPress={() => logout()}>
           <Text style={settingsStyles.pillButtonText}>
             {offline ? t('Exit offline mode') : t('Sign out')}
           </Text>
         </Pressable>
       </ScrollView>
+
+      <Dialog
+        visible={confirmReset}
+        title={t('Restore default settings')}
+        message={t('Your preferences will go back to their defaults. Your language stays.')}
+        confirmLabel={t('Restore')}
+        onCancel={() => setConfirmReset(false)}
+        onConfirm={() => {
+          setConfirmReset(false);
+          resetToDefaults();
+          toast(t('Settings restored'));
+        }}
+      />
     </SafeAreaView>
   );
 }

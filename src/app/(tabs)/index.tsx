@@ -235,6 +235,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const showHistoryButton = useSettings((s) => s.showHistoryButton);
   const showProfileButton = useSettings((s) => s.showProfileButton);
+  const showQuickGrid = useSettings((s) => s.showQuickGrid);
   // El anillo del avatar lee el acento del store (no la constante global), así
   // se recolorea siempre al cambiarlo o al hidratar; Home es la pantalla
   // inicial y se pinta antes de aplicarse el acento guardado.
@@ -321,7 +322,7 @@ export default function HomeScreen() {
           />
         ) : (
           <>
-            <QuickGrid />
+            {showQuickGrid ? <QuickGrid /> : null}
 
             {offline ? (
               <>

@@ -62,6 +62,7 @@ export function TrackRow({
   const openMenu = useSongMenu((s) => s.open);
   const t = useT();
   const showDuration = useSettings((s) => s.showSongDuration);
+  const swipeToQueue = useSettings((s) => s.swipeToQueue);
   const addToQueue = usePlayerStore((s) => s.addToQueue);
   const toast = useToast((s) => s.show);
   const swipeRef = useRef<SwipeableMethods>(null);
@@ -98,7 +99,7 @@ export function TrackRow({
       leftThreshold={90}
       friction={1}
       overshootLeft={false}
-      enabled={!selecting}
+      enabled={!selecting && swipeToQueue}
       onSwipeableWillOpen={(direction) => {
         // `direction` es la dirección del GESTO (no el lado del panel):
         // deslizar a la derecha (abre la acción izquierda) llega como RIGHT.

@@ -69,6 +69,17 @@ interface SettingsState {
   playerColorBackground: boolean;
   /** Mini-reproductor teñido con el color dominante de la carátula. */
   miniPlayerColorBackground: boolean;
+  /** Tarjeta de letras bajo los controles del reproductor. */
+  showLyricsCard: boolean;
+  /** Marquee: los títulos largos del reproductor se desplazan solos. */
+  marqueeTitles: boolean;
+  /** Botones inferiores del reproductor (cola y dispositivos). */
+  showQueueButton: boolean;
+  showDevicesButton: boolean;
+  /** Gesto de deslizar una canción a la derecha para encolarla. */
+  swipeToQueue: boolean;
+  /** Cuadrícula de acceso rápido (Favoritos + recientes) arriba en Inicio. */
+  showQuickGrid: boolean;
   /** Visibilidad de botones opcionales, para quien prefiera una UI mínima. */
   showHistoryButton: boolean;
   showProfileButton: boolean;
@@ -92,6 +103,12 @@ interface SettingsState {
   setShowArtistPhoto: (value: boolean) => void;
   setPlayerColorBackground: (value: boolean) => void;
   setMiniPlayerColorBackground: (value: boolean) => void;
+  setShowLyricsCard: (value: boolean) => void;
+  setMarqueeTitles: (value: boolean) => void;
+  setShowQueueButton: (value: boolean) => void;
+  setShowDevicesButton: (value: boolean) => void;
+  setSwipeToQueue: (value: boolean) => void;
+  setShowQuickGrid: (value: boolean) => void;
   setShowHistoryButton: (value: boolean) => void;
   setShowProfileButton: (value: boolean) => void;
   setLibrarySort: (value: LibrarySort) => void;
@@ -123,6 +140,12 @@ function snapshot(get: () => SettingsState) {
     showArtistPhoto: s.showArtistPhoto,
     playerColorBackground: s.playerColorBackground,
     miniPlayerColorBackground: s.miniPlayerColorBackground,
+    showLyricsCard: s.showLyricsCard,
+    marqueeTitles: s.marqueeTitles,
+    showQueueButton: s.showQueueButton,
+    showDevicesButton: s.showDevicesButton,
+    swipeToQueue: s.swipeToQueue,
+    showQuickGrid: s.showQuickGrid,
     showHistoryButton: s.showHistoryButton,
     showProfileButton: s.showProfileButton,
     librarySort: s.librarySort,
@@ -147,6 +170,12 @@ const DEFAULTS = {
   showArtistPhoto: true,
   playerColorBackground: true,
   miniPlayerColorBackground: true,
+  showLyricsCard: true,
+  marqueeTitles: true,
+  showQueueButton: true,
+  showDevicesButton: true,
+  swipeToQueue: true,
+  showQuickGrid: true,
   showHistoryButton: true,
   showProfileButton: true,
   librarySort: 'recent' as LibrarySort,
@@ -227,6 +256,36 @@ export const useSettings = create<SettingsState>((set, get) => ({
     persist(snapshot(get));
   },
 
+  setShowLyricsCard: (showLyricsCard) => {
+    set({ showLyricsCard });
+    persist(snapshot(get));
+  },
+
+  setMarqueeTitles: (marqueeTitles) => {
+    set({ marqueeTitles });
+    persist(snapshot(get));
+  },
+
+  setShowQueueButton: (showQueueButton) => {
+    set({ showQueueButton });
+    persist(snapshot(get));
+  },
+
+  setShowDevicesButton: (showDevicesButton) => {
+    set({ showDevicesButton });
+    persist(snapshot(get));
+  },
+
+  setSwipeToQueue: (swipeToQueue) => {
+    set({ swipeToQueue });
+    persist(snapshot(get));
+  },
+
+  setShowQuickGrid: (showQuickGrid) => {
+    set({ showQuickGrid });
+    persist(snapshot(get));
+  },
+
   setShowHistoryButton: (showHistoryButton) => {
     set({ showHistoryButton });
     persist(snapshot(get));
@@ -279,6 +338,12 @@ export const useSettings = create<SettingsState>((set, get) => ({
           showArtistPhoto: boolean;
           playerColorBackground: boolean;
           miniPlayerColorBackground: boolean;
+          showLyricsCard: boolean;
+          marqueeTitles: boolean;
+          showQueueButton: boolean;
+          showDevicesButton: boolean;
+          swipeToQueue: boolean;
+          showQuickGrid: boolean;
           showHistoryButton: boolean;
           showProfileButton: boolean;
           librarySort: LibrarySort;
@@ -338,6 +403,24 @@ export const useSettings = create<SettingsState>((set, get) => ({
         }
         if (typeof parsed.miniPlayerColorBackground === 'boolean') {
           set({ miniPlayerColorBackground: parsed.miniPlayerColorBackground });
+        }
+        if (typeof parsed.showLyricsCard === 'boolean') {
+          set({ showLyricsCard: parsed.showLyricsCard });
+        }
+        if (typeof parsed.marqueeTitles === 'boolean') {
+          set({ marqueeTitles: parsed.marqueeTitles });
+        }
+        if (typeof parsed.showQueueButton === 'boolean') {
+          set({ showQueueButton: parsed.showQueueButton });
+        }
+        if (typeof parsed.showDevicesButton === 'boolean') {
+          set({ showDevicesButton: parsed.showDevicesButton });
+        }
+        if (typeof parsed.swipeToQueue === 'boolean') {
+          set({ swipeToQueue: parsed.swipeToQueue });
+        }
+        if (typeof parsed.showQuickGrid === 'boolean') {
+          set({ showQuickGrid: parsed.showQuickGrid });
         }
         if (typeof parsed.showHistoryButton === 'boolean') {
           set({ showHistoryButton: parsed.showHistoryButton });

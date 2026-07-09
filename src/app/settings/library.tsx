@@ -1,4 +1,4 @@
-/** Ajustes › Biblioteca: escaneo, espacio de descargas y limpieza de caché. */
+/** Ajustes › Biblioteca: escaneo, bibliotecas del servidor y limpieza de caché. */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
@@ -8,23 +8,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { rescanLocal } from '@/api/data';
 import { getScanStatus, startScan } from '@/api/backend';
-import { Dialog } from '@/components/Dialog';
 import { Field, SettingRow, SettingsPage, SwitchList, settingsStyles } from '@/components/SettingsUI';
-import { songsLabel, useT } from '@/i18n';
+import { useT } from '@/i18n';
 import { ensureAudioPermission, pickFolder } from '@/lib/localLibrary';
 import { queryClient } from '@/lib/query';
 import { useAuthStore } from '@/store/auth';
-import { useDownloads } from '@/store/downloads';
 import { profileKeyOf, useLibraries } from '@/store/libraries';
 import { useSettings } from '@/store/settings';
 import { useToast } from '@/store/toast';
 import { colors, fontSize, radius, spacing } from '@/theme';
-
-function formatBytes(n: number): string {
-  if (n >= 1024 ** 3) return `${(n / 1024 ** 3).toFixed(1)} GB`;
-  if (n >= 1024 ** 2) return `${Math.round(n / 1024 ** 2)} MB`;
-  return `${Math.round(n / 1024)} KB`;
-}
 
 export default function LibrarySettings() {
   useSettings((s) => s.accentColor); // re-render al cambiar el acento
@@ -35,10 +27,6 @@ export default function LibrarySettings() {
   const setSource = useAuthStore((s) => s.setOfflineSource);
   const toast = useToast((s) => s.show);
   const insets = useSafeAreaInsets();
-  const lang = useSettings((s) => s.language);
-  const files = useDownloads((s) => s.files);
-  const usageBytes = useDownloads((s) => s.usageBytes);
-  const clearAll = useDownloads((s) => s.clearAll);
   // Bibliotecas del servidor (Navidrome multi-library): un switch por carpeta.
   const foldersMap = useLibraries((s) => s.folders);
   const disabledMap = useLibraries((s) => s.disabled);
@@ -64,19 +52,6 @@ export default function LibrarySettings() {
 
   const [rescanning, setRescanning] = useState(false);
   const [changing, setChanging] = useState(false);
-  const [usage, setUsage] = useState<number | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const count = Object.keys(files).length;
-
-  useEffect(() => {
-    let active = true;
-    usageBytes().then((n) => {
-      if (active) setUsage(n);
-    });
-    return () => {
-      active = false;
-    };
-  }, [usageBytes, count]);
 
   async function chooseFolder() {
     const uri = await pickFolder();
@@ -160,18 +135,6 @@ export default function LibrarySettings() {
               value={scan?.scanning ? t('Scanning…') : t('{n} items', { n: scan?.count ?? 0 })}
             />
             <SettingRow icon="refresh" label={t('Scan now')} onPress={scanNow} />
-            <Field
-              label={t('Storage used')}
-              value={usage == null ? '…' : `${formatBytes(usage)} · ${songsLabel(count, lang)}`}
-            />
-            {count > 0 ? (
-              <SettingRow
-                icon="trash-outline"
-                label={t('Delete all downloads')}
-                destructive
-                onPress={() => setConfirmDelete(true)}
-              />
-            ) : null}
 
             {folders.length >= 2 ? (
               <>
@@ -193,21 +156,6 @@ export default function LibrarySettings() {
 
         <SettingRow icon="trash-outline" label={t('Clear cache')} onPress={clearCache} />
       </ScrollView>
-
-      <Dialog
-        visible={confirmDelete}
-        title={t('Delete all downloads?')}
-        message={t('All downloaded music will be removed from this device.')}
-        confirmLabel={t('Delete')}
-        destructive
-        onCancel={() => setConfirmDelete(false)}
-        onConfirm={async () => {
-          setConfirmDelete(false);
-          await clearAll();
-          setUsage(0);
-          toast(t('Downloads deleted'));
-        }}
-      />
 
       <Modal
         transparent

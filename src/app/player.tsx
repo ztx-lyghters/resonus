@@ -36,6 +36,7 @@ import { Cover } from '@/components/Cover';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { StarRating } from '@/components/StarRating';
 import { LyricsCard } from '@/components/LyricsCard';
+import { MarqueeText } from '@/components/MarqueeText';
 import { OutputSheet } from '@/components/OutputSheet';
 import { useDominantColor } from '@/hooks/useDominantColor';
 import { useFavoriteIds } from '@/hooks/useFavoriteIds';
@@ -388,23 +389,15 @@ export default function PlayerScreen() {
                   hitSlop={6}
                   onPress={() => router.push(`/album/${song.albumId}` as never)}
                 >
-                  <Text style={styles.title} numberOfLines={1}>
-                    {song.title}
-                  </Text>
+                  <MarqueeText text={song.title} style={styles.title} />
                 </Pressable>
               ) : (
-                <Text style={styles.title} numberOfLines={1}>
-                  {song.title}
-                </Text>
+                <MarqueeText text={song.title} style={styles.title} />
               )}
               {(() => {
                 const targets = artistTargets(song);
                 if (targets.length === 0) {
-                  return (
-                    <Text style={styles.artist} numberOfLines={1}>
-                      {song.artist ?? t('Unknown')}
-                    </Text>
-                  );
+                  return <MarqueeText text={song.artist ?? t('Unknown')} style={styles.artist} />;
                 }
                 return (
                   <Pressable
@@ -416,9 +409,7 @@ export default function PlayerScreen() {
                         : router.push(`/artist/${targets[0].id}`)
                     }
                   >
-                    <Text style={styles.artist} numberOfLines={1}>
-                      {song.artist ?? t('Unknown')}
-                    </Text>
+                    <MarqueeText text={song.artist ?? t('Unknown')} style={styles.artist} />
                   </Pressable>
                 );
               })()}
@@ -619,6 +610,7 @@ const styles = StyleSheet.create({
   },
   // El área pulsable se ajusta al texto (no a todo el ancho), para no navegar
   // al tocar el hueco vacío de la derecha.
+  // Abraza el texto: la zona pulsable es solo el título/artista, no la fila.
   tapText: { alignSelf: 'flex-start', maxWidth: '100%' },
   title: { color: colors.text, fontSize: fontSize.xl, fontWeight: '800' },
   artist: {

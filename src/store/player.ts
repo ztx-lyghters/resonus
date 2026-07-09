@@ -65,6 +65,22 @@ export const SOURCE_FAVORITES = '@@favorites';
 export const SOURCE_HISTORY = '@@history';
 
 let sleepTimeout: ReturnType<typeof setTimeout> | null = null;
+// Vencimiento del temporizador de sueño. Respaldo del setTimeout: Android
+// congela/retrasa los timers JS en segundo plano con la pantalla apagada
+// (el caso típico del sleep timer), así que onStatus —que sigue latiendo
+// mientras suena el player nativo— también comprueba la hora.
+let sleepDeadline: number | null = null;
+
+/** Pausa por temporizador de sueño cumplido (desde el timeout o onStatus). */
+function fireSleepTimer() {
+  if (sleepTimeout) clearTimeout(sleepTimeout);
+  sleepTimeout = null;
+  sleepDeadline = null;
+  cutCrossfade();
+  if (remoteKind()) remotePause();
+  else activePlayer()?.pause();
+  usePlayerStore.setState({ isPlaying: false, sleepTimerMinutes: null });
+}
 
 // ── Motor de audio (expo-audio) ─────────────────────────────────────────────
 const players: (AudioPlayer | null)[] = [null, null];
@@ -491,6 +507,12 @@ function onStatus(status: AudioStatus) {
   // Con salida remota (UPnP/DLNA) el player local está en pausa y sus
   // estados no deben pisar los que llegan del aparato remoto.
   if (remoteKind()) return;
+  // Respaldo del sleep timer: si el setTimeout quedó congelado en segundo
+  // plano, el latido del player nativo lo dispara aquí.
+  if (sleepDeadline && Date.now() >= sleepDeadline) {
+    fireSleepTimer();
+    return;
+  }
   const prev = usePlayerStore.getState();
   // Bufferea si queremos reproducir pero el audio aún no fluye (carga inicial,
   // rebuffer en streaming, seek…). Si está en pausa, no es buffering.
@@ -941,6 +963,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   jumpTo: (index) => {
     const { queue } = get();
     if (index < 0 || index >= queue.length) return;
+    // Salto hacia delante como cualquier otro: "anterior" debe poder volver.
+    pushHistory();
     void loadIndex(index, true);
   },
 
@@ -1086,25 +1110,22 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   setSleepTimer: (minutes) => {
     if (sleepTimeout) clearTimeout(sleepTimeout);
-    sleepTimeout = setTimeout(() => {
-      cutCrossfade();
-      if (remoteKind()) remotePause();
-      else activePlayer()?.pause();
-      sleepTimeout = null;
-      set({ isPlaying: false, sleepTimerMinutes: null });
-    }, minutes * 60_000);
+    sleepDeadline = Date.now() + minutes * 60_000;
+    sleepTimeout = setTimeout(fireSleepTimer, minutes * 60_000);
     set({ sleepTimerMinutes: minutes, sleepAtSongEnd: false });
   },
 
   setSleepAtSongEnd: () => {
     if (sleepTimeout) clearTimeout(sleepTimeout);
     sleepTimeout = null;
+    sleepDeadline = null;
     set({ sleepTimerMinutes: null, sleepAtSongEnd: true });
   },
 
   cancelSleepTimer: () => {
     if (sleepTimeout) clearTimeout(sleepTimeout);
     sleepTimeout = null;
+    sleepDeadline = null;
     set({ sleepTimerMinutes: null, sleepAtSongEnd: false });
   },
 

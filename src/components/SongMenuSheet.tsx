@@ -355,12 +355,13 @@ export function SongMenuSheet() {
                 icon="arrow-down-circle"
                 label={t('Remove download')}
                 onPress={() => {
-                  // El fichero se borra ya; «Deshacer» vuelve a descargarlo.
+                  // El fichero se borra ya; «Deshacer» vuelve a descargarlo
+                  // (sin conexión no se ofrece: no habría de dónde bajarlo).
                   void deleteDownloads([song.id]);
-                  toast(t('Download removed'), {
-                    label: t('Undo'),
-                    run: () => void downloadSong(song),
-                  });
+                  toast(
+                    t('Download removed'),
+                    offline ? undefined : { label: t('Undo'), run: () => void downloadSong(song) },
+                  );
                   close();
                 }}
               />

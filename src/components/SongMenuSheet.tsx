@@ -23,7 +23,9 @@ import {
   getPlaylists,
   removeFromPlaylist,
   star,
+  unstar,
 } from '@/api/data';
+import { useFavoriteIds } from '@/hooks/useFavoriteIds';
 import { artistTargets } from '@/lib/artistNav';
 import { normKey } from '@/lib/localLibrary';
 import { useArtistPicker } from '@/store/artistPicker';
@@ -83,6 +85,8 @@ export function SongMenuSheet() {
   const downloadSong = useDownloads((s) => s.downloadSong);
   const deleteDownloads = useDownloads((s) => s.deleteSongs);
   const openArtistPicker = useArtistPicker((s) => s.open);
+  const favIds = useFavoriteIds(!!song);
+  const favorited = song ? (favIds ? favIds.has(song.id) : !!song.starred) : false;
 
   const [mode, setMode] = useState<'actions' | 'playlists' | 'sleep'>('actions');
   const [creating, setCreating] = useState(false);
@@ -318,13 +322,13 @@ export function SongMenuSheet() {
               }}
             />
             <Action
-              icon="heart-outline"
-              label={t('Add to favorites')}
+              icon={favorited ? 'heart' : 'heart-outline'}
+              label={favorited ? t('Remove from favorites') : t('Add to favorites')}
               onPress={() => {
-                star(song.id).then(() =>
+                (favorited ? unstar(song.id) : star(song.id)).then(() =>
                   queryClient.invalidateQueries({ queryKey: ['starred'] }),
                 );
-                toast(t('Added to favorites'));
+                toast(favorited ? t('Removed from favorites') : t('Added to favorites'));
                 close();
               }}
             />

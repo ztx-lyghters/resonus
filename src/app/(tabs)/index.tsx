@@ -2,7 +2,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -31,6 +31,7 @@ import { FavoritesArt } from '@/components/FavoritesArt';
 import { Message } from '@/components/Message';
 import { useT } from '@/i18n';
 import { useAuthStore } from '@/store/auth';
+import { useLastPlayed } from '@/store/lastPlayed';
 import { useScanProgress } from '@/store/scanProgress';
 import { useSettings } from '@/store/settings';
 import { colors, fontSize, radius, spacing, SCREEN_BOTTOM_PADDING } from '@/theme';
@@ -68,38 +69,55 @@ function QuickTile({
 function QuickGrid() {
   const canFetch = useAuthStore((s) => !!s.auth || s.offline);
   const offline = useAuthStore((s) => s.offline);
+  const times = useLastPlayed((s) => s.times);
   const t = useT();
   const { data: playlists } = useQuery({
     queryKey: ['playlists'],
     queryFn: () => getPlaylists(),
-    enabled: !offline && canFetch,
+    enabled: canFetch,
   });
   const { data: albums } = useQuery({
-    queryKey: ['albumList', 'newest'],
-    queryFn: () => getAlbumList('newest', 7),
-    enabled: offline && canFetch,
+    queryKey: ['albumList', offline ? 'newest' : 'recent'],
+    queryFn: () => getAlbumList(offline ? 'newest' : 'recent'),
+    enabled: canFetch,
   });
+
+  // Rejilla dinámica estilo Spotify: mezcla listas y álbumes recientes ordenados
+  // por última escucha (mismo store que "Recientes" de Biblioteca). Lo que
+  // acabas de escuchar sube; el resto se rellena con álbumes recientes (orden
+  // del servidor) y listas frescas (por fecha de modificación). Favoritos queda
+  // siempre fijo el primero, fuera de esta ordenación.
+  const tiles = useMemo(() => {
+    type Item = { key: string; href: string; name: string; cover?: string; ts: number };
+    const pl: Item[] = (playlists ?? []).map((p) => {
+      const href = `/playlist/${p.id}`;
+      return {
+        key: href,
+        href,
+        name: p.name,
+        cover: coverArtUrl(p.coverArt ?? p.id, 100),
+        ts: times[href] ?? (Date.parse(p.changed ?? p.created ?? '') || 0),
+      };
+    });
+    const al: Item[] = (albums ?? []).map((a) => {
+      const href = `/album/${a.id}`;
+      return {
+        key: href,
+        href,
+        name: a.name,
+        cover: coverArtUrl(a.coverArt ?? a.id, 100),
+        ts: times[href] ?? 0,
+      };
+    });
+    return [...al, ...pl].sort((x, y) => y.ts - x.ts).slice(0, 7);
+  }, [playlists, albums, times]);
 
   return (
     <View style={styles.grid}>
       <QuickTile href="/favorites" name={t('Favorites')} favorites />
-      {offline
-        ? (albums ?? []).map((a) => (
-            <QuickTile
-              key={a.id}
-              href={`/album/${a.id}`}
-              name={a.name}
-              cover={coverArtUrl(a.coverArt ?? a.id, 100)}
-            />
-          ))
-        : (playlists ?? []).slice(0, 7).map((p) => (
-            <QuickTile
-              key={p.id}
-              href={`/playlist/${p.id}`}
-              name={p.name}
-              cover={coverArtUrl(p.coverArt ?? p.id, 100)}
-            />
-          ))}
+      {tiles.map((it) => (
+        <QuickTile key={it.key} href={it.href} name={it.name} cover={it.cover} />
+      ))}
     </View>
   );
 }

@@ -40,6 +40,7 @@ export default function PlaylistScreen() {
   const toast = useToast((s) => s.show);
   const playing = usePlayerStore(currentSong);
   const playQueue = usePlayerStore((s) => s.playQueue);
+  const addToQueue = usePlayerStore((s) => s.addToQueue);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -231,6 +232,18 @@ export default function PlaylistScreen() {
       <Modal transparent visible={menuOpen} animationType="fade" onRequestClose={() => setMenuOpen(false)}>
         <Pressable style={styles.backdrop} onPress={() => setMenuOpen(false)} />
         <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.md }]}>
+          <Pressable
+            style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
+            onPress={() => {
+              setMenuOpen(false);
+              // En el orden visible (respeta el orden elegido con ⇅).
+              for (const s of displaySongs) addToQueue(s);
+              toast(t('Added to queue'));
+            }}
+          >
+            <Ionicons name="list" size={24} color={colors.text} />
+            <Text style={styles.actionText}>{t('Add to queue')}</Text>
+          </Pressable>
           <Pressable
             style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
             onPress={() => {

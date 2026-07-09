@@ -17,6 +17,7 @@ import { songsLabel, useT } from '@/i18n';
 import { formatTotalDuration } from '@/lib/format';
 import { useAuthStore } from '@/store/auth';
 import { groupDownloadState, useDownloads } from '@/store/downloads';
+import { useMediaMenu } from '@/store/mediaMenu';
 import { currentSong, usePlayerStore } from '@/store/player';
 import { useSettings } from '@/store/settings';
 import { colors, fontSize, spacing } from '@/theme';
@@ -30,6 +31,7 @@ export default function AlbumScreen() {
   const showArtistPhoto = useSettings((s) => s.showArtistPhoto);
   const playing = usePlayerStore(currentSong);
   const playQueue = usePlayerStore((s) => s.playQueue);
+  const openMediaMenu = useMediaMenu((s) => s.open);
   const [confirmDownload, setConfirmDownload] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
@@ -86,6 +88,9 @@ export default function AlbumScreen() {
         meta={metaParts.join(' · ')}
         coverUri={coverArtUrl(data.album.coverArt ?? data.album.id, 500)}
         onCoverPress={() => setCoverOpen(true)}
+        // Misma hoja que el long-press en tarjetas: reproducir, a la cola,
+        // descargar, favorito y fijar, sin duplicar menú.
+        onMenu={() => openMediaMenu({ kind: 'album', album: data.album })}
         songs={data.songs}
         currentId={playing?.id}
         numbered

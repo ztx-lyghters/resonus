@@ -6,10 +6,12 @@ import { Text, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
 import { coverArtUrl, getAlbum } from '@/api/data';
+import { type Song } from '@/api/subsonic';
 import { CoverViewer } from '@/components/CoverViewer';
 import { Dialog } from '@/components/Dialog';
 import { Message } from '@/components/Message';
 import { MoreFromArtist } from '@/components/MoreFromArtist';
+import { PlaylistPickerSheet } from '@/components/PlaylistPickerSheet';
 import { TrackListSkeleton } from '@/components/TrackListSkeleton';
 import { TrackListView } from '@/components/TrackListView';
 import { useFavoriteIds } from '@/hooks/useFavoriteIds';
@@ -20,6 +22,7 @@ import { groupDownloadState, useDownloads } from '@/store/downloads';
 import { useMediaMenu } from '@/store/mediaMenu';
 import { currentSong, usePlayerStore } from '@/store/player';
 import { useSettings } from '@/store/settings';
+import { useToast } from '@/store/toast';
 import { colors, fontSize, spacing } from '@/theme';
 
 export default function AlbumScreen() {
@@ -32,9 +35,12 @@ export default function AlbumScreen() {
   const playing = usePlayerStore(currentSong);
   const playQueue = usePlayerStore((s) => s.playQueue);
   const openMediaMenu = useMediaMenu((s) => s.open);
+  const toast = useToast((s) => s.show);
   const [confirmDownload, setConfirmDownload] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
+  // Canciones marcadas en el modo selección pendientes de "añadir a playlist".
+  const [addingSongs, setAddingSongs] = useState<Song[] | null>(null);
   // El corazón lee de la lista central de favoritos (se refresca al marcar);
   // `data.album.starred` del detalle se queda obsoleto tras marcar/desmarcar.
   const favAlbumIds = useFavoriteIds(canFetch, 'album');
@@ -49,6 +55,7 @@ export default function AlbumScreen() {
   const download = useDownloads(useShallow((s) => groupDownloadState(s, `album:${id}`, songIds)));
   const downloadAlbum = useDownloads((s) => s.downloadAlbum);
   const deleteSongs = useDownloads((s) => s.deleteSongs);
+  const downloadSongs = useDownloads((s) => s.downloadSongs);
 
   if (isLoading) {
     return <TrackListSkeleton />;
@@ -134,8 +141,19 @@ export default function AlbumScreen() {
             </>
           ) : undefined
         }
+        // Sin "Quitar": las canciones de un álbum no se pueden sacar de él.
+        selection={{
+          onAddTo: (sel) => setAddingSongs(sel),
+          onDownload: !offline
+            ? (sel) => {
+                void downloadSongs(sel);
+                toast(t('Downloading…'));
+              }
+            : undefined,
+        }}
         onPlay={(start) => playQueue(data.songs, start, data.album.name, `/album/${id}`)}
       />
+      <PlaylistPickerSheet songs={addingSongs} onClose={() => setAddingSongs(null)} />
       <CoverViewer
         visible={coverOpen}
         uri={coverArtUrl(data.album.coverArt ?? data.album.id, 1200)}

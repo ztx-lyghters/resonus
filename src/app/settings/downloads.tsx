@@ -1,14 +1,15 @@
 /**
- * Ajustes › Descargas: calidad, solo Wi-Fi, espacio usado y borrado total.
- * Reúne lo que antes vivía repartido entre "Calidad y reproducción" y
- * "Biblioteca". Solo tiene sentido con servidor (en offline no se descarga).
+ * Ajustes › Descargas: calidad, solo Wi-Fi, espacio usado (con barra visual
+ * del disco, estilo Spotify) y borrado total. Reúne lo que antes vivía
+ * repartido entre "Calidad y reproducción" y "Biblioteca". Solo tiene sentido
+ * con servidor (en offline no se descarga).
  */
+import { Paths } from 'expo-file-system';
 import { useEffect, useState } from 'react';
-import { ScrollView } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Dialog } from '@/components/Dialog';
 import {
-  Field,
   SelectList,
   SettingRow,
   SettingsPage,
@@ -19,12 +20,40 @@ import { songsLabel, useT } from '@/i18n';
 import { useDownloads } from '@/store/downloads';
 import { BITRATE_OPTIONS, useSettings } from '@/store/settings';
 import { useToast } from '@/store/toast';
+import { colors, fontSize, spacing } from '@/theme';
 
 function formatBytes(n: number): string {
   if (n >= 1024 ** 3) return `${(n / 1024 ** 3).toFixed(1)} GB`;
   if (n >= 1024 ** 2) return `${Math.round(n / 1024 ** 2)} MB`;
   return `${Math.round(n / 1024)} KB`;
 }
+
+/** Espacio del disco (total y libre), o null si el sistema no lo expone. */
+function diskSpace(): { total: number; free: number } | null {
+  try {
+    const total = Paths.totalDiskSpace;
+    const free = Paths.availableDiskSpace;
+    if (total > 0 && free >= 0) return { total, free };
+  } catch {
+    // p. ej. plataforma sin soporte
+  }
+  return null;
+}
+
+/** Punto de color + etiqueta con tamaño, para la leyenda de la barra. */
+function LegendItem({ color, label, value }: { color: string; label: string; value: string }) {
+  return (
+    <View style={styles.legendItem}>
+      <View style={[styles.legendDot, { backgroundColor: color }]} />
+      <Text style={styles.legendText}>
+        {label} · {value}
+      </Text>
+    </View>
+  );
+}
+
+/** Color del segmento "otros" (lo ocupado por el resto del dispositivo). */
+const OTHER_COLOR = '#7a7a7a';
 
 export default function DownloadsSettings() {
   const t = useT();
@@ -71,10 +100,39 @@ export default function DownloadsSettings() {
             },
           ]}
         />
-        <Field
-          label={t('Storage used')}
-          value={usage == null ? '…' : `${formatBytes(usage)} · ${songsLabel(count, lang)}`}
-        />
+        <Text style={settingsStyles.sectionTitle}>{t('Storage used')}</Text>
+        {(() => {
+          const disk = diskSpace();
+          if (!disk || usage == null) {
+            return <Text style={styles.legendText}>{usage == null ? '…' : `${formatBytes(usage)} · ${songsLabel(count, lang)}`}</Text>;
+          }
+          const other = Math.max(0, disk.total - disk.free - usage);
+          // Fracciones con un mínimo visible: unas descargas pequeñas en un
+          // disco grande deben verse como una astilla, no desaparecer.
+          const frac = (n: number) => Math.max(n > 0 ? 0.012 : 0, n / disk.total);
+          return (
+            <>
+              <View style={styles.bar}>
+                <View style={{ flex: frac(other), backgroundColor: OTHER_COLOR }} />
+                <View style={{ flex: frac(usage), backgroundColor: colors.accent }} />
+                <View style={{ flex: frac(disk.free), backgroundColor: colors.surfaceHighlight }} />
+              </View>
+              <View style={styles.legend}>
+                <LegendItem color={OTHER_COLOR} label={t('Other')} value={formatBytes(other)} />
+                <LegendItem
+                  color={colors.accent}
+                  label={t('Downloads')}
+                  value={`${formatBytes(usage)} (${songsLabel(count, lang)})`}
+                />
+                <LegendItem
+                  color={colors.surfaceHighlight}
+                  label={t('Free')}
+                  value={formatBytes(disk.free)}
+                />
+              </View>
+            </>
+          );
+        })()}
         {count > 0 ? (
           <SettingRow
             icon="trash-outline"
@@ -102,3 +160,24 @@ export default function DownloadsSettings() {
     </SettingsPage>
   );
 }
+
+const styles = StyleSheet.create({
+  bar: {
+    flexDirection: 'row',
+    height: 10,
+    borderRadius: 5,
+    overflow: 'hidden',
+    marginTop: spacing.xs,
+  },
+  legend: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    columnGap: spacing.lg,
+    rowGap: spacing.xs,
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  legendText: { color: colors.textSecondary, fontSize: fontSize.xs },
+});

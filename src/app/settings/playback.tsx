@@ -24,6 +24,8 @@ export default function PlaybackSettings() {
   const setReplayGain = useSettings((s) => s.setReplayGain);
   const lyricsOnlineFallback = useSettings((s) => s.lyricsOnlineFallback);
   const setLyricsOnlineFallback = useSettings((s) => s.setLyricsOnlineFallback);
+  const keepScreenAwake = useSettings((s) => s.keepScreenAwake);
+  const setKeepScreenAwake = useSettings((s) => s.setKeepScreenAwake);
 
   const bitrateOptions = BITRATE_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }));
 
@@ -78,6 +80,12 @@ export default function PlaybackSettings() {
               ),
               value: lyricsOnlineFallback,
               onChange: setLyricsOnlineFallback,
+            },
+            {
+              label: t('Keep screen on'),
+              description: t('The screen never turns off while the app is visible.'),
+              value: keepScreenAwake,
+              onChange: setKeepScreenAwake,
             },
           ]}
         />

@@ -3,6 +3,7 @@
  * según haya o no sesión iniciada, usando Stack.Protected de expo-router.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -68,6 +69,17 @@ export default function RootLayout() {
   useEffect(() => {
     if (ready) void usePlayerStore.getState().restoreQueue();
   }, [ready, activeProfile]);
+
+  // Mantener la pantalla encendida (ajuste). El flag nativo solo actúa con la
+  // app en primer plano, así que en segundo plano no gasta batería extra.
+  const keepScreenAwake = useSettings((s) => s.keepScreenAwake);
+  useEffect(() => {
+    if (!keepScreenAwake) return;
+    void activateKeepAwakeAsync('setting');
+    return () => {
+      void deactivateKeepAwake('setting');
+    };
+  }, [keepScreenAwake]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>

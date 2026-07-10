@@ -66,6 +66,8 @@ interface SettingsState {
   crossfadeSec: number;
   /** Normalización de volumen (ReplayGain): apagada, por canción o por álbum. */
   replayGain: ReplayGainMode;
+  /** Mantener la pantalla encendida mientras la app está en primer plano. */
+  keepScreenAwake: boolean;
   /**
    * Si una canción no tiene letra (ni el servidor, ni .lrc, ni USLT),
    * pedirla a LRCLIB. Desactivado por defecto: manda artista y título a un
@@ -109,6 +111,7 @@ interface SettingsState {
   setAutoplaySimilar: (value: boolean) => void;
   setCrossfadeSec: (value: number) => void;
   setReplayGain: (value: ReplayGainMode) => void;
+  setKeepScreenAwake: (value: boolean) => void;
   setLyricsOnlineFallback: (value: boolean) => void;
   setShowArtistPhoto: (value: boolean) => void;
   setPlayerColorBackground: (value: boolean) => void;
@@ -147,6 +150,7 @@ function snapshot(get: () => SettingsState) {
     autoplaySimilar: s.autoplaySimilar,
     crossfadeSec: s.crossfadeSec,
     replayGain: s.replayGain,
+    keepScreenAwake: s.keepScreenAwake,
     lyricsOnlineFallback: s.lyricsOnlineFallback,
     showArtistPhoto: s.showArtistPhoto,
     playerColorBackground: s.playerColorBackground,
@@ -178,6 +182,7 @@ const DEFAULTS = {
   autoplaySimilar: true,
   crossfadeSec: 0,
   replayGain: 'off' as ReplayGainMode,
+  keepScreenAwake: false,
   lyricsOnlineFallback: false,
   showArtistPhoto: true,
   playerColorBackground: true,
@@ -250,6 +255,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
 
   setReplayGain: (replayGain) => {
     set({ replayGain });
+    persist(snapshot(get));
+  },
+
+  setKeepScreenAwake: (keepScreenAwake) => {
+    set({ keepScreenAwake });
     persist(snapshot(get));
   },
 
@@ -352,6 +362,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
           autoplaySimilar: boolean;
           crossfadeSec: number;
           replayGain: ReplayGainMode;
+          keepScreenAwake: boolean;
           lyricsOnlineFallback: boolean;
           showArtistPhoto: boolean;
           playerColorBackground: boolean;
@@ -417,6 +428,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
           parsed.replayGain === 'album'
         ) {
           set({ replayGain: parsed.replayGain });
+        }
+        if (typeof parsed.keepScreenAwake === 'boolean') {
+          set({ keepScreenAwake: parsed.keepScreenAwake });
         }
         if (typeof parsed.lyricsOnlineFallback === 'boolean') {
           set({ lyricsOnlineFallback: parsed.lyricsOnlineFallback });

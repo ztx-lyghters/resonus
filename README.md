@@ -11,8 +11,8 @@
 ---
 
 <p align="center">
-  <a href="https://github.com/juananzzz/resonus/releases/latest"><img src="https://img.shields.io/github/v/release/juananzzz/resonus?include_prereleases&color=%236366F1&label=latest" alt="Latest release" /></a>
-  <a href="https://discord.gg/hpDfszr8r"><img src="https://img.shields.io/badge/discord-join-%235865F2?logo=discord&logoColor=white" alt="Discord" /></a>
+  <a href="https://github.com/juananzzz/resonus/releases/latest"><img src="https://img.shields.io/badge/⬇_Download_APK-6366F1?style=for-the-badge" alt="Download APK" /></a>
+  <a href="https://discord.gg/hpDfszr8r"><img src="https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord" /></a>
 </p>
 
 ## Why Resonus

@@ -43,10 +43,9 @@ export default function SettingsScreen() {
   const sections: { key: string; title: string; icon: keyof typeof Ionicons.glyphMap }[] = [
     { key: 'playback', title: 'Quality & playback', icon: 'musical-notes-outline' as const },
     { key: 'player', title: 'Player', icon: 'play-circle-outline' as const },
-    // Sin servidor no se descarga: la sección solo aparece online.
-    ...(offline
-      ? []
-      : [{ key: 'downloads', title: 'Downloads', icon: 'download-outline' as const }]),
+    // En offline la pantalla de Descargas se reduce a espacio usado y borrado
+    // (sin servidor no se descarga, pero liberar espacio sigue siendo útil).
+    { key: 'downloads', title: 'Downloads', icon: 'download-outline' as const },
     {
       key: 'library',
       title: offline ? 'Local music' : 'Library',

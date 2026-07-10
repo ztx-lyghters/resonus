@@ -1,8 +1,9 @@
 /**
  * Ajustes › Descargas: calidad, solo Wi-Fi, espacio usado (con barra visual
  * del disco, estilo Spotify) y borrado total. Reúne lo que antes vivía
- * repartido entre "Calidad y reproducción" y "Biblioteca". Solo tiene sentido
- * con servidor (en offline no se descarga).
+ * repartido entre "Calidad y reproducción" y "Biblioteca". En offline queda
+ * la versión reducida: espacio usado y borrar (liberar sitio sin conexión);
+ * calidad y Wi-Fi solo aplican al descargar, que requiere servidor.
  */
 import { Paths } from 'expo-file-system';
 import { useEffect, useState } from 'react';
@@ -17,6 +18,7 @@ import {
   SwitchList,
 } from '@/components/SettingsUI';
 import { songsLabel, useT } from '@/i18n';
+import { useAuthStore } from '@/store/auth';
 import { useDownloads } from '@/store/downloads';
 import { BITRATE_OPTIONS, useSettings } from '@/store/settings';
 import { useToast } from '@/store/toast';
@@ -58,6 +60,7 @@ const OTHER_COLOR = '#7a7a7a';
 export default function DownloadsSettings() {
   const t = useT();
   const toast = useToast((s) => s.show);
+  const offline = useAuthStore((s) => s.offline);
   const lang = useSettings((s) => s.language);
   const downloadBitRate = useSettings((s) => s.downloadBitRate);
   const setDownloadBitRate = useSettings((s) => s.setDownloadBitRate);
@@ -84,22 +87,26 @@ export default function DownloadsSettings() {
   return (
     <SettingsPage title={t('Downloads')}>
       <ScrollView contentContainerStyle={settingsStyles.content}>
-        <SelectList
-          label={t('Download quality')}
-          options={BITRATE_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
-          value={downloadBitRate}
-          onChange={setDownloadBitRate}
-        />
-        <SwitchList
-          options={[
-            {
-              label: t('Download over Wi-Fi only'),
-              description: t('Block downloads on mobile data.'),
-              value: downloadWifiOnly,
-              onChange: setDownloadWifiOnly,
-            },
-          ]}
-        />
+        {offline ? null : (
+          <>
+            <SelectList
+              label={t('Download quality')}
+              options={BITRATE_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
+              value={downloadBitRate}
+              onChange={setDownloadBitRate}
+            />
+            <SwitchList
+              options={[
+                {
+                  label: t('Download over Wi-Fi only'),
+                  description: t('Block downloads on mobile data.'),
+                  value: downloadWifiOnly,
+                  onChange: setDownloadWifiOnly,
+                },
+              ]}
+            />
+          </>
+        )}
         <Text style={settingsStyles.sectionTitle}>{t('Storage used')}</Text>
         {(() => {
           const disk = diskSpace();

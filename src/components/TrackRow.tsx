@@ -34,7 +34,7 @@ interface Props {
    * En offline se pasa `false` (no hay favoritos de servidor).
    */
   showFavorite?: boolean;
-  /** Muestra el botón de menú ⋯ (por defecto sí; desactivado en offline). */
+  /** Muestra el botón de menú ⋯ (por defecto sí; funciona también offline). */
   showMenu?: boolean;
   /** Muestra la mini carátula del álbum a la izquierda (estilo Spotify). */
   showArtwork?: boolean;

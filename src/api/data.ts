@@ -233,6 +233,12 @@ export function removeFromPlaylist(id: string, index: number): Promise<void> {
   return Subsonic.removeFromPlaylist(auth(), id, index);
 }
 
+/** Reescribe el orden de una lista (arrastrar y soltar). */
+export function reorderPlaylist(id: string, songIds: string[]): Promise<void> {
+  if (isOffline()) return Local.reorderPlaylist(id, songIds);
+  return Subsonic.reorderPlaylist(auth(), id, songIds);
+}
+
 // ── Fusión de varias bibliotecas (modo subconjunto) ──
 //
 // El API Subsonic solo filtra por una biblioteca por petición, así que cuando

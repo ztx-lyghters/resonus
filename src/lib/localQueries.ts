@@ -410,6 +410,12 @@ export async function removeFromPlaylist(id: string, index: number): Promise<voi
   );
 }
 
+/** Reescribe el orden de una lista local con la nueva secuencia de ids. */
+export async function reorderPlaylist(id: string, songIds: string[]): Promise<void> {
+  const list = await loadPlaylists();
+  await savePlaylists(list.map((p) => (p.id === id ? { ...p, songIds } : p)));
+}
+
 export async function deletePlaylist(id: string): Promise<void> {
   const list = await loadPlaylists();
   deleteCoverFile(list.find((p) => p.id === id)?.coverUri);

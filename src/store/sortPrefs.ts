@@ -9,7 +9,7 @@ import { getItem, setItem } from '@/lib/storage';
 
 const KEY = 'resonus.sortPrefs';
 
-export type SortField = 'recent' | 'alpha' | 'artist' | 'album';
+export type SortField = 'recent' | 'added' | 'alpha' | 'artist' | 'album';
 export type SortDir = 'asc' | 'desc';
 
 export interface SortPref {
@@ -22,7 +22,8 @@ export const DEFAULT_SORT: SortPref = { field: 'recent', dir: 'asc' };
 interface SortPrefsState {
   prefs: Record<string, SortPref>;
   hydrated: boolean;
-  setPref: (key: string, pref: SortPref) => void;
+  /** `def` = orden por defecto de esa lista (para omitirlo del mapa si coincide). */
+  setPref: (key: string, pref: SortPref, def?: SortPref) => void;
   hydrate: () => Promise<void>;
 }
 
@@ -38,9 +39,12 @@ export const useSortPrefs = create<SortPrefsState>((set, get) => ({
   prefs: {},
   hydrated: false,
 
-  setPref: (key, pref) => {
+  setPref: (key, pref, def = DEFAULT_SORT) => {
     const prefs = { ...get().prefs };
-    if (pref.field === DEFAULT_SORT.field && pref.dir === DEFAULT_SORT.dir) delete prefs[key];
+    // Solo se omite del mapa si coincide con el default REAL de esa lista (que
+    // en playlists no es el global): si no, seleccionar el orden que casualmente
+    // igualaba el global se leía como "volver al default" y no se guardaba.
+    if (pref.field === def.field && pref.dir === def.dir) delete prefs[key];
     else prefs[key] = pref;
     set({ prefs });
     scheduleSave(prefs);

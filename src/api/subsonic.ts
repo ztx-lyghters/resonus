@@ -478,6 +478,31 @@ export async function updatePlaylist(
   });
 }
 
+/**
+ * Reescribe el orden completo de una lista. Subsonic no tiene "mover": se
+ * recrea la lista con `createPlaylist` pasando su `playlistId` y todos los
+ * `songId` en el nuevo orden (reemplaza las entradas). POST para no generar
+ * URLs enormes con listas largas.
+ */
+export async function reorderPlaylist(
+  auth: SubsonicAuth,
+  id: string,
+  songIds: string[],
+): Promise<void> {
+  const params = authParams(auth);
+  params.set('playlistId', id);
+  for (const sid of songIds) params.append('songId', sid);
+  const res = await fetch(`${auth.serverUrl}/rest/createPlaylist.view`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params.toString(),
+  });
+  if (!res.ok) throw new Error(`Error de red (${res.status})`);
+  const json = await res.json();
+  const sub = json['subsonic-response'];
+  if (sub?.status === 'failed') throw new Error(sub.error?.message ?? 'Error de Subsonic');
+}
+
 /** Quita una canción de una lista por su índice (posición en la lista). */
 export async function removeFromPlaylist(
   auth: SubsonicAuth,

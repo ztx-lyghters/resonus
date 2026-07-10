@@ -140,6 +140,11 @@ export const updatePlaylist = (
 export const removeFromPlaylist = (auth: SubsonicAuth, id: string, index: number) =>
   api(auth).removeFromPlaylist(auth, id, index);
 
+// Reordenar: solo protocolo Subsonic (Jellyfin usa IDs de entrada distintos y
+// movimientos por ítem; la UI oculta la opción para ese backend).
+export const reorderPlaylist = (auth: SubsonicAuth, id: string, songIds: string[]) =>
+  Subsonic.reorderPlaylist(auth, id, songIds);
+
 export const getScanStatus = (auth: SubsonicAuth) => api(auth).getScanStatus(auth);
 
 export const startScan = (auth: SubsonicAuth) => api(auth).startScan(auth);

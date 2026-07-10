@@ -7,7 +7,7 @@ import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
-import { coverArtUrl, deletePlaylist, getPlaylist, removeFromPlaylist, updatePlaylist } from '@/api/data';
+import { coverArtUrl, deletePlaylist, getPlaylist, removeFromPlaylist, reorderPlaylist, updatePlaylist } from '@/api/data';
 import { type Song } from '@/api/subsonic';
 import { CoverViewer } from '@/components/CoverViewer';
 import { Dialog } from '@/components/Dialog';
@@ -15,6 +15,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { Message } from '@/components/Message';
 import { PlaylistEditSheet, type PlaylistEdit } from '@/components/PlaylistEditSheet';
 import { PlaylistPickerSheet } from '@/components/PlaylistPickerSheet';
+import { PlaylistReorder } from '@/components/PlaylistReorder';
 import { TrackListSkeleton } from '@/components/TrackListSkeleton';
 import { TrackListView } from '@/components/TrackListView';
 import { usePlaylistCover } from '@/hooks/usePlaylistCover';
@@ -49,6 +50,7 @@ export default function PlaylistScreen() {
   const [confirmDownload, setConfirmDownload] = useState(false);
   const [confirmRemoveDl, setConfirmRemoveDl] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
+  const [reordering, setReordering] = useState(false);
   // Canciones marcadas en el modo selección pendientes de "añadir a otra".
   const [addingSongs, setAddingSongs] = useState<Song[] | null>(null);
 
@@ -73,10 +75,21 @@ export default function PlaylistScreen() {
   const deleteSongs = useDownloads((s) => s.deleteSongs);
   const downloadSongs = useDownloads((s) => s.downloadSongs);
 
-  const { songs: displaySongs, indices: playlistIndices, openSort, sortSheet } = useSongSort(
-    data?.songs ?? [],
-    `playlist:${id}`,
-  );
+  // En playlists 'recent' = orden guardado en el servidor = orden manual, así
+  // que se etiqueta "Personalizado"; 'added' = orden de adición ("Recientes").
+  const {
+    songs: displaySongs,
+    indices: playlistIndices,
+    openSort,
+    sortSheet,
+    setSort,
+  } = useSongSort(data?.songs ?? [], `playlist:${id}`, {
+    fields: ['added', 'recent', 'alpha', 'artist', 'album'],
+    labels: { recent: 'Custom', added: 'Recent' },
+    // Por defecto, lo último añadido arriba (Recientes). "Personalizado" queda
+    // como el orden manual (arrastrable, estilo Spotify).
+    defaultSort: { field: 'added', dir: 'asc' },
+  });
 
   async function onSaveEdit(changes: PlaylistEdit) {
     setEditing(false);
@@ -117,6 +130,32 @@ export default function PlaylistScreen() {
       },
     });
   }
+
+  /** Guarda el nuevo orden (optimista) y lo reescribe en el servidor. */
+  async function onReorderSave(songIds: string[]) {
+    setReordering(false);
+    // La vista vuelve al orden manual para que se vea el cambio recién hecho.
+    setSort({ field: 'recent', dir: 'asc' });
+    const key = ['playlist', id];
+    const prev = queryClient.getQueryData<{ playlist: unknown; songs: Song[] }>(key);
+    if (prev) {
+      const byId = new Map(prev.songs.map((s) => [s.id, s]));
+      const songs = songIds.map((sid) => byId.get(sid)).filter(Boolean) as Song[];
+      queryClient.setQueryData(key, { ...prev, songs });
+    }
+    try {
+      await reorderPlaylist(id, songIds);
+    } catch {
+      toast(t("Couldn't complete the action"));
+    } finally {
+      queryClient.invalidateQueries({ queryKey: key });
+      queryClient.invalidateQueries({ queryKey: ['playlists'] });
+    }
+  }
+
+  /** Reordenar disponible en servidores Subsonic y en local (Jellyfin no). */
+  const canReorder =
+    (data?.songs.length ?? 0) > 1 && (offline || (!!auth && auth.serverType !== 'jellyfin'));
 
   /** Quita varias canciones (índices reales) con borrado diferido y deshacer. */
   function removeMany(indices: number[]) {
@@ -172,6 +211,19 @@ export default function PlaylistScreen() {
           onRetry={offline ? undefined : () => refetch()}
         />
       </View>
+    );
+  }
+
+  // El reorden trabaja siempre sobre el orden manual (crudo del servidor),
+  // no sobre la vista ordenada por A-Z/fecha.
+  if (reordering) {
+    return (
+      <PlaylistReorder
+        songs={data.songs}
+        title={data.playlist.name}
+        onCancel={() => setReordering(false)}
+        onSave={(ids) => void onReorderSave(ids)}
+      />
     );
   }
 
@@ -284,6 +336,18 @@ export default function PlaylistScreen() {
             <Ionicons name="list" size={24} color={colors.text} />
             <Text style={styles.actionText}>{t('Add to queue')}</Text>
           </Pressable>
+          {canReorder ? (
+            <Pressable
+              style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
+              onPress={() => {
+                setMenuOpen(false);
+                setReordering(true);
+              }}
+            >
+              <Ionicons name="swap-vertical" size={24} color={colors.text} />
+              <Text style={styles.actionText}>{t('Reorder')}</Text>
+            </Pressable>
+          ) : null}
           <Pressable
             style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
             onPress={() => {

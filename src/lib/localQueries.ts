@@ -284,6 +284,20 @@ export async function getArtist(artistId: string): Promise<{ artist: Artist; alb
   };
 }
 
+/** Álbumes de otros artistas con canciones de este ("Aparece en"). */
+export async function getAppearsOn(artistId: string): Promise<Album[]> {
+  const c = await ensureCatalog();
+  if (!c) return [];
+  const albumIds = new Set(
+    c.songs
+      .filter((s) => normKey(s.artist || 'Artista desconocido') === artistId)
+      .map((s) => s.albumId || normKey(s.album || 'Álbum desconocido')),
+  );
+  return c.albums
+    .filter((a) => albumIds.has(a.id) && normKey(a.artist || 'Artista desconocido') !== artistId)
+    .map(toAlbum);
+}
+
 export function getArtistInfo(_id: string): ArtistInfo {
   return { similarArtists: [] };
 }

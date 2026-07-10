@@ -52,6 +52,8 @@ export interface Song {
    * envía). Permite elegir a qué artista ir cuando hay colaboraciones.
    */
   artists?: { id: string; name: string }[];
+  /** Lista de artistas del álbum (extensión OpenSubsonic; Navidrome la envía). */
+  albumArtists?: { id: string; name: string }[];
   coverArt?: string;
   duration?: number;
   track?: number;
@@ -482,6 +484,45 @@ export async function getArtist(
   );
   const { album, ...artist } = res.artist;
   return { artist, albums: album ?? [] };
+}
+
+/**
+ * Álbumes de otros artistas donde este aparece ("Aparece en"). Subsonic no
+ * tiene endpoint para esto, así que se aproxima con search3: canciones que
+ * casan con el nombre, filtradas a las que el artista participa y cuyo álbum
+ * no es suyo (vía `albumArtists`; en servidores sin la extensión el filtrado
+ * final por discografía lo hace la pantalla).
+ */
+export async function getAppearsOn(
+  auth: SubsonicAuth,
+  artistId: string,
+  artistName: string,
+  musicFolderId?: string,
+): Promise<Album[]> {
+  const res = await request<{ searchResult3?: { song?: Song[] } }>(auth, 'search3.view', {
+    query: artistName,
+    songCount: 200,
+    albumCount: 0,
+    artistCount: 0,
+    ...(musicFolderId ? { musicFolderId } : {}),
+  });
+  const byAlbum = new Map<string, Album>();
+  for (const s of res.searchResult3?.song ?? []) {
+    if (!s.albumId || byAlbum.has(s.albumId)) continue;
+    const participates = s.artists
+      ? s.artists.some((a) => a.id === artistId)
+      : s.artistId === artistId;
+    if (!participates) continue;
+    if (s.albumArtists?.some((a) => a.id === artistId)) continue;
+    byAlbum.set(s.albumId, {
+      id: s.albumId,
+      name: s.album ?? '',
+      artist: s.albumArtists?.map((a) => a.name).join(', ') || undefined,
+      coverArt: s.coverArt,
+      year: s.year,
+    });
+  }
+  return [...byAlbum.values()];
 }
 
 /** Canciones más populares de un artista (por nombre). */

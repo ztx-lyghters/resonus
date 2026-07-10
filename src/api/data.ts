@@ -94,6 +94,18 @@ export function getArtistInfo(id: string): Promise<Subsonic.ArtistInfo> {
   return Subsonic.getArtistInfo(auth(), id);
 }
 
+/** Álbumes donde el artista aparece sin ser el artista del álbum. */
+export function getAppearsOn(artistId: string, artistName: string): Promise<Subsonic.Album[]> {
+  if (isOffline()) return Local.getAppearsOn(artistId);
+  const a = auth();
+  const ids = enabledFolderIds(a);
+  if (!ids) return Subsonic.getAppearsOn(a, artistId, artistName);
+  if (ids.length === 1) return Subsonic.getAppearsOn(a, artistId, artistName, ids[0]);
+  return Promise.all(ids.map((id) => Subsonic.getAppearsOn(a, artistId, artistName, id))).then(
+    (lists) => dedupeById(lists.flat()),
+  );
+}
+
 export function getTopSongs(artist: string, count?: number): Promise<Subsonic.Song[]> {
   if (isOffline()) return Local.getTopSongs(artist, count);
   return Subsonic.getTopSongs(auth(), artist, count);

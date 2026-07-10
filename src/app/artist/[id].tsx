@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   coverArtUrl,
+  getAppearsOn,
   getArtist,
   getArtistInfo,
   getTopSongs,
@@ -96,6 +97,12 @@ export default function ArtistScreen() {
     enabled: canFetch && !!id,
   });
 
+  const { data: appearsOn } = useQuery({
+    queryKey: ['appearsOn', id],
+    queryFn: () => getAppearsOn(id, name!),
+    enabled: canFetch && !!id && !!name,
+  });
+
   // Como en el álbum: el corazón lee de la lista central de favoritos, que sí
   // se refresca al marcar (el `starred` de getArtist se queda obsoleto).
   const favArtistIds = useFavoriteIds(canFetch, 'artist');
@@ -118,6 +125,11 @@ export default function ArtistScreen() {
 
   const top = topSongs ?? [];
   const albums = [...data.albums].sort((a, b) => (b.year ?? 0) - (a.year ?? 0));
+  // Red de seguridad: fuera los álbumes propios (servidores sin `albumArtists`).
+  const ownAlbumIds = new Set(data.albums.map((a) => a.id));
+  const guestAlbums = (appearsOn ?? [])
+    .filter((a) => !ownAlbumIds.has(a.id))
+    .sort((a, b) => (b.year ?? 0) - (a.year ?? 0));
   const headerUri =
     info?.imageUrl ?? coverArtUrl( data.artist.coverArt ?? data.artist.id, 800);
 
@@ -220,6 +232,21 @@ export default function ArtistScreen() {
               contentContainerStyle={styles.row}
             >
               {albums.slice(0, 10).map((album) => (
+                <AlbumCard key={album.id} album={album} width={140} />
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
+
+        {guestAlbums.length > 0 ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{t('Appears on')}</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.row}
+            >
+              {guestAlbums.slice(0, 10).map((album) => (
                 <AlbumCard key={album.id} album={album} width={140} />
               ))}
             </ScrollView>

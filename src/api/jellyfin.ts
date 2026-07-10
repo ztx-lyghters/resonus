@@ -386,6 +386,24 @@ export async function getArtist(
   return { artist: toArtist(item), albums: (albums.Items ?? []).map(toAlbum) };
 }
 
+/** Álbumes donde el artista colabora sin ser el artista del álbum ("Aparece en"). */
+export async function getAppearsOn(
+  auth: SubsonicAuth,
+  artistId: string,
+  _artistName: string,
+  _musicFolderId?: string,
+): Promise<Album[]> {
+  const res = await request<JfItems>(auth, `/Users/${auth.jfUserId}/Items`, {
+    IncludeItemTypes: 'MusicAlbum',
+    Recursive: true,
+    ContributingArtistIds: artistId,
+    SortBy: 'ProductionYear,SortName',
+    SortOrder: 'Descending',
+    Fields: ALBUM_FIELDS,
+  });
+  return (res.Items ?? []).map(toAlbum);
+}
+
 export async function getArtistInfo(auth: SubsonicAuth, id: string): Promise<ArtistInfo> {
   const [item, similar] = await Promise.all([
     request<JfItem>(auth, `/Users/${auth.jfUserId}/Items/${id}`),

@@ -77,6 +77,13 @@ export const getArtist = (auth: SubsonicAuth, id: string) => api(auth).getArtist
 
 export const getArtistInfo = (auth: SubsonicAuth, id: string) => api(auth).getArtistInfo(auth, id);
 
+export const getAppearsOn = (
+  auth: SubsonicAuth,
+  artistId: string,
+  artistName: string,
+  musicFolderId?: string,
+) => api(auth).getAppearsOn(auth, artistId, artistName, musicFolderId);
+
 export const getTopSongs = (auth: SubsonicAuth, artist: string, count?: number) =>
   api(auth).getTopSongs(auth, artist, count);
 

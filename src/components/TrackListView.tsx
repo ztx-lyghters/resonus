@@ -367,7 +367,9 @@ export function TrackListView({
         renderItem={({ item, index }) => (
           <TrackRow
             song={item}
-            position={numbered ? item.track ?? index + 1 : undefined}
+            // Con carátula visible se omite el número: el álbum queda como
+            // siempre (solo Populares del artista muestra número + portada).
+            position={numbered && !showArtwork ? item.track ?? index + 1 : undefined}
             isCurrent={currentId === item.id}
             showArtwork={showArtwork}
             menuContext={

@@ -23,7 +23,10 @@ import { FavoriteButton } from './FavoriteButton';
 
 interface Props {
   song: Song;
-  /** Número opcional a la izquierda (p. ej. la pista en un álbum). */
+  /**
+   * Número opcional a la izquierda (p. ej. la pista en un álbum). Convive con
+   * la carátula: número y luego portada (estilo "Populares" de Spotify).
+   */
   position?: number;
   isCurrent?: boolean;
   /** Contexto de playlist (para permitir "quitar de la lista" en el menú). */
@@ -118,12 +121,13 @@ export function TrackRow({
           color={selected ? colors.accent : colors.textMuted}
         />
       ) : null}
+      {position !== undefined ? (
+        <Text style={[styles.position, styles.leftSlot]}>{position}</Text>
+      ) : null}
       {showArtwork ? (
         <View style={styles.artwork}>
           <Cover uri={coverArtUrl(song.coverArt ?? song.albumId, 100)} size={44} />
         </View>
-      ) : position !== undefined ? (
-        <Text style={[styles.position, styles.leftSlot]}>{position}</Text>
       ) : null}
 
       <View style={styles.info}>

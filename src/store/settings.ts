@@ -201,7 +201,7 @@ const DEFAULTS = {
   showAudioQuality: false,
   showRating: false,
   showListArtwork: true,
-  showSongDuration: true,
+  showSongDuration: false,
   autoplaySimilar: true,
   crossfadeSec: 0,
   replayGain: 'off' as ReplayGainMode,

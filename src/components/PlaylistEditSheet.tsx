@@ -1,7 +1,5 @@
 /** Hoja para editar una lista: carátula, nombre, descripción y visibilidad. */
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useQueryClient } from '@tanstack/react-query';
-import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -18,12 +16,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { deletePlaylistImage, NavidromeError, uploadPlaylistImage } from '@/api/navidrome';
-import { removeLocalPlaylistCover, setLocalPlaylistCover } from '@/lib/localQueries';
 import { Cover } from '@/components/Cover';
 import { Dialog } from '@/components/Dialog';
+import { usePlaylistCover } from '@/hooks/usePlaylistCover';
 import { useT } from '@/i18n';
-import { useAuthStore } from '@/store/auth';
 import { colors, fontSize, radius, spacing } from '@/theme';
 
 export interface PlaylistEdit {
@@ -31,11 +27,6 @@ export interface PlaylistEdit {
   comment: string;
   public: boolean;
 }
-
-type PickedImage = { uri: string; name: string; type: string };
-
-/** Acción de carátula a la espera de la contraseña (perfiles antiguos). */
-type CoverAction = { kind: 'upload'; image: PickedImage } | { kind: 'remove' };
 
 interface Props {
   visible: boolean;
@@ -68,19 +59,14 @@ export function PlaylistEditSheet({
   onSave,
 }: Props) {
   const t = useT();
-  const queryClient = useQueryClient();
-  const auth = useAuthStore((s) => s.auth);
-  const saveNativePassword = useAuthStore((s) => s.saveNativePassword);
   const [name, setName] = useState(initial.name);
   const [comment, setComment] = useState(initial.comment);
   const [isPublic, setIsPublic] = useState(initial.public);
-  // Estado del cambio de carátula: imagen subida, error inline (un toast
-  // quedaría oculto bajo este Modal) y contraseña pendiente si hace falta.
-  const [pickedUri, setPickedUri] = useState<string | null>(null);
-  const [coverError, setCoverError] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [askPassword, setAskPassword] = useState(false);
-  const [pendingAction, setPendingAction] = useState<CoverAction | null>(null);
+  // Cambio de carátula (subida/copia, error inline y diálogo de contraseña):
+  // lógica compartida con el visor de carátula. El error va inline porque un
+  // toast quedaría oculto bajo este Modal.
+  const cover = usePlaylistCover({ coverUploadId, localCoverId });
+  const { reset: resetCover } = cover;
 
   // Reinicia los campos cada vez que se abre.
   useEffect(() => {
@@ -88,104 +74,11 @@ export function PlaylistEditSheet({
       setName(initial.name);
       setComment(initial.comment);
       setIsPublic(initial.public);
-      setPickedUri(null);
-      setCoverError(null);
-      setUploading(false);
-      setAskPassword(false);
-      setPendingAction(null);
+      resetCover();
     }
-  }, [visible, initial.name, initial.comment, initial.public]);
+  }, [visible, initial.name, initial.comment, initial.public, resetCover]);
 
   const canSave = name.trim().length > 0;
-
-  async function pickCover() {
-    setCoverError(null);
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.9,
-    });
-    const asset = res.assets?.[0];
-    if (res.canceled || !asset) return;
-    const image: PickedImage = {
-      uri: asset.uri,
-      name: asset.fileName ?? 'cover.jpg',
-      type: asset.mimeType ?? 'image/jpeg',
-    };
-    await runCoverAction({ kind: 'upload', image });
-  }
-
-  async function runCoverAction(action: CoverAction) {
-    setCoverError(null);
-    if (localCoverId) {
-      // Lista del perfil local: la carátula se copia/borra en el dispositivo.
-      setUploading(true);
-      try {
-        if (action.kind === 'upload') {
-          await setLocalPlaylistCover(localCoverId, action.image.uri);
-          setPickedUri(action.image.uri);
-        } else {
-          await removeLocalPlaylistCover(localCoverId);
-          setPickedUri(null);
-        }
-        void queryClient.invalidateQueries({ queryKey: ['playlist', localCoverId] });
-        void queryClient.invalidateQueries({ queryKey: ['playlists'] });
-      } catch {
-        setCoverError(t("Couldn't update the cover"));
-      } finally {
-        setUploading(false);
-      }
-      return;
-    }
-    if (!coverUploadId || !auth) return;
-    if (!auth.ndPassword) {
-      // Perfil de antes de guardar la contraseña: pedirla una vez.
-      setPendingAction(action);
-      setAskPassword(true);
-      return;
-    }
-    await doCoverAction(action, auth);
-  }
-
-  async function doCoverAction(action: CoverAction, authToUse: NonNullable<typeof auth>) {
-    if (!coverUploadId) return;
-    setUploading(true);
-    try {
-      if (action.kind === 'upload') {
-        await uploadPlaylistImage(authToUse, coverUploadId, action.image);
-        setPickedUri(action.image.uri);
-      } else {
-        await deletePlaylistImage(authToUse, coverUploadId);
-        setPickedUri(null);
-      }
-      void queryClient.invalidateQueries({ queryKey: ['playlist', coverUploadId] });
-      void queryClient.invalidateQueries({ queryKey: ['playlists'] });
-    } catch (e) {
-      if (e instanceof NavidromeError && e.kind === 'auth') {
-        // Contraseña mala guardada: se olvida para volver a pedirla.
-        void saveNativePassword('');
-        setCoverError(t('Wrong password'));
-      } else if (e instanceof NavidromeError && e.kind === 'unsupported') {
-        setCoverError(t("Your server doesn't support playlist covers"));
-      } else if (e instanceof NavidromeError && e.kind === 'forbidden') {
-        setCoverError(t('Artwork upload is disabled on the server'));
-      } else {
-        setCoverError(t("Couldn't update the cover"));
-      }
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function onPasswordConfirm(password: string) {
-    setAskPassword(false);
-    const action = pendingAction;
-    setPendingAction(null);
-    if (!password || !action || !auth) return;
-    await saveNativePassword(password);
-    await doCoverAction(action, { ...auth, ndPassword: password });
-  }
 
   return (
     <Modal
@@ -215,17 +108,17 @@ export function PlaylistEditSheet({
         >
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             <View style={styles.coverWrap}>
-              {coverUploadId || localCoverId ? (
+              {cover.enabled ? (
                 <>
                   <Pressable
-                    onPress={() => void pickCover()}
-                    disabled={uploading}
+                    onPress={() => void cover.pickAndUpload()}
+                    disabled={cover.uploading}
                     accessibilityRole="button"
                     accessibilityLabel={t('Change cover')}
                     style={({ pressed }) => pressed && { opacity: 0.7 }}
                   >
-                    <Cover uri={pickedUri ?? coverUri} size={160} />
-                    {uploading ? (
+                    <Cover uri={cover.pickedUri ?? coverUri} size={160} />
+                    {cover.uploading ? (
                       <View style={styles.coverOverlay}>
                         <ActivityIndicator color={colors.text} />
                       </View>
@@ -238,7 +131,7 @@ export function PlaylistEditSheet({
                           hitSlop={6}
                           accessibilityRole="button"
                           accessibilityLabel={t('Remove cover')}
-                          onPress={() => void runCoverAction({ kind: 'remove' })}
+                          onPress={() => void cover.removeCover()}
                           style={({ pressed }) => [styles.coverBadge, pressed && { opacity: 0.7 }]}
                         >
                           <Ionicons name="trash-outline" size={16} color={colors.text} />
@@ -246,7 +139,7 @@ export function PlaylistEditSheet({
                       </View>
                     )}
                   </Pressable>
-                  {coverError ? <Text style={styles.coverError}>{coverError}</Text> : null}
+                  {cover.error ? <Text style={styles.coverError}>{cover.error}</Text> : null}
                 </>
               ) : (
                 <Cover uri={coverUri} size={160} />
@@ -293,16 +186,13 @@ export function PlaylistEditSheet({
       </SafeAreaView>
 
       <Dialog
-        visible={askPassword}
+        visible={cover.askPassword}
         title={t('Confirm your password')}
         message={t('Your password is needed to upload images and will be stored securely.')}
         input={{ placeholder: t('Password'), secure: true }}
         confirmLabel={t('Save')}
-        onCancel={() => {
-          setAskPassword(false);
-          setPendingAction(null);
-        }}
-        onConfirm={(value) => void onPasswordConfirm(value)}
+        onCancel={cover.cancelPassword}
+        onConfirm={(value) => void cover.confirmPassword(value)}
       />
     </Modal>
   );

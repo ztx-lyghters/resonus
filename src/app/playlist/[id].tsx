@@ -3,7 +3,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -17,6 +17,7 @@ import { PlaylistEditSheet, type PlaylistEdit } from '@/components/PlaylistEditS
 import { PlaylistPickerSheet } from '@/components/PlaylistPickerSheet';
 import { TrackListSkeleton } from '@/components/TrackListSkeleton';
 import { TrackListView } from '@/components/TrackListView';
+import { usePlaylistCover } from '@/hooks/usePlaylistCover';
 import { useSongSort } from '@/hooks/useSongSort';
 import { songsLabel, useT } from '@/i18n';
 import { formatTotalDuration } from '@/lib/format';
@@ -50,6 +51,13 @@ export default function PlaylistScreen() {
   const [coverOpen, setCoverOpen] = useState(false);
   // Canciones marcadas en el modo selección pendientes de "añadir a otra".
   const [addingSongs, setAddingSongs] = useState<Song[] | null>(null);
+
+  // Cambiar la carátula desde el visor ampliado (estilo Spotify). Mismas
+  // condiciones que en la hoja de edición: Navidrome en servidor, o perfil local.
+  const coverChange = usePlaylistCover({
+    coverUploadId: !offline && auth?.serverType === 'navidrome' ? id : undefined,
+    localCoverId: offline ? id : undefined,
+  });
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['playlist', id],
@@ -225,9 +233,40 @@ export default function PlaylistScreen() {
       />
       <CoverViewer
         visible={coverOpen}
-        uri={coverArtUrl(data.playlist.coverArt ?? data.playlist.id, 1200)}
+        uri={coverChange.pickedUri ?? coverArtUrl(data.playlist.coverArt ?? data.playlist.id, 1200)}
         onClose={() => setCoverOpen(false)}
-      />
+        footer={
+          coverChange.enabled ? (
+            <>
+              {coverChange.uploading ? (
+                <ActivityIndicator color={colors.text} />
+              ) : (
+                <Pressable
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  onPress={() => void coverChange.pickAndUpload()}
+                  style={({ pressed }) => pressed && { opacity: 0.6 }}
+                >
+                  <Text style={styles.changeCover}>{t('Change cover')}</Text>
+                </Pressable>
+              )}
+              {coverChange.error ? (
+                <Text style={styles.coverError}>{coverChange.error}</Text>
+              ) : null}
+            </>
+          ) : undefined
+        }
+      >
+        <Dialog
+          visible={coverChange.askPassword}
+          title={t('Confirm your password')}
+          message={t('Your password is needed to upload images and will be stored securely.')}
+          input={{ placeholder: t('Password'), secure: true }}
+          confirmLabel={t('Save')}
+          onCancel={coverChange.cancelPassword}
+          onConfirm={(value) => void coverChange.confirmPassword(value)}
+        />
+      </CoverViewer>
       {sortSheet}
 
       <Modal transparent visible={menuOpen} animationType="fade" onRequestClose={() => setMenuOpen(false)}>
@@ -347,4 +386,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
   actionText: { color: colors.text, fontSize: fontSize.md },
+  changeCover: { color: colors.text, fontSize: fontSize.md, fontWeight: '700' },
+  coverError: { color: colors.danger, fontSize: fontSize.sm, textAlign: 'center' },
 });

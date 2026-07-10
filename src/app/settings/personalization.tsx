@@ -3,13 +3,14 @@ import { useRouter } from 'expo-router';
 import { ScrollView, Text } from 'react-native';
 
 import {
+  SelectList,
   SettingRow,
   SettingsPage,
   settingsStyles,
   SwitchList,
 } from '@/components/SettingsUI';
 import { useT } from '@/i18n';
-import { LANGUAGE_NAMES, useSettings } from '@/store/settings';
+import { type AppFont, LANGUAGE_NAMES, useSettings } from '@/store/settings';
 
 export default function AppearanceSettings() {
   const router = useRouter();
@@ -29,6 +30,15 @@ export default function AppearanceSettings() {
   const setSwipeToQueue = useSettings((s) => s.setSwipeToQueue);
   const showQuickGrid = useSettings((s) => s.showQuickGrid);
   const setShowQuickGrid = useSettings((s) => s.setShowQuickGrid);
+  const appFont = useSettings((s) => s.appFont);
+  const setAppFont = useSettings((s) => s.setAppFont);
+
+  const fontOptions: { value: AppFont; label: string }[] = [
+    { value: 'system', label: `Roboto (${t('default')})` },
+    { value: 'condensed', label: t('Condensed') },
+    { value: 'serif', label: t('Serif') },
+    { value: 'monospace', label: t('Monospace') },
+  ];
 
   return (
     <SettingsPage title={t('Appearance')}>
@@ -44,6 +54,12 @@ export default function AppearanceSettings() {
           description={t('Accent color')}
           chevron
           onPress={() => router.push('/settings/theme')}
+        />
+        <SelectList
+          label={t('Font')}
+          options={fontOptions}
+          value={appFont}
+          onChange={setAppFont}
         />
 
         <Text style={settingsStyles.sectionTitle}>{t('Song lists')}</Text>

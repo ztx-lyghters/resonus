@@ -524,6 +524,7 @@ function gridListProps(grid: boolean) {
 export default function LibraryScreen() {
   const t = useT();
   const accent = useAccent();
+  useSettings((s) => s.appFont); // re-render al cambiar la fuente
   const auth = useAuthStore((s) => s.auth);
   const offline = useAuthStore((s) => s.offline);
   const queryClient = useQueryClient();

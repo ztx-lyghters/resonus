@@ -17,6 +17,7 @@ import { GlobalMiniPlayer } from '@/components/GlobalMiniPlayer';
 import { MediaMenuSheet } from '@/components/MediaMenuSheet';
 import { SongMenuSheet } from '@/components/SongMenuSheet';
 import { Toast } from '@/components/Toast';
+import { installAppFont, setAppFont } from '@/lib/appFont';
 import { queryClient } from '@/lib/query';
 import { useAuthStore } from '@/store/auth';
 import { useDownloads } from '@/store/downloads';
@@ -27,11 +28,19 @@ import { initRemoteIntegration, usePlayerStore } from '@/store/player';
 import { usePlayCounts } from '@/store/playCounts';
 import { usePlayHistory } from '@/store/playHistory';
 import { useRecentSearches } from '@/store/recentSearches';
-import { useSettings } from '@/store/settings';
+import { APP_FONT_FAMILY, useSettings } from '@/store/settings';
 import { useSortPrefs } from '@/store/sortPrefs';
 import { colors } from '@/theme';
 
+// Parchea Text/TextInput una vez, antes del primer render.
+installAppFont();
+
 export default function RootLayout() {
+  // La fuente elegida se aplica en cada render (y tras hidratar los ajustes):
+  // así todo lo que se vuelva a pintar coge la familia actual.
+  const appFont = useSettings((s) => s.appFont);
+  setAppFont(APP_FONT_FAMILY[appFont]);
+
   const auth = useAuthStore((s) => s.auth);
   const offline = useAuthStore((s) => s.offline);
   const offlineSource = useAuthStore((s) => s.offlineSource);

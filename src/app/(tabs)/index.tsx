@@ -240,6 +240,7 @@ export default function HomeScreen() {
   // se recolorea siempre al cambiarlo o al hidratar; Home es la pantalla
   // inicial y se pinta antes de aplicarse el acento guardado.
   const accentColor = useSettings((s) => s.accentColor);
+  useSettings((s) => s.appFont); // re-render al cambiar la fuente
   const initial = offline ? 'O' : (auth?.username ?? '?').charAt(0).toUpperCase();
 
   // Saludo según la hora (estilo Spotify). Tramos a la española: mañana hasta

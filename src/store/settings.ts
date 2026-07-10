@@ -45,6 +45,20 @@ export type LibraryLayout = 'list' | 'grid';
  */
 export type ReplayGainMode = 'off' | 'auto' | 'track' | 'album';
 
+/**
+ * Fuente de la interfaz. Son familias del sistema Android (sin coste de
+ * empaquetado ni descarga): `system` deja la fuente por defecto (Roboto).
+ */
+export type AppFont = 'system' | 'condensed' | 'serif' | 'monospace';
+
+/** Familia real de cada opción; `undefined` = fuente por defecto del sistema. */
+export const APP_FONT_FAMILY: Record<AppFont, string | undefined> = {
+  system: undefined,
+  condensed: 'sans-serif-condensed',
+  serif: 'serif',
+  monospace: 'monospace',
+};
+
 interface SettingsState {
   maxBitRate: number;
   /** Calidad de descarga: 0 = fichero original; resto, bitrate transcodificado. */
@@ -100,6 +114,8 @@ interface SettingsState {
   libraryLayout: LibraryLayout;
   /** Color de acento (hex). */
   accentColor: string;
+  /** Fuente de la interfaz (familia del sistema; `system` = por defecto). */
+  appFont: AppFont;
   setMaxBitRate: (value: number) => void;
   setDownloadBitRate: (value: number) => void;
   setDownloadWifiOnly: (value: boolean) => void;
@@ -127,6 +143,7 @@ interface SettingsState {
   setLibrarySort: (value: LibrarySort) => void;
   setLibraryLayout: (value: LibraryLayout) => void;
   setAccentColor: (value: string) => void;
+  setAppFont: (value: AppFont) => void;
   /** Vuelve a los valores de fábrica (el idioma se conserva). */
   resetToDefaults: () => void;
   hydrate: () => Promise<void>;
@@ -166,6 +183,7 @@ function snapshot(get: () => SettingsState) {
     librarySort: s.librarySort,
     libraryLayout: s.libraryLayout,
     accentColor: s.accentColor,
+    appFont: s.appFont,
   };
 }
 
@@ -198,6 +216,7 @@ const DEFAULTS = {
   librarySort: 'recent' as LibrarySort,
   libraryLayout: 'list' as LibraryLayout,
   accentColor: DEFAULT_ACCENT,
+  appFont: 'system' as AppFont,
 };
 
 export const useSettings = create<SettingsState>((set, get) => ({
@@ -339,6 +358,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
     persist(snapshot(get));
   },
 
+  setAppFont: (appFont) => {
+    set({ appFont });
+    persist(snapshot(get));
+  },
+
   resetToDefaults: () => {
     // El idioma se conserva: restablecer no debería cambiarte de idioma.
     set({ ...DEFAULTS, language: get().language });
@@ -378,6 +402,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
           librarySort: LibrarySort;
           libraryLayout: LibraryLayout;
           accentColor: string;
+          appFont: AppFont;
         }>;
         if (typeof parsed.maxBitRate === 'number') {
           set({ maxBitRate: parsed.maxBitRate });
@@ -477,6 +502,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
         if (typeof parsed.accentColor === 'string' && /^#[0-9a-f]{6}$/i.test(parsed.accentColor)) {
           set({ accentColor: parsed.accentColor });
           applyAccent(parsed.accentColor);
+        }
+        if (parsed.appFont && parsed.appFont in APP_FONT_FAMILY) {
+          set({ appFont: parsed.appFont });
         }
       }
     } catch {

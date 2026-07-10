@@ -39,6 +39,7 @@ const GENRE_W = (Dimensions.get('window').width - spacing.lg * 2 - spacing.sm) /
 
 export default function SearchScreen() {
   useSettings((s) => s.accentColor); // re-render al cambiar el acento
+  useSettings((s) => s.appFont); // re-render al cambiar la fuente
   const canSearch = useAuthStore((s) => !!s.auth || s.offline);
   const auth = useAuthStore((s) => s.auth);
   const t = useT();

@@ -23,6 +23,7 @@ export default function SettingsScreen() {
   const auth = useAuthStore((s) => s.auth);
   // El anillo del avatar lee el acento del store para recolorearse al cambiarlo.
   const accentColor = useSettings((s) => s.accentColor);
+  useSettings((s) => s.appFont); // re-render al cambiar la fuente
   const resetToDefaults = useSettings((s) => s.resetToDefaults);
   const logout = useAuthStore((s) => s.logout);
   const offline = useAuthStore((s) => s.offline);

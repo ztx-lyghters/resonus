@@ -117,6 +117,7 @@ function UpcomingRow({ item, absIndex }: { item: Song; absIndex: number }) {
 
 export default function QueueScreen() {
   useSettings((s) => s.accentColor); // re-render al cambiar el acento
+  useSettings((s) => s.appFont); // re-render al cambiar la fuente
   const t = useT();
   const router = useRouter();
   const queue = usePlayerStore((s) => s.queue);

@@ -105,6 +105,7 @@ function usePaneStyle(offset: SharedValue<number>, k: number) {
 
 export default function PlayerScreen() {
   useSettings((s) => s.accentColor); // re-render al cambiar el acento
+  useSettings((s) => s.appFont); // re-render al cambiar la fuente
   const router = useRouter();
   const isFocused = useIsFocused();
   const song = usePlayerStore(currentSong);

@@ -243,6 +243,7 @@ function remoteSetVolume(volume: number) {
 async function remoteLoadIndex(index: number, autoplay: boolean, startSec = 0) {
   const song = usePlayerStore.getState().queue[index];
   if (!song) return;
+  scrobbledThisTrack = false;
   const ok = await upnpLoad(song, autoplay, startSec);
   if (!ok) {
     useToast.getState().show(tg("This song can't be cast"));
@@ -277,6 +278,7 @@ async function loadIndex(index: number, autoplay: boolean) {
   cutCrossfade();
   pendingSeek = null;
   streamOffsetSec = 0;
+  scrobbledThisTrack = false;
   consumeQueuedOnIndexChange(index);
   if (remoteKind()) return remoteLoadIndex(index, autoplay);
   const { queue, repeat } = usePlayerStore.getState();
@@ -333,11 +335,34 @@ function pushHistory() {
   if (playedHistory.length > HISTORY_MAX) playedHistory.shift();
 }
 
-/** Scrobble / contador local + sincroniza la cola al cambiar de pista. */
+// ── Scrobble honesto ────────────────────────────────────────────────────────
+// Al empezar una pista solo se anuncia "reproduciendo ahora" (submission
+// false); la escucha real se envía al cruzar el umbral clásico de Last.fm:
+// 50 % de la duración o 4 minutos, lo que llegue antes. Así saltar canciones
+// no infla contadores ni el historial de Last.fm/ListenBrainz. El contador
+// local del modo offline sigue la misma regla.
+let scrobbledThisTrack = false;
+
+/** Envía el scrobble real una sola vez por pista al cruzar el umbral. */
+function maybeScrobbleThreshold(positionSec: number) {
+  if (scrobbledThisTrack) return;
+  const st = usePlayerStore.getState();
+  const song = st.queue[st.index];
+  if (!song || song.url) return; // las radios no se scrobblean
+  const duration = st.durationSec || song.duration || 0;
+  const threshold = duration > 0 ? Math.min(duration * 0.5, 240) : 240;
+  if (positionSec < threshold) return;
+  scrobbledThisTrack = true;
+  const { auth, offline } = useAuthStore.getState();
+  if (auth) scrobble(auth, song.id, true);
+  else if (offline) usePlayCounts.getState().bump(song.id);
+}
+
+/** Now playing / historial + sincroniza la cola al cambiar de pista. */
 function onTrackChanged(song: Song) {
   const auth = useAuthStore.getState().auth;
-  if (auth) scrobble(auth, song.id);
-  else if (useAuthStore.getState().offline) usePlayCounts.getState().bump(song.id);
+  // Solo "estoy escuchando esto"; la reproducción cuenta al cruzar el umbral.
+  if (auth) scrobble(auth, song.id, false);
   usePlayHistory.getState().record(song);
   // Calienta la letra ya (y la de la siguiente, para que deslizar en el
   // player también enseñe su tarjeta al instante).
@@ -509,6 +534,7 @@ function startCrossfade(index: number, fadeSec: number) {
   fadingOut = out;
   activeIdx = 1 - activeIdx;
   streamOffsetSec = 0; // la entrante arranca desde el principio
+  scrobbledThisTrack = false;
   usePlayerStore.setState({
     index,
     positionSec: 0,
@@ -632,6 +658,7 @@ function onStatus(status: AudioStatus) {
     isPlaying: pauseFadeTimer ? prev.isPlaying : status.playing,
     isBuffering: buffering,
   });
+  maybeScrobbleThreshold(positionSec);
   // Sincronización de la cola con el servidor.
   if (status.playing) startPeriodicSync();
   else {
@@ -789,6 +816,7 @@ export function initRemoteIntegration() {
         positionSec,
         durationSec: durationSec || usePlayerStore.getState().durationSec,
       });
+      maybeScrobbleThreshold(positionSec);
     },
     onPlayingChanged: (isPlaying, isBuffering) => {
       usePlayerStore.setState({ isPlaying, isBuffering });
@@ -1347,6 +1375,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     clearLockScreen();
     playedHistory = [];
     streamOffsetSec = 0;
+    scrobbledThisTrack = false;
     // El soporte de timeOffset es por servidor: se re-comprueba al cambiar.
     transcodeOffsetSupported = null;
     set({

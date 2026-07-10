@@ -722,9 +722,13 @@ export async function getPlayQueue(auth: SubsonicAuth): Promise<SavedQueue | nul
 }
 
 /** Informa al servidor de que se ha reproducido una canción (scrobble). */
-export async function scrobble(auth: SubsonicAuth, id: string): Promise<void> {
+/**
+ * `submission=false` anuncia "reproduciendo ahora" (no cuenta reproducción);
+ * `true` registra la escucha de verdad (contadores y Last.fm/ListenBrainz).
+ */
+export async function scrobble(auth: SubsonicAuth, id: string, submission = true): Promise<void> {
   try {
-    await request(auth, 'scrobble.view', { id, submission: 'true' });
+    await request(auth, 'scrobble.view', { id, submission: submission ? 'true' : 'false' });
   } catch {
     // El scrobble es opcional; ignoramos sus errores.
   }

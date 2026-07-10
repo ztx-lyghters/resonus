@@ -660,7 +660,10 @@ export async function getRadioStations(_auth: SubsonicAuth): Promise<RadioStatio
 // ── Reproducción ──
 
 /** Marca la canción como reproducida (actualiza contador y fecha). */
-export async function scrobble(auth: SubsonicAuth, id: string): Promise<void> {
+export async function scrobble(auth: SubsonicAuth, id: string, submission = true): Promise<void> {
+  // Jellyfin no tiene un "now playing" barato (requiere sesiones de
+  // reproducción completas); solo se marca la escucha real.
+  if (!submission) return;
   try {
     await request(auth, `/Users/${auth.jfUserId}/PlayedItems/${id}`, {}, { method: 'POST' });
   } catch {

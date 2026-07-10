@@ -15,6 +15,8 @@ export default function PlayerSettings() {
   const setPlayerColorBackground = useSettings((s) => s.setPlayerColorBackground);
   const miniPlayerColorBackground = useSettings((s) => s.miniPlayerColorBackground);
   const setMiniPlayerColorBackground = useSettings((s) => s.setMiniPlayerColorBackground);
+  const lyricsColorBackground = useSettings((s) => s.lyricsColorBackground);
+  const setLyricsColorBackground = useSettings((s) => s.setLyricsColorBackground);
   const showLyricsCard = useSettings((s) => s.showLyricsCard);
   const setShowLyricsCard = useSettings((s) => s.setShowLyricsCard);
   const marqueeTitles = useSettings((s) => s.marqueeTitles);
@@ -40,6 +42,12 @@ export default function PlayerSettings() {
               description: t('Tint the mini player with the cover color.'),
               value: miniPlayerColorBackground,
               onChange: setMiniPlayerColorBackground,
+            },
+            {
+              label: t('Colored lyrics screen'),
+              description: t('Tint the lyrics screen with the cover color.'),
+              value: lyricsColorBackground,
+              onChange: setLyricsColorBackground,
             },
             {
               label: t('Show quality label'),

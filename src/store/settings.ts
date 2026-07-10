@@ -87,6 +87,8 @@ interface SettingsState {
   keepScreenAwake: boolean;
   /** Vibración sutil en acciones clave (favorito, long-press, arrastrar…). */
   hapticsEnabled: boolean;
+  /** Pantalla de letra teñida con el color dominante de la carátula. */
+  lyricsColorBackground: boolean;
   /**
    * Si una canción no tiene letra (ni el servidor, ni .lrc, ni USLT),
    * pedirla a LRCLIB. Desactivado por defecto: manda artista y título a un
@@ -136,6 +138,7 @@ interface SettingsState {
   setReplayGain: (value: ReplayGainMode) => void;
   setKeepScreenAwake: (value: boolean) => void;
   setHapticsEnabled: (value: boolean) => void;
+  setLyricsColorBackground: (value: boolean) => void;
   setLyricsOnlineFallback: (value: boolean) => void;
   setShowArtistPhoto: (value: boolean) => void;
   setPlayerColorBackground: (value: boolean) => void;
@@ -178,6 +181,7 @@ function snapshot(get: () => SettingsState) {
     replayGain: s.replayGain,
     keepScreenAwake: s.keepScreenAwake,
     hapticsEnabled: s.hapticsEnabled,
+    lyricsColorBackground: s.lyricsColorBackground,
     lyricsOnlineFallback: s.lyricsOnlineFallback,
     showArtistPhoto: s.showArtistPhoto,
     playerColorBackground: s.playerColorBackground,
@@ -212,7 +216,8 @@ const DEFAULTS = {
   crossfadeSec: 0,
   replayGain: 'off' as ReplayGainMode,
   keepScreenAwake: false,
-  hapticsEnabled: true,
+  hapticsEnabled: false,
+  lyricsColorBackground: true,
   lyricsOnlineFallback: false,
   showArtistPhoto: true,
   playerColorBackground: true,
@@ -297,6 +302,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
 
   setHapticsEnabled: (hapticsEnabled) => {
     set({ hapticsEnabled });
+    persist(snapshot(get));
+  },
+
+  setLyricsColorBackground: (lyricsColorBackground) => {
+    set({ lyricsColorBackground });
     persist(snapshot(get));
   },
 
@@ -410,6 +420,8 @@ export const useSettings = create<SettingsState>((set, get) => ({
           crossfadeSec: number;
           replayGain: ReplayGainMode;
           keepScreenAwake: boolean;
+          hapticsEnabled: boolean;
+          lyricsColorBackground: boolean;
           lyricsOnlineFallback: boolean;
           showArtistPhoto: boolean;
           playerColorBackground: boolean;
@@ -480,6 +492,12 @@ export const useSettings = create<SettingsState>((set, get) => ({
         }
         if (typeof parsed.keepScreenAwake === 'boolean') {
           set({ keepScreenAwake: parsed.keepScreenAwake });
+        }
+        if (typeof parsed.hapticsEnabled === 'boolean') {
+          set({ hapticsEnabled: parsed.hapticsEnabled });
+        }
+        if (typeof parsed.lyricsColorBackground === 'boolean') {
+          set({ lyricsColorBackground: parsed.lyricsColorBackground });
         }
         if (typeof parsed.lyricsOnlineFallback === 'boolean') {
           set({ lyricsOnlineFallback: parsed.lyricsOnlineFallback });

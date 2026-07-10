@@ -10,9 +10,17 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
+  cancelAnimation,
+  Easing,
   ReduceMotion,
+  runOnJS,
+  scrollTo,
+  useAnimatedReaction,
+  useAnimatedRef,
   useAnimatedStyle,
+  useScrollViewOffset,
   useSharedValue,
   withSpring,
   withTiming,
@@ -86,8 +94,15 @@ export function SyncedLyricsView({
 }) {
   const positionSec = usePlayerStore((s) => s.positionSec);
   const seekTo = usePlayerStore((s) => s.seekTo);
-  const scrollRef = useRef<ScrollView>(null);
-  const offsets = useRef<number[]>([]);
+  const scrollRef = useAnimatedRef<Animated.ScrollView>();
+  // Posición real del scroll (la mueva quien la mueva: usuario o auto-scroll).
+  const liveY = useScrollViewOffset(scrollRef);
+  // Objetivo del auto-scroll. Se anima con Reanimated (no con el smooth-scroll
+  // nativo) por dos razones: el nativo respeta la escala de animaciones del
+  // sistema (con "animaciones reducidas" pega un tirón seco) y mientras corre
+  // el ScrollView se traga los taps sobre las líneas.
+  const targetY = useSharedValue(0);
+  const offsets = useRef<{ y: number; h: number }[]>([]);
   const userScroll = useRef(false);
   const resumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // El primer posicionamiento salta directo a la línea que suena (sin animar),
@@ -106,9 +121,17 @@ export function SyncedLyricsView({
   // legible, no pegada al borde superior. En la tarjeta pequeña, más arriba.
   const anchor = large ? 0.42 : 0.3;
 
-  const onMeasure = useCallback((index: number, y: number) => {
-    offsets.current[index] = y;
+  const onMeasure = useCallback((index: number, y: number, h: number) => {
+    offsets.current[index] = { y, h };
   }, []);
+
+  // Cada cambio de targetY empuja el scroll desde el hilo de UI.
+  useAnimatedReaction(
+    () => targetY.value,
+    (y, prev) => {
+      if (prev !== null && y !== prev) scrollTo(scrollRef, 0, y, false);
+    },
+  );
 
   // Tocar una línea es un salto deliberado: se cancela la pausa del auto-scroll
   // por scroll manual (el usuario suele haber hecho scroll para llegar a la
@@ -122,16 +145,50 @@ export function SyncedLyricsView({
     [seekTo],
   );
 
+  // Los taps se detectan con un gesto aparte (no con onPress de cada línea):
+  // el gesto convive con el scroll y funciona aunque el auto-scroll esté en
+  // marcha. La línea se localiza por posición vertical con las medidas reales.
+  const handleTap = useCallback(
+    (yInView: number) => {
+      const contentY = yInView + liveY.value;
+      for (let i = 0; i < lines.length; i++) {
+        const m = offsets.current[i];
+        if (m && contentY >= m.y && contentY < m.y + m.h) {
+          if (lines[i].start !== undefined) onLineTap(lines[i].start! / 1000);
+          return;
+        }
+      }
+    },
+    [lines, onLineTap, liveY],
+  );
+
+  const tapGesture = Gesture.Tap()
+    .maxDuration(300)
+    .onEnd((e) => {
+      runOnJS(handleTap)(e.y);
+    });
+
   useEffect(() => {
     if (current < 0 || viewH === 0 || userScroll.current) return;
-    const y = offsets.current[current];
-    if (y === undefined) return;
-    scrollRef.current?.scrollTo({
-      y: Math.max(0, y - viewH * anchor),
-      animated: didInitialScroll.current,
+    const m = offsets.current[current];
+    if (m === undefined) return;
+    const dest = Math.max(0, m.y - viewH * anchor);
+    cancelAnimation(targetY);
+    if (!didInitialScroll.current) {
+      targetY.value = dest; // salto directo, sin animar
+      didInitialScroll.current = true;
+      return;
+    }
+    // Partimos de la posición real (el usuario puede haber hecho scroll) y
+    // animamos nosotros: mismo recorrido en cualquier móvil, ignore o no el
+    // sistema las animaciones.
+    targetY.value = liveY.value;
+    targetY.value = withTiming(dest, {
+      duration: 450,
+      easing: Easing.out(Easing.cubic),
+      reduceMotion: ReduceMotion.Never,
     });
-    didInitialScroll.current = true;
-  }, [current, viewH, anchor]);
+  }, [current, viewH, anchor, targetY, liveY]);
 
   useEffect(
     () => () => {
@@ -144,12 +201,14 @@ export function SyncedLyricsView({
 
   return (
     <View style={styles.wrap}>
-      <ScrollView
+      <GestureDetector gesture={tapGesture}>
+      <Animated.ScrollView
         ref={scrollRef}
         nestedScrollEnabled={nested}
         onLayout={(e) => setViewH(e.nativeEvent.layout.height)}
         onScrollBeginDrag={() => {
           userScroll.current = true;
+          cancelAnimation(targetY);
           if (resumeTimer.current) clearTimeout(resumeTimer.current);
         }}
         onScrollEndDrag={() => {
@@ -170,16 +229,14 @@ export function SyncedLyricsView({
             key={i}
             index={i}
             text={line.value.trim() || '♪'}
-            start={line.start ?? 0}
-            seekable={line.start !== undefined}
             active={i === current}
             next={i === current + 1}
             large={large}
-            seekTo={onLineTap}
             onMeasure={onMeasure}
           />
         ))}
-      </ScrollView>
+      </Animated.ScrollView>
+      </GestureDetector>
       {fadeColor ? (
         <>
           <LinearGradient
@@ -202,23 +259,17 @@ export function SyncedLyricsView({
 const LyricRow = memo(({
   index,
   text,
-  start,
-  seekable,
   active,
   next,
   large,
-  seekTo,
   onMeasure,
 }: {
   index: number;
   text: string;
-  start: number;
-  seekable: boolean;
   active: boolean;
   next: boolean;
   large?: boolean;
-  seekTo: (sec: number) => void;
-  onMeasure: (index: number, y: number) => void;
+  onMeasure: (index: number, y: number, h: number) => void;
 }) => {
   // Solo la línea activa crece (resorte) y se ve al 100 %. El resto se atenúa:
   // la siguiente que va a sonar un poco, las demás bastante más.
@@ -247,16 +298,13 @@ const LyricRow = memo(({
     transform: [{ scale: 1 + focus.value * 0.08 }],
   }));
   return (
-    <Pressable
-      onLayout={(e) => onMeasure(index, e.nativeEvent.layout.y)}
-      style={({ pressed }) => pressed && { opacity: 0.6 }}
-      disabled={!seekable}
-      onPress={() => seekTo(start / 1000)}
+    <View
+      onLayout={(e) => onMeasure(index, e.nativeEvent.layout.y, e.nativeEvent.layout.height)}
     >
       <Animated.Text style={[lyricsStyles.line, large && lyricsStyles.lineLarge, styles.leftOrigin, anim]}>
         {text}
       </Animated.Text>
-    </Pressable>
+    </View>
   );
 });
 LyricRow.displayName = 'LyricRow';

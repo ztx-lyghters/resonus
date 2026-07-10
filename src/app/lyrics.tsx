@@ -16,6 +16,7 @@ import { useLyrics } from '@/hooks/useLyrics';
 import { useT } from '@/i18n';
 import { formatDuration } from '@/lib/format';
 import { currentSong, usePlayerStore } from '@/store/player';
+import { useSettings } from '@/store/settings';
 import { colors, fontSize, spacing } from '@/theme';
 
 export default function LyricsScreen() {
@@ -30,7 +31,9 @@ export default function LyricsScreen() {
   const previous = usePlayerStore((s) => s.previous);
   const next = usePlayerStore((s) => s.next);
   const { data, isLoading } = useLyrics(song ?? undefined);
-  const bg = useDominantColor(coverArtUrl(song?.coverArt ?? song?.albumId, 600));
+  const colorBackground = useSettings((s) => s.lyricsColorBackground);
+  const dominant = useDominantColor(coverArtUrl(song?.coverArt ?? song?.albumId, 600));
+  const bg = colorBackground ? dominant : colors.background;
   const duration = durationSec || song?.duration || 0;
 
   return (

@@ -84,11 +84,11 @@ export default function PlaylistScreen() {
     sortSheet,
     setSort,
   } = useSongSort(data?.songs ?? [], `playlist:${id}`, {
-    fields: ['added', 'recent', 'alpha', 'artist', 'album'],
+    fields: ['recent', 'added', 'alpha', 'artist', 'album'],
     labels: { recent: 'Custom', added: 'Recent' },
-    // Por defecto, lo último añadido arriba (Recientes). "Personalizado" queda
-    // como el orden manual (arrastrable, estilo Spotify).
-    defaultSort: { field: 'added', dir: 'asc' },
+    // Como Spotify: por defecto "Personalizado" (el orden manual de la lista,
+    // lo nuevo se añade abajo); "Recientes" pone lo último añadido arriba.
+    defaultSort: { field: 'recent', dir: 'asc' },
   });
 
   async function onSaveEdit(changes: PlaylistEdit) {

@@ -11,14 +11,23 @@ import {
   ActivityIndicator,
   Animated,
   Dimensions,
+  Keyboard,
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
 // La lista debe ser de gesture-handler para que el swipe-a-cola de las filas
 // no pelee con el scroll vertical (con la FlatList de RN el gesto sale flaky).
-import { FlatList as GHFlatList } from 'react-native-gesture-handler';
+import {
+  FlatList as GHFlatList,
+  Gesture,
+  GestureDetector,
+  type GestureType,
+} from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { type Song, type StarType } from '@/api/subsonic';
@@ -28,13 +37,21 @@ import { artistTargets } from '@/lib/artistNav';
 import { listPerf } from '@/lib/listPerf';
 import { useArtistPicker } from '@/store/artistPicker';
 import { usePlayerStore } from '@/store/player';
-import { colors, fontSize, spacing, SCREEN_BOTTOM_PADDING } from '@/theme';
+import { colors, fontSize, radius, spacing, SCREEN_BOTTOM_PADDING } from '@/theme';
 import { Cover } from './Cover';
 import { FavoriteButton } from './FavoriteButton';
 import { TrackRow } from './TrackRow';
 
 const COVER = Math.min(Dimensions.get('window').width * 0.58, 250);
 const TOPBAR_H = 48;
+/** Alto de la barra de búsqueda oculta (estilo "Find in playlist" de Spotify),
+ * con el aire de separación respecto a la carátula incluido. */
+const SEARCH_H = 72;
+
+/** Normaliza para buscar: minúsculas y sin acentos. */
+function normQ(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
 
 interface Props {
   title: string;
@@ -84,6 +101,11 @@ interface Props {
   /** Muestra la mini carátula del álbum en cada fila (playlists/favoritos). */
   showArtwork?: boolean;
   /**
+   * Barra "buscar en la lista" oculta sobre la cabecera: se revela tirando
+   * hacia abajo desde arriba del todo (gesto estilo Spotify).
+   */
+  searchable?: boolean;
+  /**
    * Habilita la selección múltiple (entrar con pulsación larga en una fila).
    * Cada acción recibe las canciones marcadas; `indices` son sus posiciones
    * reales (vía `playlistIndices` si la lista va reordenada).
@@ -123,6 +145,7 @@ export function TrackListView({
   footer,
   emptyState,
   showArtwork,
+  searchable,
   selection,
   onPlay,
 }: Props) {
@@ -150,6 +173,46 @@ export function TrackListView({
         : undefined;
 
   const scrollY = useRef(new Animated.Value(0)).current;
+
+  // ── Búsqueda dentro de la lista ─────────────────────────────────────────
+  // La barra se renderiza plegada (altura 0) encima de la cabecera; un gesto
+  // de tirar hacia abajo con la lista arriba del todo la despliega, y volver
+  // a scrollear la pliega. Como el "Find in playlist" de Spotify.
+  const listRef = useRef<GHFlatList<Song>>(null);
+  const [query, setQuery] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+  /** Último offset real del scroll (el gesto solo revela estando arriba). */
+  const lastOffsetY = useRef(0);
+  const searchH = useRef(new Animated.Value(0)).current;
+  const searchBar = !!searchable && songs.length > 0;
+
+  function revealSearchBar() {
+    setRevealed(true);
+    Animated.timing(searchH, { toValue: SEARCH_H, duration: 200, useNativeDriver: false }).start();
+  }
+
+  function collapseSearchBar() {
+    setRevealed(false);
+    Animated.timing(searchH, { toValue: 0, duration: 200, useNativeDriver: false }).start();
+  }
+
+  // Pan simultáneo con el scroll de la lista: no roba el gesto, solo observa.
+  // Android no da eventos de overscroll (la lista clava el offset en 0), así
+  // que el "tirar hacia abajo estando arriba" hay que detectarlo aparte. La
+  // simultaneidad se declara en la lista (prop simultaneousHandlers con el ref
+  // del gesto): sin ella el scroll nativo cancela este Pan antes de activarse.
+  const revealPanRef = useRef<GestureType | undefined>(undefined);
+  const revealPan = Gesture.Pan()
+    .withRef(revealPanRef)
+    .runOnJS(true)
+    // Solo arrastres hacia abajo: los hacia arriba (scroll normal) lo anulan.
+    .activeOffsetY(10)
+    .failOffsetY(-10)
+    .onChange((e) => {
+      if (!searchBar || searching || revealed) return;
+      if (lastOffsetY.current <= 1 && e.translationY > 60) revealSearchBar();
+    });
 
   // ── Selección múltiple ──────────────────────────────────────────────────
   // null = modo normal; un Set (aunque esté vacío) = seleccionando.
@@ -204,6 +267,31 @@ export function TrackListView({
     extrapolate: 'clamp',
   });
 
+  // Filtrado en vivo; conserva el índice original de cada canción para que
+  // reproducir/encolar/quitar sigan apuntando a la posición correcta.
+  const filtered = useMemo(() => {
+    const q = normQ(query.trim());
+    if (!searchable || !q) return null;
+    const rows: { song: Song; index: number }[] = [];
+    songs.forEach((song, index) => {
+      if (normQ(song.title).includes(q) || (song.artist && normQ(song.artist).includes(q)))
+        rows.push({ song, index });
+    });
+    return rows;
+  }, [searchable, query, songs]);
+  const shownSongs = useMemo(
+    () => (filtered ? filtered.map((r) => r.song) : songs),
+    [filtered, songs],
+  );
+
+  function cancelSearch() {
+    Keyboard.dismiss();
+    setQuery('');
+    setSearching(false);
+    collapseSearchBar();
+    listRef.current?.scrollToOffset({ offset: 0, animated: false });
+  }
+
   async function shufflePlay() {
     if (songs.length === 0) return;
     // Arranca en una pista aleatoria y, una vez cargada, activa el modo
@@ -218,21 +306,42 @@ export function TrackListView({
 
   return (
     <View style={styles.root}>
-      {/* Degradado de color dominante; hace parallax 1:1 con el scroll. */}
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.gradientWrap,
-          { height: gradientH, transform: [{ translateY: Animated.multiply(scrollY, -1) }] },
-        ]}
-      >
-        <LinearGradient colors={[headerColor, colors.background]} style={StyleSheet.absoluteFill} />
-      </Animated.View>
+      {/* Degradado de color dominante; hace parallax 1:1 con el scroll. En
+          modo búsqueda no se pinta: la pantalla queda en negro plano. */}
+      {searching ? null : (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.gradientWrap,
+            {
+              height: gradientH,
+              // Sigue el scroll 1:1 y baja con la barra de búsqueda desplegada
+              // (que empuja la cabecera hacia abajo sin mover el offset).
+              transform: [{ translateY: Animated.add(searchH, Animated.multiply(scrollY, -1)) }],
+            },
+          ]}
+        >
+          {/* Banda de color sobre el degradado: al revelar la barra de búsqueda
+              el contenido baja SEARCH_H px y esto llena el hueco de arriba. */}
+          {searchable ? (
+            <View style={[styles.gradientAbove, { backgroundColor: headerColor }]} />
+          ) : null}
+          <LinearGradient
+            colors={[headerColor, colors.background]}
+            style={StyleSheet.absoluteFill}
+          />
+        </Animated.View>
+      )}
 
+      <GestureDetector gesture={revealPan}>
       <GHFlatList
+        ref={listRef}
+        simultaneousHandlers={revealPanRef}
         {...listPerf}
-        data={songs}
+        data={shownSongs}
         keyExtractor={(item) => item.id}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         contentContainerStyle={[
           styles.list,
           { paddingTop: insets.top + TOPBAR_H + spacing.md },
@@ -240,8 +349,55 @@ export function TrackListView({
         scrollEventThrottle={16}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
           useNativeDriver: false,
+          listener: (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+            const y = e.nativeEvent.contentOffset.y;
+            lastOffsetY.current = y;
+            // Scrollear hacia abajo con la barra fuera la vuelve a plegar.
+            if (revealed && !searching && y > 30) collapseSearchBar();
+          },
         })}
         ListHeaderComponent={
+          <View>
+            {searchBar ? (
+              /* Plegada = altura 0 (invisible); el gesto la despliega. El
+                 recorte va en un contenedor sin padding: cualquier padding
+                 impondría una altura mínima y asomaría una rendija. */
+              <Animated.View style={[styles.searchClip, { height: searchH }]}>
+              <View style={styles.searchRow}>
+                <View style={styles.searchBox}>
+                  <Ionicons name="search" size={18} color={colors.textSecondary} />
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder={t('Find in playlist')}
+                    placeholderTextColor={colors.textSecondary}
+                    value={query}
+                    onChangeText={setQuery}
+                    onFocus={() => setSearching(true)}
+                    returnKeyType="search"
+                    autoCorrect={false}
+                  />
+                  {query.length > 0 ? (
+                    <Pressable
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('Clear')}
+                      onPress={() => setQuery('')}
+                    >
+                      <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+                    </Pressable>
+                  ) : null}
+                </View>
+                {searching ? (
+                  <Pressable hitSlop={8} accessibilityRole="button" onPress={cancelSearch}>
+                    <Text style={styles.searchCancel}>{t('Cancel')}</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+              </Animated.View>
+            ) : null}
+            {/* Buscando, la cabecera grande se aparta: los resultados quedan
+                pegados a la barra, que es lo que hace Spotify. */}
+            {searching ? null : (
           <View style={styles.header}>
             {hideCover ? null : (
               <Animated.View style={[styles.coverCenter, { opacity: coverOpacity }]}>
@@ -365,32 +521,46 @@ export function TrackListView({
               </View>
             </View>
           </View>
+            )}
+          </View>
         }
         extraData={selectedIds}
-        renderItem={({ item, index }) => (
-          <TrackRow
-            song={item}
-            // Con carátula visible se omite el número: el álbum queda como
-            // siempre (solo Populares del artista muestra número + portada).
-            position={numbered && !showArtwork ? item.track ?? index + 1 : undefined}
-            isCurrent={currentId === item.id}
-            showArtwork={showArtwork}
-            menuContext={
-              playlistId
-                ? { playlistId, index: playlistIndices ? playlistIndices[index] : index }
-                : undefined
-            }
-            selecting={selecting}
-            selected={!!selectedIds?.has(item.id)}
-            onLongPress={
-              selection && !selecting ? () => setSelectedIds(new Set([item.id])) : undefined
-            }
-            onPress={() => (selecting ? toggleSelect(item.id) : onPlay(index))}
-          />
-        )}
-        ListEmptyComponent={emptyState ? <>{emptyState}</> : null}
+        renderItem={({ item, index }) => {
+          // Con filtro activo, `index` es la posición en los resultados; todo
+          // lo demás (reproducir, quitar, numerar) usa la posición original.
+          const origIndex = filtered ? filtered[index].index : index;
+          return (
+            <TrackRow
+              song={item}
+              // Con carátula visible se omite el número: el álbum queda como
+              // siempre (solo Populares del artista muestra número + portada).
+              position={numbered && !showArtwork ? item.track ?? origIndex + 1 : undefined}
+              isCurrent={currentId === item.id}
+              showArtwork={showArtwork}
+              menuContext={
+                playlistId
+                  ? { playlistId, index: playlistIndices ? playlistIndices[origIndex] : origIndex }
+                  : undefined
+              }
+              selecting={selecting}
+              selected={!!selectedIds?.has(item.id)}
+              onLongPress={
+                selection && !selecting ? () => setSelectedIds(new Set([item.id])) : undefined
+              }
+              onPress={() => (selecting ? toggleSelect(item.id) : onPlay(origIndex))}
+            />
+          );
+        }}
+        ListEmptyComponent={
+          filtered ? (
+            <Text style={styles.noResults}>{t('No results for “{q}”', { q: query.trim() })}</Text>
+          ) : emptyState ? (
+            <>{emptyState}</>
+          ) : null
+        }
         ListFooterComponent={footer ? <>{footer}</> : null}
       />
+      </GestureDetector>
 
       {/* Barra fija superior: el fondo y el título aparecen al colapsar. En
           modo selección se sustituye por ✕ + contador + seleccionar todo. */}
@@ -526,6 +696,53 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
+  },
+  gradientAbove: {
+    position: 'absolute',
+    top: -SEARCH_H * 4,
+    left: 0,
+    right: 0,
+    height: SEARCH_H * 4,
+  },
+  searchClip: {
+    overflow: 'hidden',
+  },
+  searchRow: {
+    height: SEARCH_H,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    // La separación con la carátula va dentro del alto animado: así se pliega
+    // junto con la barra (un margen exterior quedaría siempre visible).
+    paddingBottom: spacing.md,
+  },
+  searchBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    // Translúcido para dejar pasar el color dominante de la cabecera (Spotify).
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    height: 44,
+  },
+  searchInput: {
+    flex: 1,
+    color: colors.text,
+    fontSize: fontSize.sm,
+    paddingVertical: 0,
+  },
+  searchCancel: {
+    color: colors.text,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+  },
+  noResults: {
+    color: colors.textSecondary,
+    fontSize: fontSize.sm,
+    textAlign: 'center',
+    marginTop: spacing.xl,
   },
   list: {
     paddingHorizontal: spacing.lg,

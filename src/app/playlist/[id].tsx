@@ -186,6 +186,7 @@ export default function PlaylistScreen() {
         onMenu={() => setMenuOpen(true)}
         playlistId={id}
         showArtwork={showListArtwork}
+        searchable
         onSort={data.songs.length > 1 ? openSort : undefined}
         download={
           !offline && data.songs.length > 0

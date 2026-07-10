@@ -30,6 +30,8 @@ export default function AppearanceSettings() {
   const setSwipeToQueue = useSettings((s) => s.setSwipeToQueue);
   const showQuickGrid = useSettings((s) => s.showQuickGrid);
   const setShowQuickGrid = useSettings((s) => s.setShowQuickGrid);
+  const showFolderBrowser = useSettings((s) => s.showFolderBrowser);
+  const setShowFolderBrowser = useSettings((s) => s.setShowFolderBrowser);
   const appFont = useSettings((s) => s.appFont);
   const setAppFont = useSettings((s) => s.setAppFont);
 
@@ -38,6 +40,7 @@ export default function AppearanceSettings() {
     { value: 'condensed', label: t('Condensed') },
     { value: 'serif', label: t('Serif') },
     { value: 'monospace', label: t('Monospace') },
+    { value: 'casual', label: t('Casual') },
   ];
 
   return (
@@ -111,6 +114,12 @@ export default function AppearanceSettings() {
               description: t('Your avatar on Home.'),
               value: showProfileButton,
               onChange: setShowProfileButton,
+            },
+            {
+              label: t('Folder browsing'),
+              description: t('Browse your library by folders in a Folders tab (Subsonic servers).'),
+              value: showFolderBrowser,
+              onChange: setShowFolderBrowser,
             },
           ]}
         />

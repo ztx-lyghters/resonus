@@ -16,7 +16,7 @@ import * as Local from '@/lib/localQueries';
 function isOffline() { return useAuthStore.getState().offline; }
 function auth() { return useAuthStore.getState().auth!; }
 
-export type { Album, AlbumListType, Artist, ArtistInfo, Playlist, RadioStation, SearchResult, Song, StarType, Starred, SubsonicAuth } from './subsonic';
+export type { Album, AlbumListType, Artist, ArtistInfo, FolderContents, FolderEntry, MusicFolder, Playlist, RadioStation, SearchResult, Song, StarType, Starred, SubsonicAuth } from './subsonic';
 export { normalizeUrl } from './subsonic';
 
 export function coverArtUrl(id: string | undefined, _size?: number): string | undefined {
@@ -82,6 +82,22 @@ export function getAlbumsByGenre(genre: string, size?: number, offset?: number):
     offset ?? 0,
     (id, s, o) => Subsonic.getAlbumsByGenre(a, genre, s, o, id),
   );
+}
+
+// ── Navegación por carpetas (solo servidores Subsonic; la UI la oculta en
+// Jellyfin y offline) ──────────────────────────────────────────────────────
+export function getMusicFolders(): Promise<Subsonic.MusicFolder[]> {
+  return Subsonic.getMusicFolders(auth());
+}
+
+/** Directorios de más alto nivel de una biblioteca (raíz de las carpetas). */
+export function getFolderIndexes(musicFolderId?: string): Promise<Subsonic.FolderEntry[]> {
+  return Subsonic.getIndexes(auth(), musicFolderId);
+}
+
+/** Contenido de un directorio: subcarpetas + canciones. */
+export function getMusicDirectory(id: string): Promise<Subsonic.FolderContents> {
+  return Subsonic.getMusicDirectory(auth(), id);
 }
 
 export function getArtist(id: string): Promise<{ artist: Subsonic.Artist; albums: Subsonic.Album[] }> {

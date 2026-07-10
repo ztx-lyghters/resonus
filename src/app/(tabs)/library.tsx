@@ -2,7 +2,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { useMemo, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
@@ -21,6 +21,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   coverArtUrl,
   createPlaylist,
+  getMusicFolders,
   getPlaylists,
   getStarred,
   type Playlist,
@@ -43,13 +44,16 @@ import { useToast } from '@/store/toast';
 import { colors, fontSize, radius, spacing, SCREEN_BOTTOM_PADDING } from '@/theme';
 import { listPerf } from '@/lib/listPerf';
 
-type Segment = 'playlists' | 'albums' | 'artists';
+type Segment = 'playlists' | 'albums' | 'artists' | 'folders';
 
 const SEGMENTS: { key: Segment; label: string }[] = [
   { key: 'playlists', label: 'Playlists' },
   { key: 'albums', label: 'Albums' },
   { key: 'artists', label: 'Artists' },
 ];
+
+/** Segmento extra "Carpetas" (navegación por directorios; solo Subsonic). */
+const FOLDERS_SEGMENT: { key: Segment; label: string } = { key: 'folders', label: 'Folders' };
 
 // Cuadrícula de la Biblioteca: 3 columnas, mismo hueco que el resto de rejillas.
 const GRID_COLUMNS = 3;
@@ -354,6 +358,49 @@ function ArtistsTab() {
   );
 }
 
+/** Segmento "Carpetas": lista las bibliotecas y abre su navegador de directorios. */
+function FoldersTab() {
+  const t = useT();
+  const router = useRouter();
+  const canFetch = useAuthStore((s) => !!s.auth);
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['musicFolders'],
+    queryFn: () => getMusicFolders(),
+    enabled: canFetch,
+  });
+  if (isLoading) return <Loader />;
+  if (isError) return <Message text={t("Couldn't load folders.")} onRetry={() => refetch()} />;
+  // Sin bibliotecas declaradas: una entrada raíz que explora todo el árbol.
+  const folders = data && data.length > 0 ? data : [{ id: 'root', name: t('Music') }];
+  return (
+    <FlatList
+      {...listPerf}
+      contentContainerStyle={styles.list}
+      data={folders}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => (
+        <Pressable
+          style={styles.row}
+          onPress={() =>
+            router.push({
+              pathname: '/browse/folder/[id]',
+              params: { id: item.id, name: item.name, root: '1' },
+            })
+          }
+        >
+          <Ionicons name="folder" size={44} color={colors.accent} />
+          <View style={styles.rowInfo}>
+            <Text style={styles.rowTitle} numberOfLines={1}>
+              {item.name}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+        </Pressable>
+      )}
+    />
+  );
+}
+
 function AlbumsTab() {
   const canFetch = useAuthStore((s) => !!s.auth || s.offline);
   const t = useT();
@@ -533,7 +580,13 @@ export default function LibraryScreen() {
   const [creating, setCreating] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
 
-  const visibleSegments = SEGMENTS;
+  // "Carpetas" solo con servidor Subsonic (Jellyfin no navega por directorios;
+  // offline no aplica) y con el ajuste activado (oculto por defecto).
+  const showFolderBrowser = useSettings((s) => s.showFolderBrowser);
+  const foldersEnabled =
+    showFolderBrowser && !offline && !!auth && auth.serverType !== 'jellyfin';
+  const visibleSegments = foldersEnabled ? [...SEGMENTS, FOLDERS_SEGMENT] : SEGMENTS;
+  const activeSegment = segment === 'folders' && !foldersEnabled ? 'playlists' : segment;
 
   async function onCreate(name: string) {
     setCreating(false);
@@ -574,7 +627,7 @@ export default function LibraryScreen() {
 
       <View style={styles.segments}>
         {visibleSegments.map((s) => {
-          const active = s.key === segment;
+          const active = s.key === activeSegment;
           return (
             <Pressable
               key={s.key}
@@ -589,19 +642,26 @@ export default function LibraryScreen() {
         })}
       </View>
 
-      <View style={styles.controls}>
-        <SortBar onPress={() => setSortOpen(true)} />
-        <LayoutToggle />
-      </View>
-      <SortSheet visible={sortOpen} onClose={() => setSortOpen(false)} />
+      {/* Los controles de orden/disposición no aplican a Carpetas. */}
+      {activeSegment === 'folders' ? null : (
+        <>
+          <View style={styles.controls}>
+            <SortBar onPress={() => setSortOpen(true)} />
+            <LayoutToggle />
+          </View>
+          <SortSheet visible={sortOpen} onClose={() => setSortOpen(false)} />
+        </>
+      )}
 
       <View style={{ flex: 1 }}>
-        {segment === 'playlists' ? (
+        {activeSegment === 'playlists' ? (
           <PlaylistsTab onNew={() => setCreating(true)} />
-        ) : segment === 'albums' ? (
+        ) : activeSegment === 'albums' ? (
           <AlbumsTab />
-        ) : (
+        ) : activeSegment === 'artists' ? (
           <ArtistsTab />
+        ) : (
+          <FoldersTab />
         )}
       </View>
     </SafeAreaView>

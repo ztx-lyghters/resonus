@@ -15,6 +15,8 @@ export type {
   AlbumListType,
   Artist,
   ArtistInfo,
+  FolderContents,
+  FolderEntry,
   Genre,
   LyricLine,
   MusicFolder,
@@ -49,6 +51,14 @@ export function makeAuth(
 export const ping = (auth: SubsonicAuth) => api(auth).ping(auth);
 
 export const getMusicFolders = (auth: SubsonicAuth) => api(auth).getMusicFolders(auth);
+
+// Navegación por carpetas: solo protocolo Subsonic (Jellyfin no la usa; la UI
+// oculta la sección para ese backend), así que se delega directo a Subsonic.
+export const getIndexes = (auth: SubsonicAuth, musicFolderId?: string) =>
+  Subsonic.getIndexes(auth, musicFolderId);
+
+export const getMusicDirectory = (auth: SubsonicAuth, id: string) =>
+  Subsonic.getMusicDirectory(auth, id);
 
 export const getAlbumList = (
   auth: SubsonicAuth,

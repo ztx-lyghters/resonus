@@ -308,6 +308,57 @@ export async function getMusicFolders(auth: SubsonicAuth): Promise<MusicFolder[]
   }));
 }
 
+/** Un directorio hijo dentro de una carpeta (navegación por carpetas). */
+export interface FolderEntry {
+  id: string;
+  name: string;
+  coverArt?: string;
+}
+
+/** Contenido de un directorio: subcarpetas y canciones. */
+export interface FolderContents {
+  id: string;
+  name: string;
+  dirs: FolderEntry[];
+  songs: Song[];
+}
+
+/**
+ * Nivel raíz de la navegación por carpetas: índice alfabético de directorios
+ * de más alto nivel (normalmente artistas) de una biblioteca. Sus `id` sirven
+ * como directorio para `getMusicDirectory`.
+ */
+export async function getIndexes(
+  auth: SubsonicAuth,
+  musicFolderId?: string,
+): Promise<FolderEntry[]> {
+  const res = await request<{
+    indexes?: { index?: { artist?: { id: string; name: string; coverArt?: string }[] }[] };
+  }>(auth, 'getIndexes.view', musicFolderId ? { musicFolderId } : undefined);
+  return (res.indexes?.index ?? []).flatMap((i) => i.artist ?? []);
+}
+
+/** Contenido de un directorio concreto: subcarpetas + canciones. */
+export async function getMusicDirectory(
+  auth: SubsonicAuth,
+  id: string,
+): Promise<FolderContents> {
+  const res = await request<{
+    directory?: {
+      id?: string;
+      name?: string;
+      child?: (Song & { isDir?: boolean; name?: string })[];
+    };
+  }>(auth, 'getMusicDirectory.view', { id });
+  const dir = res.directory ?? {};
+  const children = dir.child ?? [];
+  const dirs: FolderEntry[] = children
+    .filter((c) => c.isDir)
+    .map((c) => ({ id: c.id, name: c.name ?? c.title ?? '', coverArt: c.coverArt }));
+  const songs = children.filter((c) => !c.isDir) as Song[];
+  return { id: dir.id ?? id, name: dir.name ?? '', dirs, songs };
+}
+
 export interface Genre {
   value: string;
   songCount?: number;

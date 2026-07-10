@@ -49,7 +49,7 @@ export type ReplayGainMode = 'off' | 'auto' | 'track' | 'album';
  * Fuente de la interfaz. Son familias del sistema Android (sin coste de
  * empaquetado ni descarga): `system` deja la fuente por defecto (Roboto).
  */
-export type AppFont = 'system' | 'condensed' | 'serif' | 'monospace';
+export type AppFont = 'system' | 'condensed' | 'serif' | 'monospace' | 'casual';
 
 /** Familia real de cada opción; `undefined` = fuente por defecto del sistema. */
 export const APP_FONT_FAMILY: Record<AppFont, string | undefined> = {
@@ -57,6 +57,7 @@ export const APP_FONT_FAMILY: Record<AppFont, string | undefined> = {
   condensed: 'sans-serif-condensed',
   serif: 'serif',
   monospace: 'monospace',
+  casual: 'casual',
 };
 
 interface SettingsState {
@@ -105,6 +106,8 @@ interface SettingsState {
   swipeToQueue: boolean;
   /** Cuadrícula de acceso rápido (Favoritos + recientes) arriba en Inicio. */
   showQuickGrid: boolean;
+  /** Sección "Carpetas" en la Biblioteca (navegación por directorios; Subsonic). */
+  showFolderBrowser: boolean;
   /** Visibilidad de botones opcionales, para quien prefiera una UI mínima. */
   showHistoryButton: boolean;
   showProfileButton: boolean;
@@ -138,6 +141,7 @@ interface SettingsState {
   setShowDevicesButton: (value: boolean) => void;
   setSwipeToQueue: (value: boolean) => void;
   setShowQuickGrid: (value: boolean) => void;
+  setShowFolderBrowser: (value: boolean) => void;
   setShowHistoryButton: (value: boolean) => void;
   setShowProfileButton: (value: boolean) => void;
   setLibrarySort: (value: LibrarySort) => void;
@@ -178,6 +182,7 @@ function snapshot(get: () => SettingsState) {
     showDevicesButton: s.showDevicesButton,
     swipeToQueue: s.swipeToQueue,
     showQuickGrid: s.showQuickGrid,
+    showFolderBrowser: s.showFolderBrowser,
     showHistoryButton: s.showHistoryButton,
     showProfileButton: s.showProfileButton,
     librarySort: s.librarySort,
@@ -211,6 +216,7 @@ const DEFAULTS = {
   showDevicesButton: true,
   swipeToQueue: true,
   showQuickGrid: true,
+  showFolderBrowser: false,
   showHistoryButton: true,
   showProfileButton: true,
   librarySort: 'recent' as LibrarySort,
@@ -332,6 +338,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
     persist(snapshot(get));
   },
 
+  setShowFolderBrowser: (showFolderBrowser) => {
+    set({ showFolderBrowser });
+    persist(snapshot(get));
+  },
+
   setShowHistoryButton: (showHistoryButton) => {
     set({ showHistoryButton });
     persist(snapshot(get));
@@ -397,6 +408,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
           showDevicesButton: boolean;
           swipeToQueue: boolean;
           showQuickGrid: boolean;
+          showFolderBrowser: boolean;
           showHistoryButton: boolean;
           showProfileButton: boolean;
           librarySort: LibrarySort;
@@ -486,6 +498,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
         }
         if (typeof parsed.showQuickGrid === 'boolean') {
           set({ showQuickGrid: parsed.showQuickGrid });
+        }
+        if (typeof parsed.showFolderBrowser === 'boolean') {
+          set({ showFolderBrowser: parsed.showFolderBrowser });
         }
         if (typeof parsed.showHistoryButton === 'boolean') {
           set({ showHistoryButton: parsed.showHistoryButton });

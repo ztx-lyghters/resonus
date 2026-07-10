@@ -49,7 +49,7 @@ export type ReplayGainMode = 'off' | 'auto' | 'track' | 'album';
  * Fuente de la interfaz. Son familias del sistema Android (sin coste de
  * empaquetado ni descarga): `system` deja la fuente por defecto (Roboto).
  */
-export type AppFont = 'system' | 'condensed' | 'serif' | 'monospace' | 'casual';
+export type AppFont = 'system' | 'condensed' | 'serif' | 'monospace' | 'casual' | 'typewriter';
 
 /** Familia real de cada opción; `undefined` = fuente por defecto del sistema. */
 export const APP_FONT_FAMILY: Record<AppFont, string | undefined> = {
@@ -58,6 +58,8 @@ export const APP_FONT_FAMILY: Record<AppFont, string | undefined> = {
   serif: 'serif',
   monospace: 'monospace',
   casual: 'casual',
+  // Cutive Mono (familia serif-monospace de AOSP): rollo máquina de escribir.
+  typewriter: 'serif-monospace',
 };
 
 interface SettingsState {

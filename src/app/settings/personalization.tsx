@@ -44,6 +44,7 @@ export default function AppearanceSettings() {
     { value: 'serif', label: t('Serif') },
     { value: 'monospace', label: t('Monospace') },
     { value: 'casual', label: t('Casual') },
+    { value: 'typewriter', label: t('Typewriter') },
   ];
 
   return (

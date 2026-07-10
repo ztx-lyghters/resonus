@@ -71,13 +71,17 @@ export function PlaylistReorder({
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
-        <Pressable hitSlop={10} onPress={onCancel}>
+        <Pressable hitSlop={10} accessibilityRole="button" onPress={onCancel}>
           <Text style={[styles.action, { color: colors.accent }]}>{t('Cancel')}</Text>
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>
           {title}
         </Text>
-        <Pressable hitSlop={10} onPress={() => onSave(list.map((s) => s.id))}>
+        <Pressable
+          hitSlop={10}
+          accessibilityRole="button"
+          onPress={() => onSave(list.map((s) => s.id))}
+        >
           <Text style={[styles.action, styles.done, { color: colors.accent }]}>{t('Done')}</Text>
         </Pressable>
       </View>

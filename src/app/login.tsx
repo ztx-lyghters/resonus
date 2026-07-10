@@ -25,7 +25,7 @@ import {
 import { ensureAudioPermission, pickFolder } from '@/lib/localLibrary';
 import { useToast } from '@/store/toast';
 import { useT } from '@/i18n';
-import { colors, fontSize, radius, spacing } from '@/theme';
+import { colors, DEFAULT_ACCENT, fontSize, radius, spacing } from '@/theme';
 
 type ServerKey = 'navidrome' | 'opensubsonic' | 'jellyfin' | 'ampache';
 
@@ -222,7 +222,9 @@ export default function LoginScreen() {
                   {overflow ? (
                     <Pressable style={styles.showMore} onPress={() => setShowAll(true)}>
                       <Text style={styles.showMoreText}>{t('Show all')}</Text>
-                      <Ionicons name="chevron-down" size={18} color={colors.accent} />
+                      {/* Color fijo (no el acento): en login el acento puede ser
+                          el de una sesión anterior y desentona con la marca. */}
+                      <Ionicons name="chevron-down" size={18} color={DEFAULT_ACCENT} />
                     </Pressable>
                   ) : null}
                 </View>
@@ -424,7 +426,8 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   container: { flexGrow: 1, padding: spacing.xl, paddingTop: spacing.xxl },
   logo: {
-    color: colors.accent,
+    // Verde de marca fijo: en login el acento puede ser el de una sesión previa.
+    color: DEFAULT_ACCENT,
     fontSize: fontSize.xxl,
     fontWeight: '800',
     textAlign: 'center',
@@ -468,7 +471,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingVertical: spacing.sm,
   },
-  showMoreText: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '600' },
+  showMoreText: { color: DEFAULT_ACCENT, fontSize: fontSize.sm, fontWeight: '600' },
   addAccount: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -477,7 +480,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     marginTop: spacing.md,
     borderRadius: radius.pill,
-    backgroundColor: colors.accent,
+    backgroundColor: DEFAULT_ACCENT,
   },
   addAccountText: { color: colors.background, fontSize: fontSize.md, fontWeight: '700' },
   hero: { alignItems: 'center', marginBottom: spacing.xl },

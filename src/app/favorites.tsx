@@ -135,6 +135,8 @@ export default function FavoritesScreen() {
         songs={displaySongs}
         currentId={playing?.id}
         showArtwork={showListArtwork}
+        searchable
+        searchPlaceholder={t('Find in favorites')}
         onSort={displaySongs.length > 1 ? openSort : undefined}
         addAction={{ label: t('Add to favorites'), onPress: () => router.push('/favorites-add') }}
         download={

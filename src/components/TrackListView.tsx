@@ -107,6 +107,8 @@ interface Props {
    * hacia abajo desde arriba del todo (gesto estilo Spotify).
    */
   searchable?: boolean;
+  /** Texto guía de la barra de búsqueda (por defecto "Buscar en la lista"). */
+  searchPlaceholder?: string;
   /**
    * Habilita la selección múltiple (entrar con pulsación larga en una fila).
    * Cada acción recibe las canciones marcadas; `indices` son sus posiciones
@@ -149,6 +151,7 @@ export function TrackListView({
   emptyState,
   showArtwork,
   searchable,
+  searchPlaceholder,
   selection,
   onPlay,
 }: Props) {
@@ -371,7 +374,7 @@ export function TrackListView({
                   <Ionicons name="search" size={18} color={colors.textSecondary} />
                   <TextInput
                     style={styles.searchInput}
-                    placeholder={t('Find in playlist')}
+                    placeholder={searchPlaceholder ?? t('Find in playlist')}
                     placeholderTextColor={colors.textSecondary}
                     value={query}
                     onChangeText={setQuery}

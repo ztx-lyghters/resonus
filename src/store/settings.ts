@@ -83,6 +83,8 @@ interface SettingsState {
   replayGain: ReplayGainMode;
   /** Mantener la pantalla encendida mientras la app está en primer plano. */
   keepScreenAwake: boolean;
+  /** Vibración sutil en acciones clave (favorito, long-press, arrastrar…). */
+  hapticsEnabled: boolean;
   /**
    * Si una canción no tiene letra (ni el servidor, ni .lrc, ni USLT),
    * pedirla a LRCLIB. Desactivado por defecto: manda artista y título a un
@@ -131,6 +133,7 @@ interface SettingsState {
   setCrossfadeSec: (value: number) => void;
   setReplayGain: (value: ReplayGainMode) => void;
   setKeepScreenAwake: (value: boolean) => void;
+  setHapticsEnabled: (value: boolean) => void;
   setLyricsOnlineFallback: (value: boolean) => void;
   setShowArtistPhoto: (value: boolean) => void;
   setPlayerColorBackground: (value: boolean) => void;
@@ -172,6 +175,7 @@ function snapshot(get: () => SettingsState) {
     crossfadeSec: s.crossfadeSec,
     replayGain: s.replayGain,
     keepScreenAwake: s.keepScreenAwake,
+    hapticsEnabled: s.hapticsEnabled,
     lyricsOnlineFallback: s.lyricsOnlineFallback,
     showArtistPhoto: s.showArtistPhoto,
     playerColorBackground: s.playerColorBackground,
@@ -206,6 +210,7 @@ const DEFAULTS = {
   crossfadeSec: 0,
   replayGain: 'off' as ReplayGainMode,
   keepScreenAwake: false,
+  hapticsEnabled: true,
   lyricsOnlineFallback: false,
   showArtistPhoto: true,
   playerColorBackground: true,
@@ -285,6 +290,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
 
   setKeepScreenAwake: (keepScreenAwake) => {
     set({ keepScreenAwake });
+    persist(snapshot(get));
+  },
+
+  setHapticsEnabled: (hapticsEnabled) => {
+    set({ hapticsEnabled });
     persist(snapshot(get));
   },
 

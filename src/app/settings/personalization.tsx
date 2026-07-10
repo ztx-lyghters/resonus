@@ -10,6 +10,7 @@ import {
   SwitchList,
 } from '@/components/SettingsUI';
 import { useT } from '@/i18n';
+import { haptic } from '@/lib/haptics';
 import { type AppFont, LANGUAGE_NAMES, useSettings } from '@/store/settings';
 
 export default function AppearanceSettings() {
@@ -32,6 +33,8 @@ export default function AppearanceSettings() {
   const setShowQuickGrid = useSettings((s) => s.setShowQuickGrid);
   const showFolderBrowser = useSettings((s) => s.showFolderBrowser);
   const setShowFolderBrowser = useSettings((s) => s.setShowFolderBrowser);
+  const hapticsEnabled = useSettings((s) => s.hapticsEnabled);
+  const setHapticsEnabled = useSettings((s) => s.setHapticsEnabled);
   const appFont = useSettings((s) => s.appFont);
   const setAppFont = useSettings((s) => s.setAppFont);
 
@@ -120,6 +123,16 @@ export default function AppearanceSettings() {
               description: t('Browse your library by folders in a Folders tab (Subsonic servers).'),
               value: showFolderBrowser,
               onChange: setShowFolderBrowser,
+            },
+            {
+              label: t('Haptic feedback'),
+              description: t('Subtle vibration on key actions.'),
+              value: hapticsEnabled,
+              onChange: (v: boolean) => {
+                setHapticsEnabled(v);
+                // Vibra al activarlo: confirmación inmediata de que funciona.
+                if (v) haptic('medium');
+              },
             },
           ]}
         />

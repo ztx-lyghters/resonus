@@ -16,6 +16,7 @@ import { useDownloads } from '@/store/downloads';
 import { usePlayerStore } from '@/store/player';
 import { useSongMenu, type SongMenuContext } from '@/store/songMenu';
 import { useSettings } from '@/store/settings';
+import { haptic } from '@/lib/haptics';
 import { useToast } from '@/store/toast';
 import { useT } from '@/i18n';
 import { colors, fontSize, spacing } from '@/theme';
@@ -96,6 +97,7 @@ export function TrackRow({
   // OJO: el gesto solo convive bien con el scroll si la lista contenedora es
   // de react-native-gesture-handler (FlatList/ScrollView de esa librería).
   function onSwipeToQueue() {
+    haptic('light');
     swipeRef.current?.close();
     addToQueue(song);
     toast(t('Added to queue'));

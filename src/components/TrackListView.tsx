@@ -34,6 +34,7 @@ import { type Song, type StarType } from '@/api/subsonic';
 import { useDominantColor } from '@/hooks/useDominantColor';
 import { useT } from '@/i18n';
 import { artistTargets } from '@/lib/artistNav';
+import { haptic } from '@/lib/haptics';
 import { listPerf } from '@/lib/listPerf';
 import { useArtistPicker } from '@/store/artistPicker';
 import { usePlayerStore } from '@/store/player';
@@ -564,7 +565,12 @@ export function TrackListView({
               selecting={selecting}
               selected={!!selectedIds?.has(item.id)}
               onLongPress={
-                selection && !selecting ? () => setSelectedIds(new Set([item.id])) : undefined
+                selection && !selecting
+                  ? () => {
+                      haptic('medium');
+                      setSelectedIds(new Set([item.id]));
+                    }
+                  : undefined
               }
               onPress={() => (selecting ? toggleSelect(item.id) : onPlay(origIndex))}
             />

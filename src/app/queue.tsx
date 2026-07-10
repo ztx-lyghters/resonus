@@ -27,6 +27,7 @@ import { SOURCE_FAVORITES, SOURCE_HISTORY, usePlayerStore } from '@/store/player
 import { useSettings } from '@/store/settings';
 import { useToast } from '@/store/toast';
 import { useT } from '@/i18n';
+import { haptic } from '@/lib/haptics';
 import { colors, fontSize, spacing } from '@/theme';
 import { listPerf } from '@/lib/listPerf';
 
@@ -85,7 +86,7 @@ function UpcomingRow({ item, absIndex }: { item: Song; absIndex: number }) {
 
   return (
     <View style={styles.row}>
-      <Pressable style={styles.main} onPress={() => jumpTo(absIndex)} onLongPress={drag}>
+      <Pressable style={styles.main} onPress={() => jumpTo(absIndex)} onLongPress={() => { haptic('medium'); drag(); }}>
         {showListArtwork ? (
           <View style={styles.artwork}>
             <Cover uri={coverArtUrl(item.coverArt ?? item.albumId, 100)} size={44} />
@@ -107,7 +108,7 @@ function UpcomingRow({ item, absIndex }: { item: Song; absIndex: number }) {
         <Pressable hitSlop={6} onPress={() => void remove()}>
           <Ionicons name="close" size={22} color={colors.textSecondary} />
         </Pressable>
-        <Pressable hitSlop={6} onPressIn={drag}>
+        <Pressable hitSlop={6} onPressIn={() => { haptic('medium'); drag(); }}>
           <Ionicons name="reorder-two" size={24} color={colors.textSecondary} />
         </Pressable>
       </View>

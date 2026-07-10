@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { coverArtUrl, type Album } from '@/api/data';
 import { useMediaMenu } from '@/store/mediaMenu';
+import { haptic } from '@/lib/haptics';
 import { colors, fontSize, spacing } from '@/theme';
 import { Cover } from './Cover';
 
@@ -25,7 +26,10 @@ export function AlbumCard({ album, width = 150, onPress }: Props) {
       <Pressable
         style={StyleSheet.flatten([styles.container, { width }])}
         onPress={onPress}
-        onLongPress={() => openMenu({ kind: 'album', album })}
+        onLongPress={() => {
+          haptic('light');
+          openMenu({ kind: 'album', album });
+        }}
       >
         <Cover uri={cover} size={width} />
         <Text style={styles.title} numberOfLines={1}>

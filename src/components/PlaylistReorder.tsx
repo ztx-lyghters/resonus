@@ -16,6 +16,7 @@ import { coverArtUrl } from '@/api/data';
 import { type Song } from '@/api/subsonic';
 import { useT } from '@/i18n';
 import { listPerf } from '@/lib/listPerf';
+import { haptic } from '@/lib/haptics';
 import { useSettings } from '@/store/settings';
 import { colors, fontSize, spacing, SCREEN_BOTTOM_PADDING } from '@/theme';
 import { Cover } from './Cover';
@@ -31,7 +32,7 @@ function ReorderRow({ song }: { song: Song }) {
   const drag = useReorderableDrag();
   const showListArtwork = useSettings((s) => s.showListArtwork);
   return (
-    <Pressable style={styles.row} onLongPress={drag} delayLongPress={150}>
+    <Pressable style={styles.row} onLongPress={() => { haptic('medium'); drag(); }} delayLongPress={150}>
       {showListArtwork ? (
         <Cover uri={coverArtUrl(song.coverArt ?? song.albumId, 100)} size={44} />
       ) : null}
@@ -45,7 +46,7 @@ function ReorderRow({ song }: { song: Song }) {
           </Text>
         ) : null}
       </View>
-      <Pressable hitSlop={8} onPressIn={drag}>
+      <Pressable hitSlop={8} onPressIn={() => { haptic('medium'); drag(); }}>
         <Ionicons name="reorder-two" size={24} color={colors.textSecondary} />
       </Pressable>
     </Pressable>

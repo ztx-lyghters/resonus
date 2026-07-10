@@ -28,6 +28,7 @@ import { Message } from '@/components/Message';
 import { TrackRow } from '@/components/TrackRow';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useT } from '@/i18n';
+import { haptic } from '@/lib/haptics';
 import { useAuthStore } from '@/store/auth';
 import { useMediaMenu } from '@/store/mediaMenu';
 import { currentSong, usePlayerStore } from '@/store/player';
@@ -295,7 +296,7 @@ export default function SearchScreen() {
               <Link key={p.id} href={`/playlist/${p.id}`} asChild>
                 <Pressable
                   style={styles.recentRow}
-                  onLongPress={() => openMediaMenu({ kind: 'playlist', playlist: p })}
+                  onLongPress={() => { haptic('light'); openMediaMenu({ kind: 'playlist', playlist: p }); }}
                 >
                   <Cover uri={coverArtUrl(p.coverArt ?? p.id, 100)} size={48} />
                   <View style={styles.recentInfo}>

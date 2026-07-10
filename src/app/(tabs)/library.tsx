@@ -43,6 +43,7 @@ import { useAccent } from '@/hooks/useAccent';
 import { useToast } from '@/store/toast';
 import { colors, fontSize, radius, spacing, SCREEN_BOTTOM_PADDING } from '@/theme';
 import { listPerf } from '@/lib/listPerf';
+import { haptic } from '@/lib/haptics';
 
 type Segment = 'playlists' | 'albums' | 'artists' | 'folders';
 
@@ -264,13 +265,13 @@ function PlaylistsTab({ onNew }: { onNew?: () => void }) {
             title={item.name}
             subtitle={songsLabel(item.songCount ?? 0, lang)}
             pinned={!!pins[`playlist:${item.id}`]}
-            onLongPress={() => openMenu({ kind: 'playlist', playlist: item })}
+            onLongPress={() => { haptic('light'); openMenu({ kind: 'playlist', playlist: item }); }}
           />
         ) : (
           <Link href={`/playlist/${item.id}`} asChild>
             <Pressable
               style={styles.row}
-              onLongPress={() => openMenu({ kind: 'playlist', playlist: item })}
+              onLongPress={() => { haptic('light'); openMenu({ kind: 'playlist', playlist: item }); }}
             >
               <Cover uri={coverArtUrl(item.coverArt ?? item.id, 100)} size={56} />
               <View style={styles.rowInfo}>
@@ -448,13 +449,13 @@ function AlbumsTab() {
             title={item.name}
             subtitle={item.artist}
             pinned={!!pins[`album:${item.id}`]}
-            onLongPress={() => openMenu({ kind: 'album', album: item })}
+            onLongPress={() => { haptic('light'); openMenu({ kind: 'album', album: item }); }}
           />
         ) : (
           <Link href={`/album/${item.id}`} asChild>
             <Pressable
               style={styles.row}
-              onLongPress={() => openMenu({ kind: 'album', album: item })}
+              onLongPress={() => { haptic('light'); openMenu({ kind: 'album', album: item }); }}
             >
               <Cover uri={coverArtUrl(item.coverArt ?? item.id, 100)} size={56} />
               <View style={styles.rowInfo}>

@@ -38,6 +38,13 @@ export type LibrarySort = 'recent' | 'added' | 'alpha';
 /** Disposición de la Biblioteca: lista (filas) o cuadrícula (tarjetas). */
 export type LibraryLayout = 'list' | 'grid';
 
+/**
+ * Normalización de volumen con las etiquetas ReplayGain de los ficheros.
+ * `auto` = estilo Spotify: por álbum al escuchar un álbum entero (conserva su
+ * dinámica interna) y por canción en playlists/shuffle.
+ */
+export type ReplayGainMode = 'off' | 'auto' | 'track' | 'album';
+
 interface SettingsState {
   maxBitRate: number;
   /** Calidad de descarga: 0 = fichero original; resto, bitrate transcodificado. */
@@ -57,6 +64,8 @@ interface SettingsState {
   autoplaySimilar: boolean;
   /** Segundos de fundido cruzado entre canciones (0 = desactivado). */
   crossfadeSec: number;
+  /** Normalización de volumen (ReplayGain): apagada, por canción o por álbum. */
+  replayGain: ReplayGainMode;
   /**
    * Si una canción no tiene letra (ni el servidor, ni .lrc, ni USLT),
    * pedirla a LRCLIB. Desactivado por defecto: manda artista y título a un
@@ -99,6 +108,7 @@ interface SettingsState {
   setShowSongDuration: (value: boolean) => void;
   setAutoplaySimilar: (value: boolean) => void;
   setCrossfadeSec: (value: number) => void;
+  setReplayGain: (value: ReplayGainMode) => void;
   setLyricsOnlineFallback: (value: boolean) => void;
   setShowArtistPhoto: (value: boolean) => void;
   setPlayerColorBackground: (value: boolean) => void;
@@ -136,6 +146,7 @@ function snapshot(get: () => SettingsState) {
     showSongDuration: s.showSongDuration,
     autoplaySimilar: s.autoplaySimilar,
     crossfadeSec: s.crossfadeSec,
+    replayGain: s.replayGain,
     lyricsOnlineFallback: s.lyricsOnlineFallback,
     showArtistPhoto: s.showArtistPhoto,
     playerColorBackground: s.playerColorBackground,
@@ -166,6 +177,7 @@ const DEFAULTS = {
   showSongDuration: true,
   autoplaySimilar: true,
   crossfadeSec: 0,
+  replayGain: 'off' as ReplayGainMode,
   lyricsOnlineFallback: false,
   showArtistPhoto: true,
   playerColorBackground: true,
@@ -233,6 +245,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
 
   setCrossfadeSec: (crossfadeSec) => {
     set({ crossfadeSec });
+    persist(snapshot(get));
+  },
+
+  setReplayGain: (replayGain) => {
+    set({ replayGain });
     persist(snapshot(get));
   },
 
@@ -334,6 +351,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
           showSongDuration: boolean;
           autoplaySimilar: boolean;
           crossfadeSec: number;
+          replayGain: ReplayGainMode;
           lyricsOnlineFallback: boolean;
           showArtistPhoto: boolean;
           playerColorBackground: boolean;
@@ -391,6 +409,14 @@ export const useSettings = create<SettingsState>((set, get) => ({
         }
         if (typeof parsed.crossfadeSec === 'number' && parsed.crossfadeSec >= 0) {
           set({ crossfadeSec: parsed.crossfadeSec });
+        }
+        if (
+          parsed.replayGain === 'off' ||
+          parsed.replayGain === 'auto' ||
+          parsed.replayGain === 'track' ||
+          parsed.replayGain === 'album'
+        ) {
+          set({ replayGain: parsed.replayGain });
         }
         if (typeof parsed.lyricsOnlineFallback === 'boolean') {
           set({ lyricsOnlineFallback: parsed.lyricsOnlineFallback });

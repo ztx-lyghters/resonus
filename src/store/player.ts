@@ -253,6 +253,8 @@ async function loadIndex(index: number, autoplay: boolean) {
   try {
     p.replace(sourceFor(song));
     p.loop = repeat === 'one';
+    // Volumen efectivo de ESTA canción (usuario × ReplayGain).
+    p.volume = effectiveVolume(song);
     usePlayerStore.setState({
       index,
       positionSec: 0,
@@ -348,6 +350,49 @@ function nextIndex(manual: boolean): number | null {
   return manual ? null : null;
 }
 
+// ── ReplayGain (normalización de volumen) ───────────────────────────────────
+// El volumen efectivo de un player es siempre `volume` (el del usuario) por el
+// factor ReplayGain de SU canción. Las etiquetas vienen del servidor (y se
+// conservan en las descargas); sin etiquetas o con el ajuste apagado, 1.
+
+/** Factor lineal de ReplayGain para una canción según el modo del ajuste. */
+function gainFactor(song: Song | null | undefined): number {
+  let mode = useSettings.getState().replayGain;
+  const rg = song?.replayGain;
+  if (mode === 'off' || !rg) return 1;
+  if (mode === 'auto') {
+    // Como Spotify: álbum entero sin shuffle → ganancia de álbum (conserva
+    // su dinámica interna); playlists, favoritos o shuffle → por canción.
+    const st = usePlayerStore.getState();
+    mode = st.sourceHref?.startsWith('/album/') && !st.shuffle ? 'album' : 'track';
+  }
+  // Modo álbum sin ganancia de álbum (o viceversa): se usa la que haya.
+  const gain = mode === 'album' ? (rg.albumGain ?? rg.trackGain) : (rg.trackGain ?? rg.albumGain);
+  if (typeof gain !== 'number' || !Number.isFinite(gain)) return 1;
+  let f = Math.pow(10, gain / 20);
+  // Con ganancia positiva, no pasar del pico del fichero (evita clipping).
+  const peak = mode === 'album' ? (rg.albumPeak ?? rg.trackPeak) : (rg.trackPeak ?? rg.albumPeak);
+  if (typeof peak === 'number' && peak > 0) f = Math.min(f, 1 / peak);
+  // Sujeción de seguridad ante etiquetas disparatadas.
+  return Math.min(Math.max(f, 0.05), 4);
+}
+
+/** Volumen efectivo (usuario × ReplayGain) para la canción indicada. */
+function effectiveVolume(song: Song | null | undefined): number {
+  return usePlayerStore.getState().volume * gainFactor(song);
+}
+
+// Al cambiar el modo en Ajustes, reaplicar el volumen de la pista que suena
+// (fuera de rampas: un fundido en curso converge solo al valor nuevo).
+let lastReplayGainMode = useSettings.getState().replayGain;
+useSettings.subscribe((s) => {
+  if (s.replayGain === lastReplayGainMode) return;
+  lastReplayGainMode = s.replayGain;
+  if (fadingOut || pauseFadeTimer) return;
+  const p = activePlayer();
+  if (p) p.volume = effectiveVolume(currentSong(usePlayerStore.getState()));
+});
+
 // ── Crossfade ───────────────────────────────────────────────────────────────
 // Al acercarse el final de la pista, la siguiente arranca en el player de
 // reserva a volumen 0 y ambos volúmenes se cruzan (curva de igual potencia).
@@ -384,7 +429,7 @@ function cutCrossfade() {
     fadingOut = null;
   }
   const p = activePlayer();
-  if (p) p.volume = volume;
+  if (p) p.volume = effectiveVolume(currentSong(usePlayerStore.getState()));
 }
 
 /** Si toca (ajuste activo y quedan ≤ N segundos), arranca el crossfade. */
@@ -408,8 +453,10 @@ function maybeStartCrossfade(status: AudioStatus) {
 }
 
 function startCrossfade(index: number, fadeSec: number) {
-  const song = usePlayerStore.getState().queue[index];
+  const st = usePlayerStore.getState();
+  const song = st.queue[index];
   if (!song) return;
+  const outgoingSong = st.queue[st.index];
   const out = activePlayer();
   const p = ensurePlayer(1 - activeIdx);
   try {
@@ -432,11 +479,19 @@ function startCrossfade(index: number, fadeSec: number) {
   });
   applyLockScreen(p, song);
   onTrackChanged(song);
-  runFade(out, p, fadeSec);
+  // Cada extremo del fundido apunta al volumen efectivo de SU canción
+  // (ReplayGain por pista); el volumen de usuario se lee vivo en cada tick.
+  runFade(out, p, fadeSec, gainFactor(outgoingSong), gainFactor(song));
 }
 
 /** Cruza los volúmenes durante `fadeSec` y al acabar apaga el saliente. */
-function runFade(out: AudioPlayer | null, incoming: AudioPlayer, fadeSec: number) {
+function runFade(
+  out: AudioPlayer | null,
+  incoming: AudioPlayer,
+  fadeSec: number,
+  outGain: number,
+  inGain: number,
+) {
   if (fadeTimer) clearInterval(fadeTimer);
   const t0 = Date.now();
   fadeTimer = setInterval(() => {
@@ -444,8 +499,8 @@ function runFade(out: AudioPlayer | null, incoming: AudioPlayer, fadeSec: number
     // Curva de igual potencia: la suma de ambos se percibe constante.
     const volume = usePlayerStore.getState().volume;
     try {
-      if (out) out.volume = volume * Math.cos((x * Math.PI) / 2);
-      incoming.volume = volume * Math.sin((x * Math.PI) / 2);
+      if (out) out.volume = volume * outGain * Math.cos((x * Math.PI) / 2);
+      incoming.volume = volume * inGain * Math.sin((x * Math.PI) / 2);
     } catch {
       // ignore
     }
@@ -864,7 +919,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
     const p = activePlayer();
     if (!p) return;
-    const vol = get().volume;
+    // Volumen efectivo de la pista actual (usuario × ReplayGain).
+    const vol = effectiveVolume(currentSong(get()));
     if (get().isPlaying) {
       // Pausar en mitad de un fundido corta el saliente: al reanudar debe
       // sonar solo la pista actual, a volumen normal.
@@ -877,7 +933,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
           p.pause();
           // Reconcilia por si el volumen cambió durante la rampa; así un play
           // posterior (incluido el del sistema/bloqueo) suena al volumen real.
-          p.volume = get().volume;
+          p.volume = effectiveVolume(currentSong(get()));
         } catch {
           // ignore
         }
@@ -894,7 +950,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       set({ isPlaying: true });
       fadeVolume(p, 0, vol, () => {
         try {
-          p.volume = get().volume;
+          p.volume = effectiveVolume(currentSong(get()));
         } catch {
           // ignore
         }
@@ -956,7 +1012,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       // En mitad de un fundido (crossfade o pausa/reanudación) no se pisa la
       // rampa: converge sola y el volumen queda restaurado al terminar.
       const p = activePlayer();
-      if (p) p.volume = volume;
+      if (p) p.volume = effectiveVolume(currentSong(get()));
     }
   },
 

@@ -43,7 +43,7 @@ const TICKS_PER_MS = 10_000;
 
 /** Campos extra que hay que pedir explícitamente en cada tipo de item. */
 const ALBUM_FIELDS = 'ChildCount,DateCreated';
-const SONG_FIELDS = 'MediaSources,DateCreated';
+const SONG_FIELDS = 'MediaSources,DateCreated,NormalizationGain';
 const PLAYLIST_FIELDS = 'ChildCount,DateCreated,DateLastMediaAdded';
 
 /** Subconjunto de BaseItemDto que usa la app. */
@@ -66,6 +66,8 @@ interface JfItem {
   ImageTags?: { Primary?: string };
   AlbumPrimaryImageTag?: string;
   UserData?: { IsFavorite?: boolean };
+  /** Ganancia de normalización en dB (análisis LUFS del servidor, 10.9+). */
+  NormalizationGain?: number;
   MediaSources?: {
     Container?: string;
     Bitrate?: number;
@@ -234,6 +236,12 @@ function toSong(it: JfItem): Song {
     bitDepth: audio?.BitDepth,
     samplingRate: audio?.SampleRate,
     year: it.ProductionYear,
+    // Jellyfin no expone ReplayGain por pista/álbum; su NormalizationGain
+    // (LUFS) hace el mismo papel como ganancia de pista.
+    replayGain:
+      typeof it.NormalizationGain === 'number'
+        ? { trackGain: it.NormalizationGain }
+        : undefined,
   };
 }
 

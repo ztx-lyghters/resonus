@@ -20,6 +20,8 @@ export default function PlaybackSettings() {
   const setAutoplaySimilar = useSettings((s) => s.setAutoplaySimilar);
   const crossfadeSec = useSettings((s) => s.crossfadeSec);
   const setCrossfadeSec = useSettings((s) => s.setCrossfadeSec);
+  const replayGain = useSettings((s) => s.replayGain);
+  const setReplayGain = useSettings((s) => s.setReplayGain);
   const lyricsOnlineFallback = useSettings((s) => s.lyricsOnlineFallback);
   const setLyricsOnlineFallback = useSettings((s) => s.setLyricsOnlineFallback);
 
@@ -44,6 +46,18 @@ export default function PlaybackSettings() {
           max={12}
           formatValue={(v) => (v === 0 ? t('No') : `${v} s`)}
           onChange={setCrossfadeSec}
+        />
+        <SelectList
+          label={t('Normalize volume')}
+          description={t("Evens out loudness between songs using your files' ReplayGain tags.")}
+          options={[
+            { value: 'off', label: t('Off') },
+            { value: 'auto', label: t('Automatic') },
+            { value: 'track', label: t('By track') },
+            { value: 'album', label: t('By album') },
+          ]}
+          value={replayGain}
+          onChange={setReplayGain}
         />
         <SwitchList
           options={[

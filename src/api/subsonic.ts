@@ -79,6 +79,16 @@ export interface Song {
   year?: number;
   /** Fecha de modificación del fichero en ms (modo sin conexión). */
   addedAt?: number;
+  /**
+   * Etiquetas ReplayGain del fichero (extensión OpenSubsonic; Navidrome las
+   * envía si existen). Ganancias en dB (negativas atenúan), picos lineales.
+   */
+  replayGain?: {
+    trackGain?: number;
+    albumGain?: number;
+    trackPeak?: number;
+    albumPeak?: number;
+  };
 }
 
 export interface Album {

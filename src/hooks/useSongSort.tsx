@@ -9,10 +9,10 @@
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { memo, type ReactNode, useMemo, useRef, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { type Song } from '@/api/subsonic';
+import { SheetModal } from '@/components/SheetModal';
 import { useT } from '@/i18n';
 import {
   DEFAULT_SORT,
@@ -59,9 +59,9 @@ interface SortResult {
 }
 
 /**
- * El menú vive en su propio componente con su propio estado `open`: abrirlo o
- * cerrarlo solo re-renderiza el modal, no la pantalla (con su lista) que usa
- * el hook. Ese re-render era un delay visible al pulsar "Ordenar".
+ * El menú vive en su propio componente (SheetModal, con su estado dentro):
+ * abrirlo o cerrarlo solo re-renderiza el modal, no la pantalla (con su lista)
+ * que usa el hook. Ese re-render era un delay visible al pulsar "Ordenar".
  */
 const SortSheet = memo(function SortSheet({
   fields,
@@ -79,16 +79,12 @@ const SortSheet = memo(function SortSheet({
   openRef: React.MutableRefObject<() => void>;
 }) {
   const t = useT();
-  const insets = useSafeAreaInsets();
-  const [open, setOpen] = useState(false);
   const labelFor = (f: SortField) => t(labels?.[f] ?? SORT_LABEL[f]);
-  // `openSort` del hook llama aquí sin pasar por un estado del padre.
-  openRef.current = () => setOpen(true);
 
   return (
-    <Modal transparent visible={open} animationType="fade" onRequestClose={() => setOpen(false)}>
-      <Pressable style={styles.backdrop} onPress={() => setOpen(false)} />
-      <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.md }]}>
+    <SheetModal openRef={openRef}>
+      {() => (
+        <>
         <Text style={styles.sheetTitle}>{t('Sort by')}</Text>
         {fields.map((f) => {
           const active = field === f;
@@ -135,9 +131,10 @@ const SortSheet = memo(function SortSheet({
               </Pressable>
             );
           })}
-        </View>
-      </View>
-    </Modal>
+          </View>
+        </>
+      )}
+    </SheetModal>
   );
 });
 
@@ -207,18 +204,6 @@ export function useSongSort(
 }
 
 const styles = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
-  sheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-  },
   sheetTitle: {
     color: colors.textSecondary,
     fontSize: fontSize.sm,

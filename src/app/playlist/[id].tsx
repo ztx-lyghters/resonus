@@ -2,9 +2,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
 import { coverArtUrl, deletePlaylist, getPlaylist, removeFromPlaylist, reorderPlaylist, updatePlaylist } from '@/api/data';
@@ -16,6 +15,7 @@ import { Message } from '@/components/Message';
 import { PlaylistEditSheet, type PlaylistEdit } from '@/components/PlaylistEditSheet';
 import { PlaylistPickerSheet } from '@/components/PlaylistPickerSheet';
 import { PlaylistReorder } from '@/components/PlaylistReorder';
+import { SheetModal } from '@/components/SheetModal';
 import { TrackListSkeleton } from '@/components/TrackListSkeleton';
 import { TrackListView } from '@/components/TrackListView';
 import { usePlaylistCover } from '@/hooks/usePlaylistCover';
@@ -32,7 +32,6 @@ import { colors, fontSize, spacing } from '@/theme';
 export default function PlaylistScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const auth = useAuthStore((s) => s.auth);
   const offline = useAuthStore((s) => s.offline);
   const t = useT();
@@ -44,7 +43,8 @@ export default function PlaylistScreen() {
   const playQueue = usePlayerStore((s) => s.playQueue);
   const addToQueue = usePlayerStore((s) => s.addToQueue);
 
-  const [menuOpen, setMenuOpen] = useState(false);
+  // El menú ⋯ vive en un SheetModal (abrir/cerrar no re-renderiza la pantalla).
+  const menuRef = useRef<() => void>(() => {});
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDownload, setConfirmDownload] = useState(false);
@@ -243,7 +243,7 @@ export default function PlaylistScreen() {
         songs={displaySongs}
         playlistIndices={playlistIndices}
         currentId={playing?.id}
-        onMenu={() => setMenuOpen(true)}
+        onMenu={() => menuRef.current()}
         playlistId={id}
         showArtwork={showListArtwork}
         searchable
@@ -321,55 +321,56 @@ export default function PlaylistScreen() {
       </CoverViewer>
       {sortSheet}
 
-      <Modal transparent visible={menuOpen} animationType="fade" onRequestClose={() => setMenuOpen(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setMenuOpen(false)} />
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.md }]}>
-          <Pressable
-            style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
-            onPress={() => {
-              setMenuOpen(false);
-              // En el orden visible (respeta el orden elegido con ⇅).
-              for (const s of displaySongs) addToQueue(s);
-              toast(t('Added to queue'));
-            }}
-          >
-            <Ionicons name="list" size={24} color={colors.text} />
-            <Text style={styles.actionText}>{t('Add to queue')}</Text>
-          </Pressable>
-          {canReorder ? (
+      <SheetModal openRef={menuRef}>
+        {(close) => (
+          <>
             <Pressable
               style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
               onPress={() => {
-                setMenuOpen(false);
-                setReordering(true);
+                close();
+                // En el orden visible (respeta el orden elegido con ⇅).
+                for (const s of displaySongs) addToQueue(s);
+                toast(t('Added to queue'));
               }}
             >
-              <Ionicons name="swap-vertical" size={24} color={colors.text} />
-              <Text style={styles.actionText}>{t('Reorder')}</Text>
+              <Ionicons name="list" size={24} color={colors.text} />
+              <Text style={styles.actionText}>{t('Add to queue')}</Text>
             </Pressable>
-          ) : null}
-          <Pressable
-            style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
-            onPress={() => {
-              setMenuOpen(false);
-              setEditing(true);
-            }}
-          >
-            <Ionicons name="create-outline" size={24} color={colors.text} />
-            <Text style={styles.actionText}>{t('Edit playlist')}</Text>
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
-            onPress={() => {
-              setMenuOpen(false);
-              setDeleting(true);
-            }}
-          >
-            <Ionicons name="trash-outline" size={24} color={colors.danger} />
-            <Text style={[styles.actionText, { color: colors.danger }]}>{t('Delete playlist')}</Text>
-          </Pressable>
-        </View>
-      </Modal>
+            {canReorder ? (
+              <Pressable
+                style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
+                onPress={() => {
+                  close();
+                  setReordering(true);
+                }}
+              >
+                <Ionicons name="swap-vertical" size={24} color={colors.text} />
+                <Text style={styles.actionText}>{t('Reorder')}</Text>
+              </Pressable>
+            ) : null}
+            <Pressable
+              style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
+              onPress={() => {
+                close();
+                setEditing(true);
+              }}
+            >
+              <Ionicons name="create-outline" size={24} color={colors.text} />
+              <Text style={styles.actionText}>{t('Edit playlist')}</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
+              onPress={() => {
+                close();
+                setDeleting(true);
+              }}
+            >
+              <Ionicons name="trash-outline" size={24} color={colors.danger} />
+              <Text style={[styles.actionText, { color: colors.danger }]}>{t('Delete playlist')}</Text>
+            </Pressable>
+          </>
+        )}
+      </SheetModal>
 
       <PlaylistEditSheet
         visible={editing}
@@ -430,18 +431,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
     justifyContent: 'center',
-  },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
-  sheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
   },
   action: {
     flexDirection: 'row',

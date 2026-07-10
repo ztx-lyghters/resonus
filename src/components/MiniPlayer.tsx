@@ -27,6 +27,7 @@ import { useSettings } from '@/store/settings';
 import { colors, fontSize, radius, spacing } from '@/theme';
 import { Cover } from './Cover';
 import { FavoriteButton } from './FavoriteButton';
+import { MarqueeText } from './MarqueeText';
 
 const SCREEN_W = Dimensions.get('window').width;
 const SCREEN_H = Dimensions.get('window').height;
@@ -101,6 +102,7 @@ export function MiniPlayer() {
   const cover = song ? coverArtUrl(song.coverArt ?? song.albumId, 100) : undefined;
   // Color dominante de la carátula, si el ajuste está activo; si no, superficie neutra.
   const miniColor = useSettings((s) => s.miniPlayerColorBackground);
+  const marqueeTitles = useSettings((s) => s.marqueeTitles);
   const dominant = useDominantColor(miniColor ? cover : undefined);
   const bg = miniColor ? dominant : colors.surfaceHighlight;
   const offline = useAuthStore((s) => s.offline);
@@ -124,9 +126,7 @@ export function MiniPlayer() {
       <Animated.View style={[styles.details, detailsStyle]}>
         <Cover uri={cover} size={44} />
         <View style={styles.info}>
-          <Text style={styles.title} numberOfLines={1}>
-            {song.title}
-          </Text>
+          <MarqueeText text={song.title} style={styles.title} enabled={marqueeTitles} />
           {song.artist ? (
             <Text style={styles.artist} numberOfLines={1}>
               {song.artist}

@@ -1,5 +1,6 @@
 /** Pantalla de Favoritos: canciones marcadas con estrella, estilo Spotify. */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
@@ -29,6 +30,7 @@ const HEADER_COLOR = '#290693';
 
 export default function FavoritesScreen() {
   useSettings((s) => s.accentColor); // re-render al cambiar el acento
+  const router = useRouter();
   const canFetch = useAuthStore((s) => !!s.auth || s.offline);
   const offline = useAuthStore((s) => s.offline);
   const t = useT();
@@ -134,6 +136,7 @@ export default function FavoritesScreen() {
         currentId={playing?.id}
         showArtwork={showListArtwork}
         onSort={displaySongs.length > 1 ? openSort : undefined}
+        addAction={{ label: t('Add to favorites'), onPress: () => router.push('/favorites-add') }}
         download={
           !offline && displaySongs.length > 0
             ? {

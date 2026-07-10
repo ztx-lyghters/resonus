@@ -59,6 +59,8 @@ export interface Song {
   track?: number;
   /** Marca de tiempo de cuándo se marcó como favorita; ausente si no lo es. */
   starred?: string;
+  /** Nº de reproducciones registradas por el servidor (OpenSubsonic). */
+  playCount?: number;
   /** Valoración del usuario (1-5); ausente o 0 si no la ha puntuado. */
   userRating?: number;
   /** URL de streaming directa (usado para radio; evita generar URL Subsonic). */
@@ -523,6 +525,30 @@ export async function getAppearsOn(
     });
   }
   return [...byAlbum.values()];
+}
+
+/**
+ * Canciones más escuchadas. Subsonic no tiene endpoint global de canciones
+ * por reproducciones, así que se compone: álbumes "frequent" (los del Home)
+ * → sus canciones → ordenadas por el `playCount` que manda OpenSubsonic. Si
+ * el servidor no manda playCount por canción, se dejan en el orden de los
+ * álbumes frecuentes (que ya es una buena aproximación).
+ */
+export async function getMostPlayedSongs(
+  auth: SubsonicAuth,
+  size = 50,
+  musicFolderId?: string,
+): Promise<Song[]> {
+  const albums = await getAlbumList(auth, 'frequent', 15, 0, musicFolderId);
+  const details = await Promise.all(
+    albums.map((al) => getAlbum(auth, al.id).catch(() => ({ album: al, songs: [] as Song[] }))),
+  );
+  const songs = details.flatMap((d) => d.songs);
+  if (!songs.some((s) => (s.playCount ?? 0) > 0)) return songs.slice(0, size);
+  return songs
+    .filter((s) => (s.playCount ?? 0) > 0)
+    .sort((a, b) => (b.playCount ?? 0) - (a.playCount ?? 0))
+    .slice(0, size);
 }
 
 /** Canciones más populares de un artista (por nombre). */

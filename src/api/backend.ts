@@ -90,6 +90,9 @@ export const getTopSongs = (auth: SubsonicAuth, artist: string, count?: number) 
 export const getSimilarSongs = (auth: SubsonicAuth, id: string, count?: number) =>
   api(auth).getSimilarSongs(auth, id, count);
 
+export const getMostPlayedSongs = (auth: SubsonicAuth, size?: number, musicFolderId?: string) =>
+  api(auth).getMostPlayedSongs(auth, size, musicFolderId);
+
 export const search = (auth: SubsonicAuth, query: string, musicFolderId?: string) =>
   api(auth).search(auth, query, musicFolderId);
 

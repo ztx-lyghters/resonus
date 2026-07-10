@@ -302,6 +302,17 @@ export function getArtistInfo(_id: string): ArtistInfo {
   return { similarArtists: [] };
 }
 
+/** Canciones más escuchadas según el contador local de reproducciones. */
+export async function getMostPlayedSongs(size = 50): Promise<Song[]> {
+  const c = await ensureCatalog();
+  if (!c) return [];
+  const counts = usePlayCounts.getState().counts;
+  return c.songs
+    .filter((s) => (counts[s.id] ?? 0) > 0)
+    .sort((a, b) => (counts[b.id] ?? 0) - (counts[a.id] ?? 0))
+    .slice(0, size);
+}
+
 export async function getTopSongs(artist: string, count = 10): Promise<Song[]> {
   const c = await ensureCatalog();
   if (!c) return [];

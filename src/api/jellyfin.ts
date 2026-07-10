@@ -437,6 +437,24 @@ export async function getTopSongs(
   return (res.Items ?? []).map(toSong);
 }
 
+/** Canciones más escuchadas (Jellyfin ordena por PlayCount directamente). */
+export async function getMostPlayedSongs(
+  auth: SubsonicAuth,
+  size = 50,
+  _musicFolderId?: string,
+): Promise<Song[]> {
+  const res = await request<JfItems>(auth, `/Users/${auth.jfUserId}/Items`, {
+    IncludeItemTypes: 'Audio',
+    Recursive: true,
+    Filters: 'IsPlayed',
+    SortBy: 'PlayCount,SortName',
+    SortOrder: 'Descending',
+    Limit: size,
+    Fields: SONG_FIELDS,
+  });
+  return (res.Items ?? []).map(toSong);
+}
+
 /** Canciones parecidas a una dada vía Instant Mix (autoplay / radio). */
 export async function getSimilarSongs(
   auth: SubsonicAuth,

@@ -111,6 +111,26 @@ export function getTopSongs(artist: string, count?: number): Promise<Subsonic.So
   return Subsonic.getTopSongs(auth(), artist, count);
 }
 
+/** Canciones parecidas a una dada (sugerencias). Solo online. */
+export function getSimilarSongs(id: string, count?: number): Promise<Subsonic.Song[]> {
+  if (isOffline()) return Promise.resolve([]);
+  return Subsonic.getSimilarSongs(auth(), id, count);
+}
+
+/** Canciones más escuchadas (composición sobre álbumes "frequent" en Subsonic). */
+export function getMostPlayedSongs(size = 50): Promise<Subsonic.Song[]> {
+  if (isOffline()) return Local.getMostPlayedSongs(size);
+  const a = auth();
+  const ids = enabledFolderIds(a);
+  if (!ids) return Subsonic.getMostPlayedSongs(a, size);
+  if (ids.length === 1) return Subsonic.getMostPlayedSongs(a, size, ids[0]);
+  return Promise.all(ids.map((fid) => Subsonic.getMostPlayedSongs(a, size, fid))).then((lists) =>
+    dedupeById(lists.flat())
+      .sort((x, y) => (y.playCount ?? 0) - (x.playCount ?? 0))
+      .slice(0, size),
+  );
+}
+
 export function getPlaylists(): Promise<Subsonic.Playlist[]> {
   if (isOffline()) return Local.getPlaylists();
   return Subsonic.getPlaylists(auth());

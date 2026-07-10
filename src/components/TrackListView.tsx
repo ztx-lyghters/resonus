@@ -94,6 +94,8 @@ interface Props {
   playlistIndices?: number[];
   /** Si se indica, muestra un botón de orden a la izquierda del ⋯. */
   onSort?: () => void;
+  /** Fila "+ Añadir…" bajo las acciones (estilo Spotify), p. ej. en Favoritos. */
+  addAction?: { label: string; onPress: () => void };
   /** Contenido extra al pie de la lista (p. ej. "Más de este artista"). */
   footer?: ReactNode;
   /** Qué mostrar bajo la cabecera cuando no hay canciones (p. ej. playlist vacía). */
@@ -142,6 +144,7 @@ export function TrackListView({
   playlistId,
   playlistIndices,
   onSort,
+  addAction,
   footer,
   emptyState,
   showArtwork,
@@ -520,6 +523,19 @@ export function TrackListView({
                 </Pressable>
               </View>
             </View>
+
+            {addAction ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={addAction.onPress}
+                style={({ pressed }) => [styles.addRow, pressed && { opacity: 0.6 }]}
+              >
+                <View style={styles.addBox}>
+                  <Ionicons name="add" size={26} color={colors.textSecondary} />
+                </View>
+                <Text style={styles.addLabel}>{addAction.label}</Text>
+              </Pressable>
+            ) : null}
           </View>
             )}
           </View>
@@ -744,6 +760,20 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.xl,
   },
+  addRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.md,
+  },
+  addBox: {
+    width: 48,
+    height: 48,
+    backgroundColor: colors.surfaceHighlight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addLabel: { color: colors.text, fontSize: fontSize.md, fontWeight: '700' },
   list: {
     paddingHorizontal: spacing.lg,
     paddingBottom: SCREEN_BOTTOM_PADDING,

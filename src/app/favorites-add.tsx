@@ -1,0 +1,354 @@
+/**
+ * "Añadir a favoritos" (estilo "Add to Liked Songs" de Spotify): pestañas de
+ * candidatas (recientes del historial, sugerencias por parecido a favoritas
+ * ya existentes, y al azar de la biblioteca) + buscador abajo. Cada fila tiene
+ * un ⊕ que marca la canción como favorita al momento (y ✓ para deshacer).
+ */
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import {
+  coverArtUrl,
+  getMostPlayedSongs,
+  getSimilarSongs,
+  getStarred,
+  search,
+  star,
+  unstar,
+} from '@/api/data';
+import { type Song } from '@/api/subsonic';
+import { Cover } from '@/components/Cover';
+import { useT } from '@/i18n';
+import { listPerf } from '@/lib/listPerf';
+import { useAuthStore } from '@/store/auth';
+import { usePlayHistory } from '@/store/playHistory';
+import { useSettings } from '@/store/settings';
+import { useToast } from '@/store/toast';
+import { colors, fontSize, radius, spacing } from '@/theme';
+
+type Tab = 'most' | 'recent' | 'suggested';
+
+export default function FavoritesAddScreen() {
+  useSettings((s) => s.accentColor); // re-render al cambiar el acento
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const t = useT();
+  const queryClient = useQueryClient();
+  const offline = useAuthStore((s) => s.offline);
+  const canFetch = useAuthStore((s) => !!s.auth || s.offline);
+  const toast = useToast((s) => s.show);
+  const history = usePlayHistory((s) => s.entries);
+
+  const [tab, setTab] = useState<Tab>('most');
+  const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  // Marcadas desde esta pantalla: la fila se queda con ✓ (tocar deshace).
+  const [added, setAdded] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(query.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const { data: starred } = useQuery({
+    queryKey: ['starred'],
+    queryFn: () => getStarred(),
+    enabled: canFetch,
+  });
+
+  // Foto de las favoritas AL ENTRAR: las filas no desaparecen al marcarlas
+  // (como en Spotify), solo se excluye lo que ya era favorito antes.
+  const initialFavIds = useRef<Set<string> | null>(null);
+  if (starred && !initialFavIds.current) {
+    initialFavIds.current = new Set(starred.songs.map((s) => s.id));
+  }
+  const excluded = initialFavIds.current;
+
+  const { data: mostPlayed, isLoading: loadingMost } = useQuery({
+    queryKey: ['favAddMost'],
+    queryFn: () => getMostPlayedSongs(50),
+    enabled: tab === 'most',
+    staleTime: Infinity,
+  });
+
+  const { data: suggested, isLoading: loadingSuggested } = useQuery({
+    queryKey: ['favAddSuggested'],
+    queryFn: async () => {
+      // Semillas: hasta 3 favoritas al azar; sus parecidas, mezcladas.
+      const seeds = [...(starred?.songs ?? [])].sort(() => Math.random() - 0.5).slice(0, 3);
+      const lists = await Promise.all(seeds.map((s) => getSimilarSongs(s.id, 20).catch(() => [])));
+      const seen = new Set<string>();
+      return lists
+        .flat()
+        .filter((s) => !seen.has(s.id) && (seen.add(s.id), true))
+        .sort(() => Math.random() - 0.5);
+    },
+    enabled: tab === 'suggested' && !offline && (starred?.songs.length ?? 0) > 0,
+    staleTime: Infinity,
+  });
+
+  const { data: searchResults, isFetching: searching } = useQuery({
+    queryKey: ['favAddSearch', debouncedQuery],
+    queryFn: () => search(debouncedQuery).then((r) => r.songs),
+    enabled: debouncedQuery.length > 0,
+  });
+
+  const loading =
+    debouncedQuery.length > 0
+      ? searching && !searchResults
+      : (tab === 'most' && loadingMost) || (tab === 'suggested' && loadingSuggested);
+
+  const base =
+    debouncedQuery.length > 0
+      ? (searchResults ?? [])
+      : tab === 'most'
+        ? (mostPlayed ?? [])
+        : tab === 'recent'
+          ? history.map((e) => e.song)
+          : (suggested ?? []);
+  // Sin favoritas previas (ni radios, que no se pueden marcar en el servidor).
+  const songs = base.filter((s) => !s.url && !(excluded?.has(s.id) && !added.has(s.id)));
+
+  async function toggle(song: Song) {
+    const wasAdded = added.has(song.id);
+    setAdded((prev) => {
+      const next = new Set(prev);
+      if (wasAdded) next.delete(song.id);
+      else next.add(song.id);
+      return next;
+    });
+    try {
+      if (wasAdded) await unstar(song.id);
+      else await star(song.id);
+      queryClient.invalidateQueries({ queryKey: ['starred'] });
+    } catch {
+      // Revertir la marca optimista si el servidor falla.
+      setAdded((prev) => {
+        const next = new Set(prev);
+        if (wasAdded) next.add(song.id);
+        else next.delete(song.id);
+        return next;
+      });
+      toast(t("Couldn't complete the action"));
+    }
+  }
+
+  const tabs: { key: Tab; label: string }[] = [
+    { key: 'most', label: t('Most played') },
+    { key: 'recent', label: t('Recently played') },
+    ...(!offline ? [{ key: 'suggested' as Tab, label: t('Suggestions') }] : []),
+  ];
+
+  return (
+    <View style={[styles.root, { paddingTop: insets.top }]}>
+      <View style={styles.topBar}>
+        <Pressable
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel={t('Close')}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="chevron-back" size={28} color={colors.text} />
+        </Pressable>
+        <Text style={styles.title} numberOfLines={1}>
+          {t('Add to favorites')}
+        </Text>
+        <View style={{ width: 28 }} />
+      </View>
+
+      {debouncedQuery.length === 0 ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabs}
+          style={styles.tabsWrap}
+        >
+          {tabs.map(({ key, label }) => (
+            <Pressable
+              key={key}
+              accessibilityRole="button"
+              onPress={() => setTab(key)}
+              style={[styles.tab, tab === key && { backgroundColor: colors.accent }]}
+            >
+              <Text style={[styles.tabLabel, tab === key && styles.tabLabelActive]}>{label}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      ) : null}
+
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        {loading ? (
+          <View style={styles.center}>
+            <ActivityIndicator color={colors.accent} />
+          </View>
+        ) : (
+          <FlatList
+            {...listPerf}
+            data={songs}
+            keyExtractor={(item) => item.id}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            contentContainerStyle={styles.list}
+            renderItem={({ item }) => (
+              <AddRow song={item} added={added.has(item.id)} onToggle={() => void toggle(item)} />
+            )}
+            ListEmptyComponent={
+              <Text style={styles.empty}>
+                {debouncedQuery.length > 0
+                  ? t('No results for “{q}”', { q: debouncedQuery })
+                  : t('Nothing to suggest yet — play some music first.')}
+              </Text>
+            }
+          />
+        )}
+
+        <View style={[styles.searchWrap, { paddingBottom: insets.bottom + spacing.md }]}>
+          <View style={styles.searchBox}>
+            <Ionicons name="search" size={18} color={colors.textSecondary} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder={t('What would you like to add?')}
+              placeholderTextColor={colors.textSecondary}
+              value={query}
+              onChangeText={setQuery}
+              returnKeyType="search"
+              autoCorrect={false}
+            />
+            {query.length > 0 ? (
+              <Pressable
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={t('Clear')}
+                onPress={() => setQuery('')}
+              >
+                <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </View>
+  );
+}
+
+/** Fila de candidata: carátula, título/artista y ⊕ (o ✓ si ya se marcó). */
+function AddRow({
+  song,
+  added,
+  onToggle,
+}: {
+  song: Song;
+  added: boolean;
+  onToggle: () => void;
+}) {
+  const t = useT();
+  return (
+    <View style={styles.row}>
+      <Cover uri={coverArtUrl(song.coverArt ?? song.albumId, 100)} size={44} />
+      <View style={styles.info}>
+        <Text style={styles.songTitle} numberOfLines={1}>
+          {song.title}
+        </Text>
+        {song.artist ? (
+          <Text style={styles.artist} numberOfLines={1}>
+            {song.artist}
+          </Text>
+        ) : null}
+      </View>
+      <Pressable
+        hitSlop={10}
+        accessibilityRole="button"
+        accessibilityLabel={added ? t('Removed from favorites') : t('Add to favorites')}
+        onPress={onToggle}
+      >
+        <Ionicons
+          name={added ? 'checkmark-circle' : 'add-circle-outline'}
+          size={28}
+          color={added ? colors.accent : colors.textSecondary}
+        />
+      </Pressable>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    height: 48,
+  },
+  title: {
+    flex: 1,
+    color: colors.text,
+    fontSize: fontSize.md,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  tabsWrap: { flexGrow: 0 },
+  tabs: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  tab: {
+    backgroundColor: colors.surfaceHighlight,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  tabLabel: { color: colors.text, fontSize: fontSize.sm, fontWeight: '600' },
+  tabLabelActive: { color: '#000' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  info: { flex: 1 },
+  songTitle: { color: colors.text, fontSize: fontSize.md },
+  artist: { color: colors.textSecondary, fontSize: fontSize.xs, marginTop: 2 },
+  empty: {
+    color: colors.textSecondary,
+    fontSize: fontSize.sm,
+    textAlign: 'center',
+    marginTop: spacing.xl,
+  },
+  searchWrap: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.surfaceHighlight,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.lg,
+    height: 46,
+  },
+  searchInput: { flex: 1, color: colors.text, fontSize: fontSize.sm, paddingVertical: 0 },
+});

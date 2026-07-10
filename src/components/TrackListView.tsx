@@ -184,7 +184,10 @@ export function TrackListView({
   // barra se ajustan a una distancia menor para que la transición cuadre.
   const cover = hideCover ? 0 : COVER;
   const collapse = hideCover ? 120 : COVER;
-  const gradientH = insets.top + TOPBAR_H + cover + 220;
+  // La cola del degradado muere más o menos donde acaba la cabecera (título +
+  // acciones): funde el color con el negro de la lista sin llegar a teñir la
+  // primera fila (probado: alargarlo hasta las filas se veía sucio).
+  const gradientH = insets.top + TOPBAR_H + cover + 120;
   const coverOpacity = scrollY.interpolate({
     inputRange: [0, collapse * 0.7],
     outputRange: [1, 0],

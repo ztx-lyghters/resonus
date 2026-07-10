@@ -6,6 +6,7 @@ import ReanimatedSwipeable, {
   SwipeDirection,
   type SwipeableMethods,
 } from 'react-native-gesture-handler/ReanimatedSwipeable';
+import Reanimated, { useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
 
 import { coverArtUrl } from '@/api/data';
 import { type Song } from '@/api/subsonic';
@@ -49,6 +50,20 @@ interface Props {
   onPress: () => void;
 }
 
+/**
+ * Franja "a la cola" que asoma tras la fila durante el swipe. Invisible en
+ * reposo: la fila es transparente (deja pasar el degradado de la cabecera,
+ * estilo Spotify), así que la franja solo puede existir mientras dura el gesto.
+ */
+function QueueAction({ progress }: { progress: SharedValue<number> }) {
+  const visible = useAnimatedStyle(() => ({ opacity: progress.value > 0.01 ? 1 : 0 }));
+  return (
+    <Reanimated.View style={[styles.queueAction, { backgroundColor: colors.accent }, visible]}>
+      <Ionicons name="list" size={22} color={colors.text} />
+    </Reanimated.View>
+  );
+}
+
 export function TrackRow({
   song,
   position,
@@ -89,11 +104,7 @@ export function TrackRow({
   return (
     <ReanimatedSwipeable
       ref={swipeRef}
-      renderLeftActions={() => (
-        <View style={[styles.queueAction, { backgroundColor: colors.accent }]}>
-          <Ionicons name="list" size={22} color={colors.text} />
-        </View>
-      )}
+      renderLeftActions={(progress) => <QueueAction progress={progress} />}
       // Menos sensible a propósito: `dragOffsetFromLeftEdge` obliga a un
       // recorrido horizontal claro antes de que el gesto se active (así un
       // scroll vertical con algo de lateral ya no lo dispara sin querer), y
@@ -174,8 +185,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.sm,
     gap: spacing.md,
-    // Opaca para tapar la acción de swipe mientras la fila está en reposo.
-    backgroundColor: colors.background,
+    // Transparente: el degradado de color de la cabecera (álbum/playlist) se
+    // cuela bajo las primeras filas, como en Spotify. La acción de swipe ya no
+    // necesita quedar tapada: se oculta sola en reposo (ver QueueAction).
   },
   queueAction: {
     justifyContent: 'center',

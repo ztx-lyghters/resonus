@@ -10,3 +10,10 @@ body:
       description: Describe the feature or improvement you'd like.
     validations:
       required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How would you like it to work?
+    validations:
+      required: false

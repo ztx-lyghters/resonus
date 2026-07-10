@@ -27,6 +27,7 @@ import { create } from 'zustand';
 
 import {
   coverArtUrl,
+  getOpenSubsonicExtensions,
   getPlayQueue,
   getSimilarSongs,
   savePlayQueue,
@@ -129,11 +130,43 @@ async function ensureAudioMode() {
 }
 
 /** Fuente para expo-audio: radio (url), local (file/content) o stream Subsonic. */
-function sourceFor(song: Song): { uri: string } {
+function sourceFor(song: Song, timeOffsetSec = 0): { uri: string } {
   if (song.url) return { uri: song.url };
   if (song.localUri) return { uri: song.localUri };
   const auth = useAuthStore.getState().auth!;
-  return { uri: streamUrl(auth, song.id, useSettings.getState().maxBitRate) };
+  return { uri: streamUrl(auth, song.id, useSettings.getState().maxBitRate, timeOffsetSec) };
+}
+
+// ── Seek en streams transcodificados ────────────────────────────────────────
+// Un stream que el servidor genera al vuelo no tiene acceso aleatorio: el
+// seek nativo rebota o reinicia. Si el servidor anuncia la extensión
+// OpenSubsonic `transcodeOffset`, se re-pide el stream con `timeOffset` y se
+// compensa la posición mostrada (offset + tiempo del player nativo).
+
+/** Segundo real del stream en el que empieza la fuente actual del player. */
+let streamOffsetSec = 0;
+/** Soporte de `transcodeOffset` del servidor activo (null = sin comprobar). */
+let transcodeOffsetSupported: boolean | null = null;
+
+/** ¿Esta canción se está transcodificando (límite de bitrate activo)? */
+function isTranscoded(song: Song): boolean {
+  if (song.url || song.localUri) return false;
+  const max = useSettings.getState().maxBitRate;
+  return max > 0 && song.bitRate != null && song.bitRate > max;
+}
+
+/** Consulta (una vez por perfil) si el servidor soporta `transcodeOffset`. */
+async function ensureTranscodeOffsetSupport(): Promise<boolean> {
+  if (transcodeOffsetSupported != null) return transcodeOffsetSupported;
+  const auth = useAuthStore.getState().auth;
+  if (!auth) return (transcodeOffsetSupported = false);
+  try {
+    const exts = await getOpenSubsonicExtensions(auth);
+    transcodeOffsetSupported = exts.includes('transcodeOffset');
+  } catch {
+    transcodeOffsetSupported = false;
+  }
+  return transcodeOffsetSupported;
 }
 
 /** URL de carátula para la pantalla de bloqueo (solo servidor por ahora). */
@@ -243,6 +276,7 @@ function consumeQueuedOnIndexChange(next: number) {
 async function loadIndex(index: number, autoplay: boolean) {
   cutCrossfade();
   pendingSeek = null;
+  streamOffsetSec = 0;
   consumeQueuedOnIndexChange(index);
   if (remoteKind()) return remoteLoadIndex(index, autoplay);
   const { queue, repeat } = usePlayerStore.getState();
@@ -265,6 +299,9 @@ async function loadIndex(index: number, autoplay: boolean) {
     if (autoplay) p.play();
     applyLockScreen(p, song);
     onTrackChanged(song);
+    // Calienta la respuesta de "¿soporta timeOffset?" para que el primer seek
+    // en un stream transcodificado ya tenga la respuesta cacheada.
+    if (isTranscoded(song)) void ensureTranscodeOffsetSupport();
   } catch {
     useToast.getState().show(tg("Couldn't play the song"));
   }
@@ -443,7 +480,7 @@ function maybeStartCrossfade(status: AudioStatus) {
   const current = st.queue[st.index];
   const duration = st.durationSec;
   if (!current || current.url || duration < fadeSec + 5) return;
-  const remaining = duration - (status.currentTime ?? 0);
+  const remaining = duration - (streamOffsetSec + (status.currentTime ?? 0));
   if (remaining <= 0 || remaining > fadeSec) return;
   const ni = nextIndex(false);
   if (ni == null) return;
@@ -471,6 +508,7 @@ function startCrossfade(index: number, fadeSec: number) {
   consumeQueuedOnIndexChange(index);
   fadingOut = out;
   activeIdx = 1 - activeIdx;
+  streamOffsetSec = 0; // la entrante arranca desde el principio
   usePlayerStore.setState({
     index,
     positionSec: 0,
@@ -574,7 +612,9 @@ function onStatus(status: AudioStatus) {
   const intendPlay = status.playing || prev.isPlaying;
   const buffering =
     intendPlay && !status.didJustFinish && (status.isBuffering || !status.isLoaded);
-  let positionSec = status.currentTime ?? 0;
+  // Con un stream re-pedido con timeOffset, el player nativo cuenta desde 0:
+  // la posición real es el offset más su tiempo.
+  let positionSec = streamOffsetSec + (status.currentTime ?? 0);
   if (pendingSeek) {
     if (Math.abs(positionSec - pendingSeek.sec) < 1 || Date.now() - pendingSeek.at > 2000) {
       pendingSeek = null; // el player ya alcanzó el destino (o nos rendimos)
@@ -584,7 +624,9 @@ function onStatus(status: AudioStatus) {
   }
   usePlayerStore.setState({
     positionSec,
-    durationSec: status.duration || prev.durationSec,
+    // Con offset activo el nativo reporta la duración del tramo restante, no
+    // la de la canción: se conserva la duración conocida.
+    durationSec: streamOffsetSec > 0 ? prev.durationSec : status.duration || prev.durationSec,
     // Durante el fundido de pausa/reanudación el player nativo sigue sonando
     // unos ms; mantenemos el estado ya fijado para que el botón no parpadee.
     isPlaying: pauseFadeTimer ? prev.isPlaying : status.playing,
@@ -996,11 +1038,32 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   seekTo: (sec) => {
     cutCrossfade();
-    if (remoteKind()) remoteSeek(sec);
-    else {
-      pendingSeek = { sec, at: Date.now() };
-      activePlayer()?.seekTo(sec);
+    if (remoteKind()) {
+      remoteSeek(sec);
+      set({ positionSec: sec });
+      return;
     }
+    const song = currentSong(get());
+    if (song && isTranscoded(song) && transcodeOffsetSupported) {
+      // Sin acceso aleatorio en un stream generado al vuelo: se re-pide al
+      // servidor desde `sec` (timeOffset) y se compensa la posición.
+      const p = activePlayer();
+      if (p) {
+        streamOffsetSec = sec;
+        pendingSeek = { sec, at: Date.now() };
+        try {
+          p.replace(sourceFor(song, sec));
+          p.volume = effectiveVolume(song);
+          if (get().isPlaying) p.play();
+        } catch {
+          // ignore
+        }
+      }
+      set({ positionSec: sec });
+      return;
+    }
+    pendingSeek = { sec, at: Date.now() };
+    activePlayer()?.seekTo(sec);
     set({ positionSec: sec });
   },
 
@@ -1283,6 +1346,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
     clearLockScreen();
     playedHistory = [];
+    streamOffsetSec = 0;
+    // El soporte de timeOffset es por servidor: se re-comprueba al cambiar.
+    transcodeOffsetSupported = null;
     set({
       queue: [],
       index: 0,

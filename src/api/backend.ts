@@ -148,5 +148,11 @@ export const coverArtUrl = (auth: SubsonicAuth, id: string | undefined, size?: n
 
 export const downloadUrl = (auth: SubsonicAuth, id: string) => api(auth).downloadUrl(auth, id);
 
-export const streamUrl = (auth: SubsonicAuth, id: string, maxBitRate?: number) =>
-  api(auth).streamUrl(auth, id, maxBitRate);
+export const streamUrl = (auth: SubsonicAuth, id: string, maxBitRate?: number, timeOffset?: number) =>
+  api(auth).streamUrl(auth, id, maxBitRate, timeOffset);
+
+/** Extensiones OpenSubsonic del servidor (Jellyfin no las tiene: lista vacía). */
+export const getOpenSubsonicExtensions = (auth: SubsonicAuth): Promise<string[]> =>
+  auth.serverType === 'jellyfin'
+    ? Promise.resolve([])
+    : Subsonic.getOpenSubsonicExtensions(auth);

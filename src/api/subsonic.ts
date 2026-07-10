@@ -770,9 +770,23 @@ export function streamUrl(
   auth: SubsonicAuth,
   id: string,
   maxBitRate = 0,
+  timeOffset = 0,
 ): string {
   return buildUrl(auth, 'stream.view', {
     id,
     maxBitRate: maxBitRate > 0 ? maxBitRate : undefined,
+    // Arrancar la transcodificación en este segundo (extensión OpenSubsonic
+    // `transcodeOffset`): así se puede "buscar" en streams transcodificados.
+    timeOffset: timeOffset > 0 ? Math.floor(timeOffset) : undefined,
   });
+}
+
+/** Nombres de las extensiones OpenSubsonic que anuncia el servidor. */
+export async function getOpenSubsonicExtensions(auth: SubsonicAuth): Promise<string[]> {
+  const res = await request<{ openSubsonicExtensions?: { name: string }[] }>(
+    auth,
+    'getOpenSubsonicExtensions.view',
+    {},
+  );
+  return (res.openSubsonicExtensions ?? []).map((e) => e.name);
 }

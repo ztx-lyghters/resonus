@@ -26,6 +26,15 @@ So I made the one I wanted to use.
 
 Get the latest APK from the [Releases](https://github.com/juananzzz/resonus/releases/latest) page and install it on your Android device.
 
+## Screenshots
+
+<p align="center">
+  <img src="./assets/screenshots/1.png" width="200" />
+  <img src="./assets/screenshots/2.png" width="200" />
+  <img src="./assets/screenshots/3.png" width="200" />
+  <img src="./assets/screenshots/4.png" width="200" />
+</p>
+
 ## Features
 
 - **Navidrome / OpenSubsonic / Jellyfin / Ampache** — multi-profile login, multi-library support
@@ -39,15 +48,6 @@ Get the latest APK from the [Releases](https://github.com/juananzzz/resonus/rele
 - **Android Auto**
 - **Queue sync across devices**
 - **In 4 languages** — English, Spanish, German, Catalan
-
-## Screenshots
-
-<p align="center">
-  <img src="./assets/screenshots/1.png" width="200" />
-  <img src="./assets/screenshots/2.png" width="200" />
-  <img src="./assets/screenshots/3.png" width="200" />
-  <img src="./assets/screenshots/4.png" width="200" />
-</p>
 
 ## Roadmap
 

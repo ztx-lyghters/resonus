@@ -3,15 +3,22 @@ import { StyleSheet, Text } from 'react-native';
 
 import { type Song } from '@/api/subsonic';
 import { useT } from '@/i18n';
+import { useSettings } from '@/store/settings';
 import { colors, fontSize } from '@/theme';
 
 const LOSSLESS = new Set([
   'flac', 'wav', 'alac', 'aiff', 'ape', 'wv', 'dsd', 'dsf', 'wma',
 ]);
 
-function qualityLabel(song: Song, t: (k: string) => string): string | null {
+function qualityLabel(song: Song, maxBitRate: number, t: (k: string) => string): string | null {
   if (song.localUri || !song.suffix) return null;
   const fmt = song.suffix.toUpperCase();
+  // Con límite de calidad activo y un original que lo supera, el servidor
+  // transcodifica: la etiqueta refleja lo que suena de verdad, no el fichero
+  // (nada de presumir de Lossless mientras llega un MP3 de 128).
+  if (!song.url && maxBitRate > 0 && song.bitRate != null && song.bitRate > maxBitRate) {
+    return `${fmt} → ${maxBitRate} kbps`;
+  }
   const parts: string[] = [fmt];
 
   const lossless = LOSSLESS.has(song.suffix.toLowerCase());
@@ -45,7 +52,8 @@ function qualityLabel(song: Song, t: (k: string) => string): string | null {
 
 export function AudioQualityBadge({ song }: { song: Song }) {
   const t = useT();
-  const label = qualityLabel(song, t);
+  const maxBitRate = useSettings((s) => s.maxBitRate);
+  const label = qualityLabel(song, maxBitRate, t);
   if (!label) return null;
   return <Text style={styles.badge}>{label}</Text>;
 }

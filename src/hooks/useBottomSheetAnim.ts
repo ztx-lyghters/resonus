@@ -8,11 +8,19 @@ import { useEffect } from 'react';
 import { Dimensions, type LayoutChangeEvent } from 'react-native';
 import {
   Easing,
+  ReduceMotion,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+
+// Las hojas siempre animan, aunque el sistema tenga "quitar animaciones":
+// sin transición aparecen de golpe con un salto de layout visible (además
+// Reanimated solo lee ese ajuste al arrancar, así que ni siquiera refleja
+// cambios hechos con la app abierta). Igual que el player y las letras.
+const TIMING_IN = { duration: 240, easing: Easing.out(Easing.cubic), reduceMotion: ReduceMotion.Never };
+const TIMING_OUT = { duration: 160, easing: Easing.in(Easing.cubic), reduceMotion: ReduceMotion.Never };
 
 const SCREEN_H = Dimensions.get('window').height;
 
@@ -24,14 +32,14 @@ export function useBottomSheetAnim(open: boolean) {
 
   useEffect(() => {
     if (open) {
-      progress.value = withTiming(1, { duration: 240, easing: Easing.out(Easing.cubic) });
+      progress.value = withTiming(1, TIMING_IN);
     } else {
       progress.value = 0;
     }
   }, [open, progress]);
 
   const dismiss = (after: () => void) => {
-    progress.value = withTiming(0, { duration: 160, easing: Easing.in(Easing.cubic) }, (f) => {
+    progress.value = withTiming(0, TIMING_OUT, (f) => {
       if (f) runOnJS(after)();
     });
   };

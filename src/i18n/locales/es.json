@@ -285,6 +285,7 @@
   "Something went wrong": "Algo ha fallado",
   "Song": "Canción",
   "Song and artist names that don't fit scroll across.": "Los nombres de canción y artista que no caben se desplazan solos.",
+  "Song downloaded": "Canción descargada",
   "Song lists": "Listas de canciones",
   "Songs": "Canciones",
   "Songs blend into each other when one ends.": "Las canciones se funden entre sí al terminar cada una.",
@@ -364,6 +365,7 @@
   "{n} selected": "{n} seleccionadas",
   "{n} songs": "{n} canciones",
   "{n} songs couldn't be downloaded": "{n} canciones no se pudieron descargar",
+  "{n} songs downloaded": "{n} canciones descargadas",
   "{songs} will be saved to this device.": "{songs} se guardarán en este dispositivo.",
   "“Original” uses the highest quality; a lower bitrate saves data.": "«Original» usa la máxima calidad; bajar el bitrate ahorra datos.",
   "“{name}” will no longer be available offline.": "«{name}» dejará de estar disponible sin conexión."

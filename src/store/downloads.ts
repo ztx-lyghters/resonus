@@ -384,6 +384,15 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       invalidate();
       if (failed > 0) {
         useToast.getState().show(tg("{n} songs couldn't be downloaded", { n: failed }));
+      } else {
+        // Confirmación al terminar (el "Descargando…" inicial no dice cuándo acaba).
+        useToast
+          .getState()
+          .show(
+            pending.length === 1
+              ? tg('Song downloaded')
+              : tg('{n} songs downloaded', { n: pending.length }),
+          );
       }
     } finally {
       set((st) => {

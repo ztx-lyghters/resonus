@@ -285,6 +285,7 @@
   "Something went wrong": "Etwas ist schiefgelaufen",
   "Song": "Titel",
   "Song and artist names that don't fit scroll across.": "Zu lange Song- und Künstlernamen laufen automatisch durch.",
+  "Song downloaded": "Titel heruntergeladen",
   "Song lists": "Titellisten",
   "Songs": "Titel",
   "Songs blend into each other when one ends.": "Titel gehen ineinander über, wenn einer endet.",
@@ -364,6 +365,7 @@
   "{n} selected": "{n} ausgewählt",
   "{n} songs": "{n} Titel",
   "{n} songs couldn't be downloaded": "{n} Titel konnten nicht heruntergeladen werden",
+  "{n} songs downloaded": "{n} Titel heruntergeladen",
   "{songs} will be saved to this device.": "{songs} werden auf diesem Gerät gespeichert.",
   "“Original” uses the highest quality; a lower bitrate saves data.": "„Original“ nutzt die höchste Qualität; eine niedrigere Bitrate spart Daten.",
   "“{name}” will no longer be available offline.": "„{name}“ ist offline nicht mehr verfügbar."

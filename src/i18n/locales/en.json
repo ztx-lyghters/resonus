@@ -285,6 +285,7 @@
   "Something went wrong": "Something went wrong",
   "Song": "Song",
   "Song and artist names that don't fit scroll across.": "Song and artist names that don't fit scroll across.",
+  "Song downloaded": "Song downloaded",
   "Song lists": "Song lists",
   "Songs": "Songs",
   "Songs blend into each other when one ends.": "Songs blend into each other when one ends.",
@@ -364,6 +365,7 @@
   "{n} selected": "{n} selected",
   "{n} songs": "{n} songs",
   "{n} songs couldn't be downloaded": "{n} songs couldn't be downloaded",
+  "{n} songs downloaded": "{n} songs downloaded",
   "{songs} will be saved to this device.": "{songs} will be saved to this device.",
   "“Original” uses the highest quality; a lower bitrate saves data.": "“Original” uses the highest quality; a lower bitrate saves data.",
   "“{name}” will no longer be available offline.": "“{name}” will no longer be available offline."

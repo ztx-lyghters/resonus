@@ -285,6 +285,7 @@
   "Something went wrong": "Alguna cosa ha anat malament",
   "Song": "Cançó",
   "Song and artist names that don't fit scroll across.": "Els noms de cançó i artista que no hi caben es desplacen sols.",
+  "Song downloaded": "Cançó baixada",
   "Song lists": "Llistes de cançons",
   "Songs": "Cançons",
   "Songs blend into each other when one ends.": "Les cançons es fonen entre si quan una s'acaba.",
@@ -364,6 +365,7 @@
   "{n} selected": "{n} seleccionades",
   "{n} songs": "{n} cançons",
   "{n} songs couldn't be downloaded": "No s'han pogut baixar {n} cançons",
+  "{n} songs downloaded": "{n} cançons baixades",
   "{songs} will be saved to this device.": "{songs} es guardaran en aquest dispositiu.",
   "“Original” uses the highest quality; a lower bitrate saves data.": "«Original» utilitza la màxima qualitat; un bitrate més baix estalvia dades.",
   "“{name}” will no longer be available offline.": "«{name}» ja no estarà disponible fora de línia."

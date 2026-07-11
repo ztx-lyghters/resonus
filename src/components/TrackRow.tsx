@@ -123,7 +123,9 @@ export function TrackRow({
       }}
     >
     <Pressable
-      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+      // Sin feedback visual al pulsar (como Spotify): el "pressed" saltaba con
+      // el dedo al scrollear y parecía que se estaban pulsando las filas.
+      style={styles.row}
       onPress={onPress}
       onLongPress={onLongPress}
     >
@@ -196,9 +198,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     paddingHorizontal: spacing.lg,
     backgroundColor: colors.accent,
-  },
-  pressed: {
-    opacity: 0.6,
   },
   position: {
     color: colors.textMuted,

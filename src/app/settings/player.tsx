@@ -3,10 +3,17 @@ import { ScrollView } from 'react-native';
 
 import { SettingsPage, settingsStyles, SwitchList } from '@/components/SettingsUI';
 import { useT } from '@/i18n';
+import { useAuthStore } from '@/store/auth';
 import { useSettings } from '@/store/settings';
 
 export default function PlayerSettings() {
   const t = useT();
+  // Igual que en el player: la valoración es cosa de Subsonic (ni offline ni
+  // Jellyfin) y en offline no hay dispositivos a los que enviar. Sus toggles
+  // no se muestran donde no harían nada.
+  const offline = useAuthStore((s) => s.offline);
+  const serverType = useAuthStore((s) => s.auth?.serverType);
+  const canRate = !offline && serverType !== 'jellyfin';
   const showAudioQuality = useSettings((s) => s.showAudioQuality);
   const setShowAudioQuality = useSettings((s) => s.setShowAudioQuality);
   const showRating = useSettings((s) => s.showRating);
@@ -55,12 +62,16 @@ export default function PlayerSettings() {
               value: showAudioQuality,
               onChange: setShowAudioQuality,
             },
-            {
-              label: t('Show rating'),
-              description: t('Show a star rating bar to rate the current song.'),
-              value: showRating,
-              onChange: setShowRating,
-            },
+            ...(canRate
+              ? [
+                  {
+                    label: t('Show rating'),
+                    description: t('Show a star rating bar to rate the current song.'),
+                    value: showRating,
+                    onChange: setShowRating,
+                  },
+                ]
+              : []),
             {
               label: t('Show lyrics card'),
               description: t('The lyrics card below the player controls.'),
@@ -78,11 +89,15 @@ export default function PlayerSettings() {
               value: showQueueButton,
               onChange: setShowQueueButton,
             },
-            {
-              label: t('Show devices button'),
-              value: showDevicesButton,
-              onChange: setShowDevicesButton,
-            },
+            ...(offline
+              ? []
+              : [
+                  {
+                    label: t('Show devices button'),
+                    value: showDevicesButton,
+                    onChange: setShowDevicesButton,
+                  },
+                ]),
           ]}
         />
       </ScrollView>

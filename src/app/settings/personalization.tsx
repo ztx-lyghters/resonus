@@ -11,11 +11,17 @@ import {
 } from '@/components/SettingsUI';
 import { useT } from '@/i18n';
 import { haptic } from '@/lib/haptics';
+import { useAuthStore } from '@/store/auth';
 import { type AppFont, LANGUAGE_NAMES, useSettings } from '@/store/settings';
 
 export default function AppearanceSettings() {
   const router = useRouter();
   const t = useT();
+  // La pestaña de carpetas solo existe con servidor Subsonic (ver library):
+  // en offline o Jellyfin el toggle no haría nada, así que no se muestra.
+  const offline = useAuthStore((s) => s.offline);
+  const serverType = useAuthStore((s) => s.auth?.serverType);
+  const canBrowseFolders = !offline && serverType !== 'jellyfin';
   const language = useSettings((s) => s.language);
   const showListArtwork = useSettings((s) => s.showListArtwork);
   const setShowListArtwork = useSettings((s) => s.setShowListArtwork);
@@ -119,12 +125,18 @@ export default function AppearanceSettings() {
               value: showProfileButton,
               onChange: setShowProfileButton,
             },
-            {
-              label: t('Folder browsing'),
-              description: t('Browse your library by folders in a Folders tab (Subsonic servers).'),
-              value: showFolderBrowser,
-              onChange: setShowFolderBrowser,
-            },
+            ...(canBrowseFolders
+              ? [
+                  {
+                    label: t('Folder browsing'),
+                    description: t(
+                      'Browse your library by folders in a Folders tab (Subsonic servers).',
+                    ),
+                    value: showFolderBrowser,
+                    onChange: setShowFolderBrowser,
+                  },
+                ]
+              : []),
             {
               label: t('Haptic feedback'),
               description: t('Subtle vibration on key actions.'),

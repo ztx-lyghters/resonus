@@ -195,6 +195,7 @@ export function TrackListView({
   const searchBar = !!searchable && songs.length > 0;
 
   function revealSearchBar() {
+    haptic('light');
     setRevealed(true);
     Animated.timing(searchH, { toValue: SEARCH_H, duration: 200, useNativeDriver: false }).start();
   }

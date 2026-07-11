@@ -44,13 +44,14 @@ export default function AppearanceSettings() {
   const appFont = useSettings((s) => s.appFont);
   const setAppFont = useSettings((s) => s.setAppFont);
 
+  // Nombres propios de las fuentes: no se traducen.
   const fontOptions: { value: AppFont; label: string }[] = [
     { value: 'system', label: `Roboto (${t('default')})` },
-    { value: 'condensed', label: t('Condensed') },
-    { value: 'serif', label: t('Serif') },
-    { value: 'monospace', label: t('Monospace') },
-    { value: 'casual', label: t('Casual') },
-    { value: 'typewriter', label: t('Typewriter') },
+    { value: 'condensed', label: 'Condensed' },
+    { value: 'serif', label: 'Serif' },
+    { value: 'monospace', label: 'Monospace' },
+    { value: 'casual', label: 'Casual' },
+    { value: 'typewriter', label: 'Typewriter' },
   ];
 
   return (

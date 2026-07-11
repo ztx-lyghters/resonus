@@ -23,6 +23,7 @@ import {
 import { getLocalLyrics, getOnlineLyrics } from '@/lib/localLyrics';
 import { queryClient } from '@/lib/query';
 import { useAuthStore } from '@/store/auth';
+import { useDownloads } from '@/store/downloads';
 import { useSettings } from '@/store/settings';
 
 function lyricsQueryOptions(song: Song, auth: SubsonicAuth | null, onlineFallback: boolean) {
@@ -34,16 +35,25 @@ function lyricsQueryOptions(song: Song, auth: SubsonicAuth | null, onlineFallbac
     queryFn: async (): Promise<SongLyrics | null> => {
       if (song.localUri) return getLocalLyrics(song, onlineFallback);
       try {
-        const structured = await getLyricsBySongId(auth!, song.id);
-        if (structured) return structured;
-      } catch {
-        // Servidor sin la extensión songLyrics: probamos el endpoint clásico.
+        try {
+          const structured = await getLyricsBySongId(auth!, song.id);
+          if (structured) return structured;
+        } catch {
+          // Servidor sin la extensión songLyrics: probamos el endpoint clásico.
+        }
+        const plain = await getLyrics(auth!, song.artist ?? '', song.title ?? '');
+        if (plain) return { synced: false, lines: plain.split('\n').map((value) => ({ value })) };
+        // El servidor no tiene letra: LRCLIB si el usuario lo permite.
+        if (onlineFallback) return getOnlineLyrics(song);
+        return null;
+      } catch (e) {
+        // Aquí solo se llega sin red (con conexión, el catch interior ya
+        // absorbe servidores sin extensión). Si la canción está descargada,
+        // cada descarga cacheó un .lrc junto al fichero: se usa ese.
+        const dl = useDownloads.getState().files[song.id];
+        if (dl) return getLocalLyrics({ ...song, localUri: dl }, onlineFallback);
+        throw e;
       }
-      const plain = await getLyrics(auth!, song.artist ?? '', song.title ?? '');
-      if (plain) return { synced: false, lines: plain.split('\n').map((value) => ({ value })) };
-      // El servidor no tiene letra: LRCLIB si el usuario lo permite.
-      if (onlineFallback) return getOnlineLyrics(song);
-      return null;
     },
   };
 }

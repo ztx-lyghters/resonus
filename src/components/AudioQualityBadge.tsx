@@ -3,6 +3,7 @@ import { StyleSheet, Text } from 'react-native';
 
 import { type Song } from '@/api/subsonic';
 import { useT } from '@/i18n';
+import { useDownloads } from '@/store/downloads';
 import { useSettings } from '@/store/settings';
 import { colors, fontSize } from '@/theme';
 
@@ -10,13 +11,26 @@ const LOSSLESS = new Set([
   'flac', 'wav', 'alac', 'aiff', 'ape', 'wv', 'dsd', 'dsf', 'wma',
 ]);
 
-function qualityLabel(song: Song, maxBitRate: number, t: (k: string) => string): string | null {
+function qualityLabel(
+  song: Song,
+  maxBitRate: number,
+  dlUri: string | undefined,
+  t: (k: string) => string,
+): string | null {
   if (song.localUri || !song.suffix) return null;
   const fmt = song.suffix.toUpperCase();
-  // Con límite de calidad activo y un original que lo supera, el servidor
-  // transcodifica: la etiqueta refleja lo que suena de verdad, no el fichero
-  // (nada de presumir de Lossless mientras llega un MP3 de 128).
-  if (!song.url && maxBitRate > 0 && song.bitRate != null && song.bitRate > maxBitRate) {
+  if (dlUri) {
+    // Descargada → suena desde disco: el límite de streaming no aplica. Si se
+    // bajó transcodificada (la extensión ya no es la del original), las specs
+    // del fichero original tampoco.
+    const ext = dlUri.split('.').pop()?.toLowerCase();
+    if (ext && ext !== song.suffix.toLowerCase()) {
+      return `${fmt} → ${ext.toUpperCase()}`;
+    }
+  } else if (!song.url && maxBitRate > 0 && song.bitRate != null && song.bitRate > maxBitRate) {
+    // Con límite de calidad activo y un original que lo supera, el servidor
+    // transcodifica: la etiqueta refleja lo que suena de verdad, no el fichero
+    // (nada de presumir de Lossless mientras llega un MP3 de 128).
     return `${fmt} → ${maxBitRate} kbps`;
   }
   const parts: string[] = [fmt];
@@ -53,7 +67,8 @@ function qualityLabel(song: Song, maxBitRate: number, t: (k: string) => string):
 export function AudioQualityBadge({ song }: { song: Song }) {
   const t = useT();
   const maxBitRate = useSettings((s) => s.maxBitRate);
-  const label = qualityLabel(song, maxBitRate, t);
+  const dlUri = useDownloads((s) => s.files[song.id]);
+  const label = qualityLabel(song, maxBitRate, dlUri, t);
   if (!label) return null;
   return <Text style={styles.badge}>{label}</Text>;
 }

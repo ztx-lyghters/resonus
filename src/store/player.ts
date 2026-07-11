@@ -50,6 +50,7 @@ import {
   upnpSetVolume,
   type RemoteEvents,
 } from './upnp';
+import { useDownloads } from './downloads';
 import { usePlayCounts } from './playCounts';
 import { usePlayHistory } from './playHistory';
 import { useSettings } from './settings';
@@ -129,10 +130,23 @@ async function ensureAudioMode() {
   }
 }
 
+/**
+ * Fichero de una canción descargada, aunque la canción venga del servidor
+ * (en modo servidor los `Song` de la API no traen `localUri`; las descargas
+ * viven en el mapa de `useDownloads`).
+ */
+function downloadedUri(song: Song): string | undefined {
+  return useDownloads.getState().files[song.id];
+}
+
 /** Fuente para expo-audio: radio (url), local (file/content) o stream Subsonic. */
 function sourceFor(song: Song, timeOffsetSec = 0): { uri: string } {
   if (song.url) return { uri: song.url };
   if (song.localUri) return { uri: song.localUri };
+  // Descargada → suena desde disco también en modo servidor: funciona sin
+  // conexión y con conexión no gasta datos.
+  const dl = downloadedUri(song);
+  if (dl) return { uri: dl };
   const auth = useAuthStore.getState().auth!;
   return { uri: streamUrl(auth, song.id, useSettings.getState().maxBitRate, timeOffsetSec) };
 }
@@ -150,7 +164,8 @@ let transcodeOffsetSupported: boolean | null = null;
 
 /** ¿Esta canción se está transcodificando (límite de bitrate activo)? */
 function isTranscoded(song: Song): boolean {
-  if (song.url || song.localUri) return false;
+  // Las descargadas suenan desde disco: seek nativo normal, sin timeOffset.
+  if (song.url || song.localUri || downloadedUri(song)) return false;
   const max = useSettings.getState().maxBitRate;
   return max > 0 && song.bitRate != null && song.bitRate > max;
 }

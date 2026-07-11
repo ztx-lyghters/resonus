@@ -676,10 +676,17 @@ export async function getArtistInfo(
   const info = res.artistInfo2 ?? {};
   // La biografía suele venir con HTML (enlace a Last.fm); lo quitamos.
   const biography = info.biography?.replace(/<[^>]+>/g, '').trim() || undefined;
+  // El servidor puede repetir un similar (mismo id) → keys duplicadas en React.
+  const seen = new Set<string>();
+  const similarArtists = (info.similarArtist ?? []).filter((a) => {
+    if (seen.has(a.id)) return false;
+    seen.add(a.id);
+    return true;
+  });
   return {
     biography,
     imageUrl: info.largeImageUrl || undefined,
-    similarArtists: info.similarArtist ?? [],
+    similarArtists,
   };
 }
 

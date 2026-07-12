@@ -18,7 +18,13 @@ export function GlobalMiniPlayer() {
   const segments = useSegments();
   const root = segments[0];
 
-  const visible = !(root === 'player' || root === 'queue' || root === 'lyrics');
+  // favorites-add también: su barra de búsqueda vive abajo y el mini la taparía.
+  const visible = !(
+    root === 'player' ||
+    root === 'queue' ||
+    root === 'lyrics' ||
+    root === 'favorites-add'
+  );
   const inTabs = root === '(tabs)' || root === undefined;
   const bottom = inTabs ? TAB_BAR_HEIGHT + insets.bottom : insets.bottom + spacing.sm;
 

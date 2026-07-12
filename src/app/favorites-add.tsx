@@ -11,8 +11,6 @@ import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -171,6 +169,31 @@ export default function FavoritesAddScreen() {
         <View style={{ width: 28 }} />
       </View>
 
+      <View style={styles.searchWrap}>
+        <View style={styles.searchBox}>
+          <Ionicons name="search" size={18} color={colors.textSecondary} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder={t('What would you like to add?')}
+            placeholderTextColor={colors.textSecondary}
+            value={query}
+            onChangeText={setQuery}
+            returnKeyType="search"
+            autoCorrect={false}
+          />
+          {query.length > 0 ? (
+            <Pressable
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t('Clear')}
+              onPress={() => setQuery('')}
+            >
+              <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+            </Pressable>
+          ) : null}
+        </View>
+      </View>
+
       {debouncedQuery.length === 0 ? (
         <ScrollView
           horizontal
@@ -191,10 +214,7 @@ export default function FavoritesAddScreen() {
         </ScrollView>
       ) : null}
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <View style={{ flex: 1 }}>
         {loading ? (
           <View style={styles.center}>
             <ActivityIndicator color={colors.accent} />
@@ -206,7 +226,9 @@ export default function FavoritesAddScreen() {
             keyExtractor={(item) => item.id}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
-            contentContainerStyle={styles.list}
+            // La lista ahora es lo último de la pantalla (la búsqueda vive
+            // arriba): que su final libre la barra de navegación.
+            contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + spacing.lg }]}
             renderItem={({ item }) => (
               <AddRow song={item} added={added.has(item.id)} onToggle={() => void toggle(item)} />
             )}
@@ -220,31 +242,7 @@ export default function FavoritesAddScreen() {
           />
         )}
 
-        <View style={[styles.searchWrap, { paddingBottom: insets.bottom + spacing.md }]}>
-          <View style={styles.searchBox}>
-            <Ionicons name="search" size={18} color={colors.textSecondary} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder={t('What would you like to add?')}
-              placeholderTextColor={colors.textSecondary}
-              value={query}
-              onChangeText={setQuery}
-              returnKeyType="search"
-              autoCorrect={false}
-            />
-            {query.length > 0 ? (
-              <Pressable
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={t('Clear')}
-                onPress={() => setQuery('')}
-              >
-                <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
-              </Pressable>
-            ) : null}
-          </View>
-        </View>
-      </KeyboardAvoidingView>
+      </View>
     </View>
   );
 }
@@ -340,6 +338,7 @@ const styles = StyleSheet.create({
   searchWrap: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
   },
   searchBox: {
     flexDirection: 'row',

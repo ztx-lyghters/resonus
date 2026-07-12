@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Dimensions,
   Modal,
   Pressable,
   ScrollView,
@@ -12,6 +13,7 @@ import {
   Text,
   View,
 } from 'react-native';
+
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -39,6 +41,11 @@ import { useT } from '@/i18n';
 import { colors, fontSize, radius, spacing } from '@/theme';
 import { Cover } from './Cover';
 import { Dialog } from './Dialog';
+
+/** Alto máximo de la lista de playlists: proporcional a la pantalla para que
+ *  no quede compacta en móviles grandes (antes era un fijo de 360). */
+const PLAYLISTS_MAX_H = Math.round(Dimensions.get('window').height * 0.6);
+
 
 function Action({
   icon,
@@ -211,7 +218,7 @@ export function SongMenuSheet() {
         <View style={styles.divider} />
 
         {mode === 'playlists' ? (
-          <View style={{ maxHeight: 360 }}>
+          <View style={{ maxHeight: PLAYLISTS_MAX_H }}>
             <Pressable
               style={styles.action}
               onPress={() => setMode('actions')}

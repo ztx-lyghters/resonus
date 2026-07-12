@@ -6,7 +6,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,6 +19,11 @@ import { useToast } from '@/store/toast';
 import { colors, fontSize, radius, spacing } from '@/theme';
 import { Cover } from './Cover';
 import { Dialog } from './Dialog';
+
+/** Alto máximo de la lista de playlists: proporcional a la pantalla para que
+ *  no quede compacta en móviles grandes (antes era un fijo de 400). */
+const PLAYLISTS_MAX_H = Math.round(Dimensions.get('window').height * 0.6);
+
 
 export function PlaylistPickerSheet({
   songs,
@@ -107,7 +113,7 @@ export function PlaylistPickerSheet({
       >
         <Text style={styles.title}>{t('Add to a playlist')}</Text>
         <View style={styles.divider} />
-        <View style={{ maxHeight: 400 }}>
+        <View style={{ maxHeight: PLAYLISTS_MAX_H }}>
           <Pressable
             style={({ pressed }) => [styles.row, pressed && { opacity: 0.6 }]}
             onPress={() => setCreating(true)}

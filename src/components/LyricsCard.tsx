@@ -32,6 +32,7 @@ import { useDominantColor } from '@/hooks/useDominantColor';
 import { useLyrics } from '@/hooks/useLyrics';
 import { useT } from '@/i18n';
 import { currentSong, usePlayerStore } from '@/store/player';
+import { useSettings } from '@/store/settings';
 import { colors, fontSize, radius, spacing } from '@/theme';
 
 export function LyricsCard() {
@@ -39,7 +40,14 @@ export function LyricsCard() {
   const router = useRouter();
   const song = usePlayerStore(currentSong);
   const { data } = useLyrics(song ?? undefined);
-  const bg = useDominantColor(coverArtUrl(song?.coverArt ?? song?.albumId, 600));
+  // Mismo ajuste que la pantalla completa; sin color, gris neutro (surface)
+  // para que la tarjeta se siga distinguiendo del fondo del player.
+  const colorBackground = useSettings((s) => s.lyricsColorBackground);
+  const dominant = useDominantColor(
+    // Sin color no se extrae la paleta (mismo ahorro que hace el player).
+    colorBackground ? coverArtUrl(song?.coverArt ?? song?.albumId, 600) : undefined,
+  );
+  const bg = colorBackground ? dominant : colors.surface;
 
   if (!data) return null;
 

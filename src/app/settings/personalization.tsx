@@ -2,17 +2,11 @@
 import { useRouter } from 'expo-router';
 import { ScrollView, Text } from 'react-native';
 
-import {
-  SelectList,
-  SettingRow,
-  SettingsPage,
-  settingsStyles,
-  SwitchList,
-} from '@/components/SettingsUI';
+import { SettingRow, SettingsPage, settingsStyles, SwitchList } from '@/components/SettingsUI';
 import { useT } from '@/i18n';
 import { haptic } from '@/lib/haptics';
 import { useAuthStore } from '@/store/auth';
-import { type AppFont, LANGUAGE_NAMES, useSettings } from '@/store/settings';
+import { APP_FONT_LABELS, LANGUAGE_NAMES, useSettings } from '@/store/settings';
 
 export default function AppearanceSettings() {
   const router = useRouter();
@@ -44,17 +38,6 @@ export default function AppearanceSettings() {
   const hapticsEnabled = useSettings((s) => s.hapticsEnabled);
   const setHapticsEnabled = useSettings((s) => s.setHapticsEnabled);
   const appFont = useSettings((s) => s.appFont);
-  const setAppFont = useSettings((s) => s.setAppFont);
-
-  // Nombres propios de las fuentes: no se traducen.
-  const fontOptions: { value: AppFont; label: string }[] = [
-    { value: 'system', label: `Roboto (${t('default')})` },
-    { value: 'condensed', label: 'Condensed' },
-    { value: 'serif', label: 'Serif' },
-    { value: 'monospace', label: 'Monospace' },
-    { value: 'casual', label: 'Casual' },
-    { value: 'typewriter', label: 'Typewriter' },
-  ];
 
   return (
     <SettingsPage title={t('Appearance')}>
@@ -71,11 +54,11 @@ export default function AppearanceSettings() {
           chevron
           onPress={() => router.push('/settings/theme')}
         />
-        <SelectList
+        <SettingRow
           label={t('Font')}
-          options={fontOptions}
-          value={appFont}
-          onChange={setAppFont}
+          description={APP_FONT_LABELS[appFont]}
+          chevron
+          onPress={() => router.push('/settings/font')}
         />
 
         <Text style={settingsStyles.sectionTitle}>{t('Song lists')}</Text>
@@ -92,24 +75,12 @@ export default function AppearanceSettings() {
               value: showSongDuration,
               onChange: setShowSongDuration,
             },
-            {
-              label: t('Swipe to queue'),
-              description: t('Swipe a song to the right to add it to the queue.'),
-              value: swipeToQueue,
-              onChange: setSwipeToQueue,
-            },
           ]}
         />
 
-        <Text style={settingsStyles.sectionTitle}>{t('Interface')}</Text>
+        <Text style={settingsStyles.sectionTitle}>{t('Home')}</Text>
         <SwitchList
           options={[
-            {
-              label: t('Show artist photo'),
-              description: t('Show a round artist photo next to the name on album screens.'),
-              value: showArtistPhoto,
-              onChange: setShowArtistPhoto,
-            },
             {
               label: t('Show explore chips'),
               description: t('The Albums, Artists, Genres and Radio chips on Home.'),
@@ -134,6 +105,18 @@ export default function AppearanceSettings() {
               value: showProfileButton,
               onChange: setShowProfileButton,
             },
+          ]}
+        />
+
+        <Text style={settingsStyles.sectionTitle}>{t('Interface')}</Text>
+        <SwitchList
+          options={[
+            {
+              label: t('Show artist photo'),
+              description: t('Show a round artist photo next to the name on album screens.'),
+              value: showArtistPhoto,
+              onChange: setShowArtistPhoto,
+            },
             ...(canBrowseFolders
               ? [
                   {
@@ -146,6 +129,18 @@ export default function AppearanceSettings() {
                   },
                 ]
               : []),
+          ]}
+        />
+
+        <Text style={settingsStyles.sectionTitle}>{t('Interaction')}</Text>
+        <SwitchList
+          options={[
+            {
+              label: t('Swipe to queue'),
+              description: t('Swipe a song to the right to add it to the queue.'),
+              value: swipeToQueue,
+              onChange: setSwipeToQueue,
+            },
             {
               label: t('Haptic feedback'),
               description: t('Subtle vibration on key actions.'),

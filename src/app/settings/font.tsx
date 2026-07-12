@@ -1,0 +1,28 @@
+/** Selector de fuente — lista con radio en la activa, como el de Idioma. */
+import { ScrollView } from 'react-native';
+
+import { SelectList, SettingsPage, settingsStyles } from '@/components/SettingsUI';
+import { useT } from '@/i18n';
+import { APP_FONT_LABELS, type AppFont, useSettings } from '@/store/settings';
+
+export default function FontSettings() {
+  const t = useT();
+  const appFont = useSettings((s) => s.appFont);
+  const setAppFont = useSettings((s) => s.setAppFont);
+
+  const options: { value: AppFont; label: string }[] = (
+    Object.keys(APP_FONT_LABELS) as AppFont[]
+  ).map((value) => ({
+    value,
+    // La del sistema lleva la coletilla traducida; el resto son nombres propios.
+    label: value === 'system' ? `${APP_FONT_LABELS.system} (${t('default')})` : APP_FONT_LABELS[value],
+  }));
+
+  return (
+    <SettingsPage title={t('Font')}>
+      <ScrollView contentContainerStyle={settingsStyles.content}>
+        <SelectList options={options} value={appFont} onChange={setAppFont} collapsible={false} />
+      </ScrollView>
+    </SettingsPage>
+  );
+}

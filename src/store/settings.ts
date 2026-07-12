@@ -53,6 +53,16 @@ export type ReplayGainMode = 'off' | 'auto' | 'track' | 'album';
  */
 export type AppFont = 'system' | 'condensed' | 'serif' | 'monospace' | 'casual' | 'typewriter';
 
+/** Nombre visible de cada fuente (nombres propios: no se traducen). */
+export const APP_FONT_LABELS: Record<AppFont, string> = {
+  system: 'Roboto',
+  condensed: 'Condensed',
+  serif: 'Serif',
+  monospace: 'Monospace',
+  casual: 'Casual',
+  typewriter: 'Typewriter',
+};
+
 /** Familia real de cada opción; `undefined` = fuente por defecto del sistema. */
 export const APP_FONT_FAMILY: Record<AppFont, string | undefined> = {
   system: undefined,

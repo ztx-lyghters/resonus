@@ -89,8 +89,13 @@ export default function DownloadsSettings() {
       <ScrollView contentContainerStyle={settingsStyles.content}>
         {offline ? null : (
           <>
+            {/* El primer título va pegado a la cabecera (sin el margen de sección). */}
+            <Text style={[settingsStyles.sectionTitle, { marginTop: 0 }]}>
+              {t('Downloading')}
+            </Text>
             <SelectList
               label={t('Download quality')}
+              description={t('Applies to new downloads only.')}
               options={BITRATE_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
               value={downloadBitRate}
               onChange={setDownloadBitRate}
@@ -107,7 +112,10 @@ export default function DownloadsSettings() {
             />
           </>
         )}
-        <Text style={settingsStyles.sectionTitle}>{t('Storage used')}</Text>
+        {/* En offline no hay sección de descarga: este pasa a ser el primer título. */}
+        <Text style={[settingsStyles.sectionTitle, offline && { marginTop: 0 }]}>
+          {t('Storage used')}
+        </Text>
         {(() => {
           const disk = diskSpace();
           if (!disk || usage == null) {

@@ -130,6 +130,8 @@ export default function LibrarySettings() {
           </>
         ) : (
           <>
+            {/* El primer título va pegado a la cabecera (sin el margen de sección). */}
+            <Text style={[settingsStyles.sectionTitle, { marginTop: 0 }]}>{t('Scan')}</Text>
             <Field
               label={t('Scan status')}
               value={scan?.scanning ? t('Scanning…') : t('{n} items', { n: scan?.count ?? 0 })}
@@ -154,6 +156,8 @@ export default function LibrarySettings() {
           </>
         )}
 
+        {/* Separada del escaneo/origen: es mantenimiento, no configuración. */}
+        <Text style={settingsStyles.sectionTitle}>{t('Storage')}</Text>
         <SettingRow icon="trash-outline" label={t('Clear cache')} onPress={clearCache} />
       </ScrollView>
 

@@ -37,6 +37,8 @@ export default function AppearanceSettings() {
   const setSwipeToQueue = useSettings((s) => s.setSwipeToQueue);
   const showQuickGrid = useSettings((s) => s.showQuickGrid);
   const setShowQuickGrid = useSettings((s) => s.setShowQuickGrid);
+  const showExploreChips = useSettings((s) => s.showExploreChips);
+  const setShowExploreChips = useSettings((s) => s.setShowExploreChips);
   const showFolderBrowser = useSettings((s) => s.showFolderBrowser);
   const setShowFolderBrowser = useSettings((s) => s.setShowFolderBrowser);
   const hapticsEnabled = useSettings((s) => s.hapticsEnabled);
@@ -107,6 +109,12 @@ export default function AppearanceSettings() {
               description: t('Show a round artist photo next to the name on album screens.'),
               value: showArtistPhoto,
               onChange: setShowArtistPhoto,
+            },
+            {
+              label: t('Show explore chips'),
+              description: t('The Albums, Artists, Genres and Radio chips on Home.'),
+              value: showExploreChips,
+              onChange: setShowExploreChips,
             },
             {
               label: t('Show quick grid'),

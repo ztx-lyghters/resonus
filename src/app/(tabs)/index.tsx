@@ -236,6 +236,7 @@ export default function HomeScreen() {
   const showHistoryButton = useSettings((s) => s.showHistoryButton);
   const showProfileButton = useSettings((s) => s.showProfileButton);
   const showQuickGrid = useSettings((s) => s.showQuickGrid);
+  const showExploreChips = useSettings((s) => s.showExploreChips);
   // El anillo del avatar lee el acento del store (no la constante global), así
   // se recolorea siempre al cambiarlo o al hidratar; Home es la pantalla
   // inicial y se pinta antes de aplicarse el acento guardado.
@@ -314,7 +315,7 @@ export default function HomeScreen() {
 
         {offline && scanning ? <ScanningPanel /> : null}
 
-        <ExploreChips offline={offline} />
+        {showExploreChips ? <ExploreChips offline={offline} /> : null}
 
         {!offline && serverUnreachable ? (
           <Message

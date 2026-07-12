@@ -117,6 +117,8 @@ interface SettingsState {
   swipeToQueue: boolean;
   /** Cuadrícula de acceso rápido (Favoritos + recientes) arriba en Inicio. */
   showQuickGrid: boolean;
+  /** Chips de explorar (Álbumes/Artistas/Géneros/Radio) arriba en Inicio. */
+  showExploreChips: boolean;
   /** Sección "Carpetas" en la Biblioteca (navegación por directorios; Subsonic). */
   showFolderBrowser: boolean;
   /** Visibilidad de botones opcionales, para quien prefiera una UI mínima. */
@@ -155,6 +157,7 @@ interface SettingsState {
   setShowDevicesButton: (value: boolean) => void;
   setSwipeToQueue: (value: boolean) => void;
   setShowQuickGrid: (value: boolean) => void;
+  setShowExploreChips: (value: boolean) => void;
   setShowFolderBrowser: (value: boolean) => void;
   setShowHistoryButton: (value: boolean) => void;
   setShowProfileButton: (value: boolean) => void;
@@ -199,6 +202,7 @@ function snapshot(get: () => SettingsState) {
     showDevicesButton: s.showDevicesButton,
     swipeToQueue: s.swipeToQueue,
     showQuickGrid: s.showQuickGrid,
+    showExploreChips: s.showExploreChips,
     showFolderBrowser: s.showFolderBrowser,
     showHistoryButton: s.showHistoryButton,
     showProfileButton: s.showProfileButton,
@@ -236,6 +240,7 @@ const DEFAULTS = {
   showDevicesButton: true,
   swipeToQueue: true,
   showQuickGrid: true,
+  showExploreChips: true,
   showFolderBrowser: false,
   showHistoryButton: true,
   showProfileButton: true,
@@ -373,6 +378,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
     persist(snapshot(get));
   },
 
+  setShowExploreChips: (showExploreChips) => {
+    set({ showExploreChips });
+    persist(snapshot(get));
+  },
+
   setShowFolderBrowser: (showFolderBrowser) => {
     set({ showFolderBrowser });
     persist(snapshot(get));
@@ -446,6 +456,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
           showDevicesButton: boolean;
           swipeToQueue: boolean;
           showQuickGrid: boolean;
+          showExploreChips: boolean;
           showFolderBrowser: boolean;
           showHistoryButton: boolean;
           showProfileButton: boolean;
@@ -550,6 +561,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
         }
         if (typeof parsed.showQuickGrid === 'boolean') {
           set({ showQuickGrid: parsed.showQuickGrid });
+        }
+        if (typeof parsed.showExploreChips === 'boolean') {
+          set({ showExploreChips: parsed.showExploreChips });
         }
         if (typeof parsed.showFolderBrowser === 'boolean') {
           set({ showFolderBrowser: parsed.showFolderBrowser });

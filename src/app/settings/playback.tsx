@@ -16,6 +16,8 @@ export default function PlaybackSettings() {
   const offline = useAuthStore((s) => s.offline);
   const maxBitRate = useSettings((s) => s.maxBitRate);
   const setMaxBitRate = useSettings((s) => s.setMaxBitRate);
+  const maxBitRateCellular = useSettings((s) => s.maxBitRateCellular);
+  const setMaxBitRateCellular = useSettings((s) => s.setMaxBitRateCellular);
   const autoplaySimilar = useSettings((s) => s.autoplaySimilar);
   const setAutoplaySimilar = useSettings((s) => s.setAutoplaySimilar);
   const crossfadeSec = useSettings((s) => s.crossfadeSec);
@@ -33,13 +35,21 @@ export default function PlaybackSettings() {
     <SettingsPage title={t('Quality & playback')}>
       <ScrollView contentContainerStyle={settingsStyles.content}>
         {offline ? null : (
-          <SelectList
-            label={t('Streaming quality')}
-            description={t('“Original” uses the highest quality; a lower bitrate saves data.')}
-            options={bitrateOptions}
-            value={maxBitRate}
-            onChange={setMaxBitRate}
-          />
+          <>
+            <SelectList
+              label={t('Streaming quality (Wi-Fi)')}
+              description={t('“Original” uses the highest quality; a lower bitrate saves data.')}
+              options={bitrateOptions}
+              value={maxBitRate}
+              onChange={setMaxBitRate}
+            />
+            <SelectList
+              label={t('Streaming quality (mobile data)')}
+              options={bitrateOptions}
+              value={maxBitRateCellular}
+              onChange={setMaxBitRateCellular}
+            />
+          </>
         )}
         <SliderRow
           label={t('Crossfade')}

@@ -4,6 +4,7 @@ import { StyleSheet, Text } from 'react-native';
 import { type Song } from '@/api/subsonic';
 import { useT } from '@/i18n';
 import { useDownloads } from '@/store/downloads';
+import { useNetworkType } from '@/store/networkType';
 import { useSettings } from '@/store/settings';
 import { colors, fontSize } from '@/theme';
 
@@ -66,7 +67,9 @@ function qualityLabel(
 
 export function AudioQualityBadge({ song }: { song: Song }) {
   const t = useT();
-  const maxBitRate = useSettings((s) => s.maxBitRate);
+  // La calidad de streaming depende de la red actual (Wi-Fi o datos móviles).
+  const cellular = useNetworkType((s) => s.cellular);
+  const maxBitRate = useSettings((s) => (cellular ? s.maxBitRateCellular : s.maxBitRate));
   const dlUri = useDownloads((s) => s.files[song.id]);
   const label = qualityLabel(song, maxBitRate, dlUri, t);
   if (!label) return null;

@@ -51,6 +51,7 @@ import {
   type RemoteEvents,
 } from './upnp';
 import { useDownloads } from './downloads';
+import { useNetworkType } from './networkType';
 import { usePlayCounts } from './playCounts';
 import { usePlayHistory } from './playHistory';
 import { useSettings } from './settings';
@@ -139,6 +140,12 @@ function downloadedUri(song: Song): string | undefined {
   return useDownloads.getState().files[song.id];
 }
 
+/** Bitrate máximo de streaming según la red actual (Wi-Fi o datos móviles). */
+export function effectiveMaxBitRate(): number {
+  const s = useSettings.getState();
+  return useNetworkType.getState().cellular ? s.maxBitRateCellular : s.maxBitRate;
+}
+
 /** Fuente para expo-audio: radio (url), local (file/content) o stream Subsonic. */
 function sourceFor(song: Song, timeOffsetSec = 0): { uri: string } {
   if (song.url) return { uri: song.url };
@@ -148,7 +155,7 @@ function sourceFor(song: Song, timeOffsetSec = 0): { uri: string } {
   const dl = downloadedUri(song);
   if (dl) return { uri: dl };
   const auth = useAuthStore.getState().auth!;
-  return { uri: streamUrl(auth, song.id, useSettings.getState().maxBitRate, timeOffsetSec) };
+  return { uri: streamUrl(auth, song.id, effectiveMaxBitRate(), timeOffsetSec) };
 }
 
 // ── Seek en streams transcodificados ────────────────────────────────────────
@@ -166,7 +173,7 @@ let transcodeOffsetSupported: boolean | null = null;
 function isTranscoded(song: Song): boolean {
   // Las descargadas suenan desde disco: seek nativo normal, sin timeOffset.
   if (song.url || song.localUri || downloadedUri(song)) return false;
-  const max = useSettings.getState().maxBitRate;
+  const max = effectiveMaxBitRate();
   return max > 0 && song.bitRate != null && song.bitRate > max;
 }
 

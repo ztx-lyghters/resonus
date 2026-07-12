@@ -25,6 +25,8 @@ export const BITRATE_OPTIONS = [
   { label: '320 kbps', value: 320 },
   { label: '192 kbps', value: 192 },
   { label: '128 kbps', value: 128 },
+  { label: '96 kbps', value: 96 },
+  { label: '64 kbps', value: 64 },
 ] as const;
 
 export type Language = 'es' | 'en' | 'de' | 'ca';
@@ -63,7 +65,10 @@ export const APP_FONT_FAMILY: Record<AppFont, string | undefined> = {
 };
 
 interface SettingsState {
+  /** Calidad de streaming en Wi-Fi (y cualquier red que no sean datos móviles). */
   maxBitRate: number;
+  /** Calidad de streaming con datos móviles. */
+  maxBitRateCellular: number;
   /** Calidad de descarga: 0 = fichero original; resto, bitrate transcodificado. */
   downloadBitRate: number;
   /** Descargar solo con Wi-Fi (bloquea descargas con datos móviles). */
@@ -126,6 +131,7 @@ interface SettingsState {
   /** Fuente de la interfaz (familia del sistema; `system` = por defecto). */
   appFont: AppFont;
   setMaxBitRate: (value: number) => void;
+  setMaxBitRateCellular: (value: number) => void;
   setDownloadBitRate: (value: number) => void;
   setDownloadWifiOnly: (value: boolean) => void;
   setLanguage: (language: Language) => void;
@@ -169,6 +175,7 @@ function snapshot(get: () => SettingsState) {
   const s = get();
   return {
     maxBitRate: s.maxBitRate,
+    maxBitRateCellular: s.maxBitRateCellular,
     downloadBitRate: s.downloadBitRate,
     downloadWifiOnly: s.downloadWifiOnly,
     language: s.language,
@@ -205,6 +212,7 @@ function snapshot(get: () => SettingsState) {
 /** Valores de fábrica de todas las preferencias. */
 const DEFAULTS = {
   maxBitRate: 0,
+  maxBitRateCellular: 0,
   downloadBitRate: 0,
   downloadWifiOnly: false,
   language: 'en' as Language,
@@ -242,6 +250,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
 
   setMaxBitRate: (maxBitRate) => {
     set({ maxBitRate });
+    persist(snapshot(get));
+  },
+
+  setMaxBitRateCellular: (maxBitRateCellular) => {
+    set({ maxBitRateCellular });
     persist(snapshot(get));
   },
 
@@ -409,6 +422,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<{
           maxBitRate: number;
+          maxBitRateCellular: number;
           downloadBitRate: number;
           downloadWifiOnly: boolean;
           language: Language;
@@ -442,6 +456,14 @@ export const useSettings = create<SettingsState>((set, get) => ({
         }>;
         if (typeof parsed.maxBitRate === 'number') {
           set({ maxBitRate: parsed.maxBitRate });
+        }
+        if (typeof parsed.maxBitRateCellular === 'number') {
+          set({ maxBitRateCellular: parsed.maxBitRateCellular });
+        } else if (typeof parsed.maxBitRate === 'number') {
+          // Antes había una sola calidad de streaming: quien la tuviera puesta
+          // hereda el mismo valor en datos móviles (comportamiento idéntico
+          // hasta que toque el ajuste nuevo).
+          set({ maxBitRateCellular: parsed.maxBitRate });
         }
         if (typeof parsed.downloadBitRate === 'number') {
           set({ downloadBitRate: parsed.downloadBitRate });

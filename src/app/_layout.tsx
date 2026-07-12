@@ -23,6 +23,7 @@ import { useAuthStore } from '@/store/auth';
 import { useDownloads } from '@/store/downloads';
 import { useLastPlayed } from '@/store/lastPlayed';
 import { useLibraries } from '@/store/libraries';
+import { initNetworkType } from '@/store/networkType';
 import { usePins } from '@/store/pins';
 import { initRemoteIntegration, usePlayerStore } from '@/store/player';
 import { usePlayCounts } from '@/store/playCounts';
@@ -62,6 +63,7 @@ export default function RootLayout() {
     void useLastPlayed.getState().hydrate();
     void usePins.getState().hydrate();
     void useDownloads.getState().hydrate();
+    initNetworkType();
     // Bibliotecas: hidrata el filtro guardado y refresca la lista del servidor.
     void useLibraries
       .getState()

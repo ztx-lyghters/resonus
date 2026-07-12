@@ -442,7 +442,7 @@ export default function PlayerScreen() {
               <StarRating
                 id={song.id}
                 rating={song.userRating}
-                size={20}
+                size={18}
                 onRated={(r) => rateSong(song.id, r)}
               />
             </View>
@@ -646,8 +646,10 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     marginTop: spacing.xs,
   },
-  // Fila de estrellas bajo el título; se sube un poco para acercarla al meta.
-  rating: { marginTop: -spacing.xs, marginBottom: spacing.md },
+  // Fila de estrellas bajo el título, en versión compacta: es un elemento
+  // opcional y la primera página va justa con todo activado — cada píxel
+  // vertical cuenta (el slider ya trae aire propio debajo).
+  rating: { marginTop: -spacing.sm, marginBottom: spacing.xs },
   progress: { marginBottom: spacing.md },
   // Compensa el margen interno del slider (~15px, donde centra el pulgar en
   // los extremos): la pista visible va de borde a borde del contenido, como

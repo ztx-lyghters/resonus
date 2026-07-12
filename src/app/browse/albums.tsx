@@ -143,13 +143,25 @@ const styles = StyleSheet.create({
   chipsRow: { flexGrow: 0 },
   chips: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
   chip: {
-    paddingVertical: spacing.xs,
+    // Padding asimétrico a propósito: aun sin includeFontPadding, los glifos
+    // quedan ~1dp bajos respecto al centro de la píldora (medido en captura).
+    paddingTop: spacing.xs - 1,
+    paddingBottom: spacing.xs + 1,
     paddingHorizontal: spacing.md,
     borderRadius: 999,
     backgroundColor: colors.surfaceHighlight,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  chipActive: { backgroundColor: colors.accent },
-  chipText: { color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: '600' },
+  chipText: {
+    color: colors.textSecondary,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+    // Android mete relleno extra asimétrico sobre el texto (ascent de la
+    // fuente): sin quitarlo, el texto no queda centrado en la píldora.
+    includeFontPadding: false,
+    textAlignVertical: 'center',
+  },
   chipTextActive: { color: '#000' },
   list: {
     paddingHorizontal: spacing.lg,

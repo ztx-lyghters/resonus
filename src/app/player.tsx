@@ -363,7 +363,7 @@ export default function PlayerScreen() {
           {isLocal && !offline ? (
             <View style={{ width: 40 }} />
           ) : (
-            <CircleButton name="ellipsis-vertical" label={t('More options')} onPress={() => openMenu(song)} />
+            <CircleButton name="ellipsis-vertical" label={t('More options')} onPress={() => openMenu(song, undefined, { showLyrics: hasLyrics })} />
           )}
         </View>
 

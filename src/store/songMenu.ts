@@ -10,16 +10,26 @@ export interface SongMenuContext {
   index: number;
 }
 
+/** Ajustes extra al abrir el menú (p. ej. desde el reproductor). */
+export interface SongMenuOptions {
+  /** Muestra la acción «Letra». Solo desde el reproductor: /lyrics abre la
+   *  canción en curso, no la de una fila cualquiera. */
+  showLyrics?: boolean;
+}
+
 interface SongMenuState {
   song: Song | null;
   context: SongMenuContext | null;
-  open: (song: Song, context?: SongMenuContext) => void;
+  showLyrics: boolean;
+  open: (song: Song, context?: SongMenuContext, opts?: SongMenuOptions) => void;
   close: () => void;
 }
 
 export const useSongMenu = create<SongMenuState>((set) => ({
   song: null,
   context: null,
-  open: (song, context) => set({ song, context: context ?? null }),
-  close: () => set({ song: null, context: null }),
+  showLyrics: false,
+  open: (song, context, opts) =>
+    set({ song, context: context ?? null, showLyrics: !!opts?.showLyrics }),
+  close: () => set({ song: null, context: null, showLyrics: false }),
 }));

@@ -75,6 +75,7 @@ export function SongMenuSheet() {
   const queryClient = useQueryClient();
   const song = useSongMenu((s) => s.song);
   const context = useSongMenu((s) => s.context);
+  const showLyrics = useSongMenu((s) => s.showLyrics);
   const closeNow = useSongMenu((s) => s.close);
   const { dismiss, backdropStyle, sheetStyle, onSheetLayout } = useBottomSheetAnim(!!song);
   // Cierre animado: la hoja baja y después se desmonta el Modal. Todas las
@@ -346,6 +347,13 @@ export function SongMenuSheet() {
                     go(`/album/${key}`);
                   }
                 }}
+              />
+            ) : null}
+            {showLyrics ? (
+              <Action
+                icon="mic-outline"
+                label={t('Lyrics')}
+                onPress={() => go('/lyrics')}
               />
             ) : null}
             <Action

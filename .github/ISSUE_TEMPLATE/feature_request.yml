@@ -14,6 +14,6 @@ body:
     id: solution
     attributes:
       label: Proposed solution
-      description: How would you like it to work?
+      description: How would you like it to work? E.g. where in the app you'd expect to find it, or another app that does it well.
     validations:
       required: false

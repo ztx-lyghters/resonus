@@ -122,20 +122,23 @@ export function SelectList<T extends string | number | boolean>({
   description?: string;
   collapsible?: boolean;
 }) {
-  const [menuTop, setMenuTop] = useState<number | null>(null);
+  // Posición de la fila en pantalla (medida al abrir) y alto real del menú
+  // (medido al pintarse): con ambos se ancla exacto, pegado a la fila.
+  const [anchor, setAnchor] = useState<{ y: number; h: number } | null>(null);
+  const [menuH, setMenuH] = useState(0);
   const rowRef = useRef<View>(null);
   const active = options.find((o) => o.value === value) ?? options[0];
 
   function openMenu() {
-    rowRef.current?.measureInWindow((_x, y, _w, h) => {
-      // Debajo de la fila; si no cabe, por encima (sin salirse de pantalla).
-      const winH = Dimensions.get('window').height;
-      const menuH = options.length * MENU_ITEM_H + spacing.sm * 2;
-      const below = y + h - spacing.xs;
-      setMenuTop(
-        below + menuH > winH - spacing.xl ? Math.max(spacing.xl, y - menuH) : below,
-      );
-    });
+    rowRef.current?.measureInWindow((_x, y, _w, h) => setAnchor({ y, h }));
+  }
+
+  /** Debajo de la fila; si no cabe, por encima (sin salirse de pantalla). */
+  function menuTopFor(a: { y: number; h: number }, mh: number): number {
+    const winH = Dimensions.get('window').height;
+    const below = a.y + a.h - spacing.xs;
+    if (below + mh <= winH - spacing.xl) return below;
+    return Math.max(spacing.xl, a.y - mh + spacing.xs);
   }
 
   if (!collapsible) {
@@ -192,12 +195,20 @@ export function SelectList<T extends string | number | boolean>({
         transparent
         statusBarTranslucent
         animationType="fade"
-        visible={menuTop != null}
-        onRequestClose={() => setMenuTop(null)}
+        visible={anchor != null}
+        onRequestClose={() => setAnchor(null)}
       >
-        <Pressable style={StyleSheet.absoluteFill} onPress={() => setMenuTop(null)} />
-        {menuTop != null ? (
-          <View style={[settingsStyles.menu, { top: menuTop }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => setAnchor(null)} />
+        {anchor != null ? (
+          <View
+            // Invisible el primer frame (aún sin alto medido): evita verlo
+            // saltar de sitio cuando abre hacia arriba.
+            style={[
+              settingsStyles.menu,
+              { top: menuTopFor(anchor, menuH), opacity: menuH > 0 ? 1 : 0 },
+            ]}
+            onLayout={(e) => setMenuH(e.nativeEvent.layout.height)}
+          >
             {options.map((opt) => {
               const isActive = opt.value === value;
               return (
@@ -205,7 +216,7 @@ export function SelectList<T extends string | number | boolean>({
                   key={String(opt.value)}
                   style={({ pressed }) => [settingsStyles.menuItem, pressed && { opacity: 0.6 }]}
                   onPress={() => {
-                    setMenuTop(null);
+                    setAnchor(null);
                     if (!isActive) onChange(opt.value);
                   }}
                 >

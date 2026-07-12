@@ -1,7 +1,7 @@
 /** Ajustes › Reproductor: aspecto y extras de la pantalla de reproducción. */
 import { ScrollView, Text } from 'react-native';
 
-import { SettingsPage, settingsStyles, SwitchList } from '@/components/SettingsUI';
+import { SelectList, SettingsPage, settingsStyles, SwitchList } from '@/components/SettingsUI';
 import { useT } from '@/i18n';
 import { useAuthStore } from '@/store/auth';
 import { useSettings } from '@/store/settings';
@@ -32,6 +32,8 @@ export default function PlayerSettings() {
   const setShowQueueButton = useSettings((s) => s.setShowQueueButton);
   const showDevicesButton = useSettings((s) => s.showDevicesButton);
   const setShowDevicesButton = useSettings((s) => s.setShowDevicesButton);
+  const seekButtonsSec = useSettings((s) => s.seekButtonsSec);
+  const setSeekButtonsSec = useSettings((s) => s.setSeekButtonsSec);
 
   return (
     <SettingsPage title={t('Player')}>
@@ -113,6 +115,21 @@ export default function PlayerSettings() {
                   },
                 ]),
           ]}
+        />
+        <Text style={settingsStyles.sectionTitle}>{t('Skip buttons')}</Text>
+        <Text style={settingsStyles.sectionDescription}>
+          {t('Jump back or forward next to the play button.')}
+        </Text>
+        <SelectList
+          collapsible={false}
+          options={[
+            { value: 0, label: t('No') },
+            { value: 5, label: '5 s' },
+            { value: 10, label: '10 s' },
+            { value: 30, label: '30 s' },
+          ]}
+          value={seekButtonsSec}
+          onChange={setSeekButtonsSec}
         />
       </ScrollView>
     </SettingsPage>

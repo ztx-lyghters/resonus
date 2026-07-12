@@ -133,6 +133,7 @@ export default function PlayerScreen() {
   const marqueeTitles = useSettings((s) => s.marqueeTitles);
   const showQueueButton = useSettings((s) => s.showQueueButton);
   const showDevicesButton = useSettings((s) => s.showDevicesButton);
+  const seekButtonsSec = useSettings((s) => s.seekButtonsSec);
   const offline = useAuthStore((s) => s.offline);
   const serverType = useAuthStore((s) => s.auth?.serverType);
   const remoteDevice = useUpnp((s) => (s.connected ? s.deviceName : null));
@@ -486,6 +487,20 @@ export default function PlayerScreen() {
             >
               <Ionicons name="play-skip-back" size={34} color={colors.text} />
             </Pressable>
+            {seekButtonsSec > 0 ? (
+              <Pressable
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel={t('Back {n} seconds', { n: seekButtonsSec })}
+                onPress={() => seekTo(Math.max(0, positionSec - seekButtonsSec))}
+              >
+                <MaterialIcons
+                  name={`replay-${seekButtonsSec}` as 'replay-10'}
+                  size={28}
+                  color={colors.text}
+                />
+              </Pressable>
+            ) : null}
             <Pressable
               style={styles.playButton}
               accessibilityRole="button"
@@ -503,6 +518,24 @@ export default function PlayerScreen() {
                 />
               )}
             </Pressable>
+            {seekButtonsSec > 0 ? (
+              <Pressable
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel={t('Forward {n} seconds', { n: seekButtonsSec })}
+                onPress={() =>
+                  // Tope antes del final: saltarse el didJustFinish a pelo
+                  // dejaría el avance automático sin disparar.
+                  seekTo(duration > 0 ? Math.min(duration - 1, positionSec + seekButtonsSec) : positionSec + seekButtonsSec)
+                }
+              >
+                <MaterialIcons
+                  name={`forward-${seekButtonsSec}` as 'forward-10'}
+                  size={28}
+                  color={colors.text}
+                />
+              </Pressable>
+            ) : null}
             <Pressable
               hitSlop={10}
               accessibilityRole="button"

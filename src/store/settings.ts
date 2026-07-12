@@ -123,6 +123,8 @@ interface SettingsState {
   /** Botones inferiores del reproductor (cola y dispositivos). */
   showQueueButton: boolean;
   showDevicesButton: boolean;
+  /** Botones de salto ±N segundos junto al play (0 = ocultos). Solo 5/10/30: son los iconos numerados que existen en MaterialIcons. */
+  seekButtonsSec: number;
   /** Gesto de deslizar una canción a la derecha para encolarla. */
   swipeToQueue: boolean;
   /** Cuadrícula de acceso rápido (Favoritos + recientes) arriba en Inicio. */
@@ -165,6 +167,7 @@ interface SettingsState {
   setMarqueeTitles: (value: boolean) => void;
   setShowQueueButton: (value: boolean) => void;
   setShowDevicesButton: (value: boolean) => void;
+  setSeekButtonsSec: (value: number) => void;
   setSwipeToQueue: (value: boolean) => void;
   setShowQuickGrid: (value: boolean) => void;
   setShowExploreChips: (value: boolean) => void;
@@ -210,6 +213,7 @@ function snapshot(get: () => SettingsState) {
     marqueeTitles: s.marqueeTitles,
     showQueueButton: s.showQueueButton,
     showDevicesButton: s.showDevicesButton,
+    seekButtonsSec: s.seekButtonsSec,
     swipeToQueue: s.swipeToQueue,
     showQuickGrid: s.showQuickGrid,
     showExploreChips: s.showExploreChips,
@@ -248,6 +252,7 @@ const DEFAULTS = {
   marqueeTitles: true,
   showQueueButton: true,
   showDevicesButton: true,
+  seekButtonsSec: 0,
   swipeToQueue: true,
   showQuickGrid: true,
   showExploreChips: true,
@@ -378,6 +383,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
     persist(snapshot(get));
   },
 
+  setSeekButtonsSec: (seekButtonsSec) => {
+    set({ seekButtonsSec });
+    persist(snapshot(get));
+  },
+
   setSwipeToQueue: (swipeToQueue) => {
     set({ swipeToQueue });
     persist(snapshot(get));
@@ -464,6 +474,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
           marqueeTitles: boolean;
           showQueueButton: boolean;
           showDevicesButton: boolean;
+          seekButtonsSec: number;
           swipeToQueue: boolean;
           showQuickGrid: boolean;
           showExploreChips: boolean;
@@ -565,6 +576,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
         }
         if (typeof parsed.showDevicesButton === 'boolean') {
           set({ showDevicesButton: parsed.showDevicesButton });
+        }
+        if (parsed.seekButtonsSec === 0 || parsed.seekButtonsSec === 5 || parsed.seekButtonsSec === 10 || parsed.seekButtonsSec === 30) {
+          set({ seekButtonsSec: parsed.seekButtonsSec });
         }
         if (typeof parsed.swipeToQueue === 'boolean') {
           set({ swipeToQueue: parsed.swipeToQueue });

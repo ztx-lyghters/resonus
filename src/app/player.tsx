@@ -43,11 +43,13 @@ import { useFavoriteIds } from '@/hooks/useFavoriteIds';
 import { useLyrics } from '@/hooks/useLyrics';
 import { artistTargets } from '@/lib/artistNav';
 import { formatDuration } from '@/lib/format';
+import { haptic } from '@/lib/haptics';
 import { useArtistPicker } from '@/store/artistPicker';
 import { useAuthStore } from '@/store/auth';
 import { currentSong, SOURCE_FAVORITES, SOURCE_HISTORY, usePlayerStore } from '@/store/player';
 import { useSettings } from '@/store/settings';
 import { useSongMenu } from '@/store/songMenu';
+import { useToast } from '@/store/toast';
 import { useUpnp } from '@/store/upnp';
 import { useT } from '@/i18n';
 import { colors, fontSize, spacing } from '@/theme';
@@ -506,6 +508,20 @@ export default function PlayerScreen() {
               accessibilityRole="button"
               accessibilityLabel={isPlaying ? t('Pause') : t('Play')}
               onPress={toggle}
+              // Stop de verdad: para y elimina cola, mini player y
+              // notificación. No hace falta cerrar el player a mano: el efecto
+              // de "sin canción" ya lo cierra, y el toast con Deshacer queda
+              // en la pantalla de debajo.
+              onLongPress={() => {
+                haptic('medium');
+                void usePlayerStore
+                  .getState()
+                  .stopAndClear()
+                  .then((undo) => {
+                    if (!undo) return;
+                    useToast.getState().show(t('Playback stopped'), { label: t('Undo'), run: undo });
+                  });
+              }}
             >
               {isBuffering ? (
                 <ActivityIndicator size="small" color="#101010" />

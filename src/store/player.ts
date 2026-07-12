@@ -36,7 +36,7 @@ import {
   type Song,
 } from '@/api/backend';
 import { prefetchLyrics } from '@/hooks/useLyrics';
-import { deleteItem, getItem, setItem } from '@/lib/storage';
+import { getItem, setItem } from '@/lib/storage';
 import { useAuthStore } from './auth';
 import { useLastPlayed } from './lastPlayed';
 import {
@@ -754,10 +754,17 @@ function saveQueueLocal() {
   void setItem(key, JSON.stringify(payload));
 }
 
-/** Olvida la cola guardada del perfil activo (el usuario la vació adrede). */
+/**
+ * Olvida la cola guardada del perfil activo (el usuario la vació adrede).
+ * Se guarda una cola vacía en vez de borrar la clave: es la "lápida" que
+ * evita que restoreQueue resucite la copia del servidor en el próximo
+ * arranque (el servidor no ofrece forma fiable de borrar la suya).
+ */
 function clearQueueLocal() {
   const key = queueStorageKey();
-  if (key) void deleteItem(key);
+  if (!key) return;
+  const empty: StoredQueue = { queue: [], index: 0, positionSec: 0 };
+  void setItem(key, JSON.stringify(empty));
 }
 
 // ── Sincronización de la cola con el servidor (savePlayQueue/getPlayQueue) ──
@@ -912,6 +919,10 @@ interface PlayerState {
    *  la función que deshace el vaciado (para el toast «Deshacer»), o nada si
    *  no había cola. */
   clearQueue: () => (() => void) | undefined;
+  /** Stop de verdad (long-press en play): para y elimina cola, mini player y
+   *  notificación. Devuelve la función que lo deshace (cola y posición de
+   *  vuelta, en pausa), o nada si no sonaba nada. */
+  stopAndClear: () => Promise<(() => void) | undefined>;
   toggleShuffle: () => void;
   cycleRepeat: () => void;
   setSleepTimer: (minutes: number) => void;
@@ -919,8 +930,10 @@ interface PlayerState {
   cancelSleepTimer: () => void;
   /** Restaura la cola guardada en el servidor (sin reproducir). */
   restoreFromServer: () => Promise<void>;
-  /** Restaura la cola guardada en este dispositivo (sin reproducir). */
-  restoreFromStorage: () => Promise<void>;
+  /** Restaura la cola guardada en este dispositivo (sin reproducir).
+   *  Devuelve true si había copia local (aunque fuera una cola vaciada
+   *  adrede): en ese caso no debe entrar el respaldo del servidor. */
+  restoreFromStorage: () => Promise<boolean>;
   /** Retoma la última cola: primero la copia local; si no hay, la del servidor. */
   restoreQueue: () => Promise<void>;
   reset: () => Promise<void>;
@@ -1194,6 +1207,43 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     };
   },
 
+  stopAndClear: async () => {
+    const { queue, index, positionSec, queuedCount, originalQueue, shuffle, source, sourceHref } =
+      get();
+    if (queue.length === 0) return undefined;
+    // Parada deliberada: se olvida también la copia guardada, para que la
+    // cola no reaparezca al reabrir la app.
+    clearQueueLocal();
+    await get().reset();
+    return () => {
+      void (async () => {
+        // Solo si no se ha puesto nada nuevo a sonar mientras tanto.
+        if (get().queue.length > 0) return;
+        attachAppState();
+        set({
+          queue,
+          index,
+          positionSec,
+          durationSec: queue[index]?.duration ?? 0,
+          isPlaying: false,
+          queuedCount,
+          originalQueue,
+          shuffle,
+          source,
+          sourceHref,
+        });
+        // Como al restaurar la cola guardada: pista cargada, en pausa.
+        await loadIndex(index, false);
+        if (positionSec > 0) {
+          pendingSeek = { sec: positionSec, at: Date.now() };
+          activePlayer()?.seekTo(positionSec);
+        }
+        usePlayerStore.setState({ positionSec, isPlaying: false });
+        scheduleSync();
+      })();
+    };
+  },
+
   rateSong: (id, rating) => {
     const patch = (list: Song[]) =>
       list.map((s) => (s.id === id ? { ...s, userRating: rating } : s));
@@ -1336,17 +1386,20 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   restoreFromStorage: async () => {
     const key = queueStorageKey();
-    if (!key || get().queue.length > 0) return;
+    if (!key || get().queue.length > 0) return true;
     let saved: StoredQueue | null = null;
     try {
       const raw = await getItem(key);
       saved = raw ? (JSON.parse(raw) as StoredQueue) : null;
     } catch {
-      return;
+      return false;
     }
-    if (!saved || !Array.isArray(saved.queue) || saved.queue.length === 0) return;
+    if (!saved || !Array.isArray(saved.queue)) return false;
+    // Cola vacía guardada = el usuario la vació adrede: no hay nada que
+    // restaurar, pero tampoco debe entrar el respaldo del servidor.
+    if (saved.queue.length === 0) return true;
     // Si entre tanto ya se empezó a reproducir algo, no pisamos la cola.
-    if (get().queue.length > 0) return;
+    if (get().queue.length > 0) return true;
     const index = Math.min(Math.max(0, saved.index ?? 0), saved.queue.length - 1);
     const positionSec =
       typeof saved.positionSec === 'number' && Number.isFinite(saved.positionSec)
@@ -1368,13 +1421,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       activePlayer()?.seekTo(positionSec);
     }
     usePlayerStore.setState({ positionSec, isPlaying: false });
+    return true;
   },
 
   restoreQueue: async () => {
     // La copia local es la más fiel (incluye descargas, radios y el modo
-    // offline); la del servidor queda de respaldo para sesiones nuevas.
-    await get().restoreFromStorage();
-    if (get().queue.length === 0) await get().restoreFromServer();
+    // offline); la del servidor queda de respaldo para sesiones nuevas —
+    // salvo que la copia local diga que la cola se vació adrede.
+    const handled = await get().restoreFromStorage();
+    if (!handled && get().queue.length === 0) await get().restoreFromServer();
   },
 
   reset: async () => {

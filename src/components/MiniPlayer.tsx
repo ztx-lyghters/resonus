@@ -21,9 +21,11 @@ import { coverArtUrl } from '@/api/data';
 import { useDominantColor } from '@/hooks/useDominantColor';
 import { useFavoriteIds } from '@/hooks/useFavoriteIds';
 import { useT } from '@/i18n';
+import { haptic } from '@/lib/haptics';
 import { useAuthStore } from '@/store/auth';
 import { currentSong, usePlayerStore } from '@/store/player';
 import { useSettings } from '@/store/settings';
+import { useToast } from '@/store/toast';
 import { colors, fontSize, radius, spacing } from '@/theme';
 import { Cover } from './Cover';
 import { FavoriteButton } from './FavoriteButton';
@@ -148,6 +150,18 @@ export function MiniPlayer() {
         onPress={(e) => {
           e.stopPropagation();
           toggle();
+        }}
+        // Stop de verdad: para y elimina cola, mini player y notificación.
+        onLongPress={() => {
+          haptic('medium');
+          void usePlayerStore
+            .getState()
+            .stopAndClear()
+            .then((undo) => {
+              if (undo) {
+                useToast.getState().show(t('Playback stopped'), { label: t('Undo'), run: undo });
+              }
+            });
         }}
       >
         {isBuffering ? (

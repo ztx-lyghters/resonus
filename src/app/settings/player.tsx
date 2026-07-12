@@ -1,5 +1,5 @@
 /** Ajustes › Reproductor: aspecto y extras de la pantalla de reproducción. */
-import { ScrollView } from 'react-native';
+import { ScrollView, Text } from 'react-native';
 
 import { SettingsPage, settingsStyles, SwitchList } from '@/components/SettingsUI';
 import { useT } from '@/i18n';
@@ -36,6 +36,8 @@ export default function PlayerSettings() {
   return (
     <SettingsPage title={t('Player')}>
       <ScrollView contentContainerStyle={settingsStyles.content}>
+        {/* El primer título va pegado a la cabecera (sin el margen de sección). */}
+        <Text style={[settingsStyles.sectionTitle, { marginTop: 0 }]}>{t('Color')}</Text>
         <SwitchList
           options={[
             {
@@ -56,6 +58,12 @@ export default function PlayerSettings() {
               value: lyricsColorBackground,
               onChange: setLyricsColorBackground,
             },
+          ]}
+        />
+
+        <Text style={settingsStyles.sectionTitle}>{t('Elements')}</Text>
+        <SwitchList
+          options={[
             {
               label: t('Show quality label'),
               description: t('Show format, bitrate and Lossless / Hi-Res in the player.'),
@@ -84,6 +92,12 @@ export default function PlayerSettings() {
               value: marqueeTitles,
               onChange: setMarqueeTitles,
             },
+          ]}
+        />
+
+        <Text style={settingsStyles.sectionTitle}>{t('Buttons')}</Text>
+        <SwitchList
+          options={[
             {
               label: t('Show queue button'),
               value: showQueueButton,

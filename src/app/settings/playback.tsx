@@ -4,7 +4,7 @@
  * en local (crossfade y letras online); el resto es de servidor. Lo relativo
  * a descargas vive en Ajustes › Descargas.
  */
-import { ScrollView } from 'react-native';
+import { ScrollView, Text } from 'react-native';
 
 import { SelectList, SettingsPage, settingsStyles, SliderRow, SwitchList } from '@/components/SettingsUI';
 import { useT } from '@/i18n';
@@ -36,6 +36,8 @@ export default function PlaybackSettings() {
       <ScrollView contentContainerStyle={settingsStyles.content}>
         {offline ? null : (
           <>
+            {/* El primer título va pegado a la cabecera (sin el margen de sección). */}
+            <Text style={[settingsStyles.sectionTitle, { marginTop: 0 }]}>{t('Streaming')}</Text>
             <SelectList
               label={t('Streaming quality (Wi-Fi)')}
               description={t('“Original” uses the highest quality; a lower bitrate saves data.')}
@@ -51,6 +53,11 @@ export default function PlaybackSettings() {
             />
           </>
         )}
+
+        {/* En offline no hay sección Streaming: este pasa a ser el primer título. */}
+        <Text style={[settingsStyles.sectionTitle, offline && { marginTop: 0 }]}>
+          {t('Playback')}
+        </Text>
         <SliderRow
           label={t('Crossfade')}
           description={t('Songs blend into each other when one ends.')}
@@ -71,18 +78,22 @@ export default function PlaybackSettings() {
           value={replayGain}
           onChange={setReplayGain}
         />
+        {offline ? null : (
+          <SwitchList
+            options={[
+              {
+                label: t('Autoplay'),
+                description: t('Keep playing similar songs when your queue ends.'),
+                value: autoplaySimilar,
+                onChange: setAutoplaySimilar,
+              },
+            ]}
+          />
+        )}
+
+        <Text style={settingsStyles.sectionTitle}>{t('Extras')}</Text>
         <SwitchList
           options={[
-            ...(offline
-              ? []
-              : [
-                  {
-                    label: t('Autoplay'),
-                    description: t('Keep playing similar songs when your queue ends.'),
-                    value: autoplaySimilar,
-                    onChange: setAutoplaySimilar,
-                  },
-                ]),
             {
               label: t('Find lyrics online'),
               description: t(

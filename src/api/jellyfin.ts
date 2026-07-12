@@ -59,6 +59,7 @@ interface JfItem {
   ArtistItems?: { Id: string; Name?: string }[];
   RunTimeTicks?: number;
   IndexNumber?: number;
+  ParentIndexNumber?: number;
   ProductionYear?: number;
   ChildCount?: number;
   DateCreated?: string;
@@ -230,6 +231,7 @@ function toSong(it: JfItem): Song {
           : undefined,
     duration: it.RunTimeTicks ? Math.round(it.RunTimeTicks / TICKS_PER_SECOND) : undefined,
     track: it.IndexNumber,
+    discNumber: it.ParentIndexNumber,
     starred: favDate(it),
     suffix: src?.Container,
     bitRate: src?.Bitrate ? Math.round(src.Bitrate / 1000) : undefined,

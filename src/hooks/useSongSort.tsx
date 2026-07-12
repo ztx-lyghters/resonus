@@ -168,9 +168,14 @@ export function useSongSort(
     if (field === 'artist')
       arr.sort((a, b) => cmp(a.song.artist, b.song.artist) || cmp(a.song.title, b.song.title));
     if (field === 'album')
+      // albumId separa álbumes homónimos de artistas distintos; disco antes
+      // que pista porque en álbumes multi-disco los `track` se repiten por
+      // disco y sin esa clave las canciones se entrelazan "al azar".
       arr.sort(
         (a, b) =>
           cmp(a.song.album, b.song.album) ||
+          cmp(a.song.albumId, b.song.albumId) ||
+          (a.song.discNumber ?? 0) - (b.song.discNumber ?? 0) ||
           (a.song.track ?? 0) - (b.song.track ?? 0) ||
           cmp(a.song.title, b.song.title),
       );

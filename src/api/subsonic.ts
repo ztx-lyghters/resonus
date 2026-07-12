@@ -57,6 +57,8 @@ export interface Song {
   coverArt?: string;
   duration?: number;
   track?: number;
+  /** Nº de disco en álbumes multi-disco (los `track` se repiten por disco). */
+  discNumber?: number;
   /** Marca de tiempo de cuándo se marcó como favorita; ausente si no lo es. */
   starred?: string;
   /** Nº de reproducciones registradas por el servidor (OpenSubsonic). */

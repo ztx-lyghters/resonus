@@ -49,11 +49,6 @@ Get the latest APK from the [Releases](https://github.com/juananzzz/resonus/rele
 - **Queue sync across devices**
 - **In 4 languages** — English, Spanish, German, Catalan
 
-## Roadmap
-
-- [ ] Scrobbling & listening stats
-- [ ] iOS support
-
 ## Translations
 
 Resonus is maintained in-house in **English, Spanish, and Catalan**
@@ -70,7 +65,3 @@ report bugs, ask questions, or just follow along with development.
 
 Contributions are welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to
 set up the project, run it on an emulator, and open a pull request.
-
-## License
-
-[MIT](./LICENSE) © juananzzz

@@ -501,7 +501,6 @@ export function TrackListView({
                 {onMenu ? (
                   <Pressable
                     hitSlop={10}
-                    style={styles.menuButton}
                     accessibilityRole="button"
                     accessibilityLabel={t('More options')}
                     onPress={onMenu}
@@ -853,11 +852,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.lg,
-  },
-  menuButton: {
-    paddingLeft: spacing.md,
-    paddingRight: spacing.md,
-    paddingVertical: spacing.md,
   },
   downloadWrap: {
     flexDirection: 'row',

@@ -110,8 +110,8 @@ interface SettingsState {
   lyricsColorBackground: boolean;
   /**
    * Si una canción no tiene letra (ni el servidor, ni .lrc, ni USLT),
-   * pedirla a LRCLIB. Desactivado por defecto: manda artista y título a un
-   * servicio externo.
+   * pedirla a LRCLIB. Activado por defecto (mejor experiencia con letras);
+   * manda artista y título a un servicio externo, se puede desactivar.
    */
   lyricsOnlineFallback: boolean;
   /** Foto circular del artista junto a su nombre en la pantalla de álbum. */
@@ -253,7 +253,7 @@ const DEFAULTS = {
   keepScreenAwake: false,
   hapticsEnabled: false,
   lyricsColorBackground: true,
-  lyricsOnlineFallback: false,
+  lyricsOnlineFallback: true,
   showArtistPhoto: true,
   playerColorBackground: true,
   miniPlayerColorBackground: true,

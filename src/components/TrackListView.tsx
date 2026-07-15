@@ -226,6 +226,11 @@ export function TrackListView({
   // null = modo normal; un Set (aunque esté vacío) = seleccionando.
   const [selectedIds, setSelectedIds] = useState<Set<string> | null>(null);
   const selecting = selectedIds !== null;
+  // Id que acaba de entrar en selección por long-press. Al soltar, el `onPress`
+  // de ese mismo gesto llega con `selecting` ya activo y desharía la selección;
+  // lo descartamos una vez. Se resetea en `onPressIn` (arranque de cada pulsa-
+  // ción), así no queda residuo aunque `onPress` no salte tras el long-press.
+  const justLongPressed = useRef<string | null>(null);
   const allSelected = selecting && selectedIds.size === songs.length && songs.length > 0;
 
   function toggleSelect(id: string) {
@@ -565,15 +570,25 @@ export function TrackListView({
               }
               selecting={selecting}
               selected={!!selectedIds?.has(item.id)}
+              onPressIn={() => {
+                justLongPressed.current = null;
+              }}
               onLongPress={
                 selection && !selecting
                   ? () => {
                       haptic('medium');
                       setSelectedIds(new Set([item.id]));
+                      justLongPressed.current = item.id;
                     }
                   : undefined
               }
-              onPress={() => (selecting ? toggleSelect(item.id) : onPlay(origIndex))}
+              onPress={() => {
+                // Descarta el onPress que sigue al long-press de seleccionar:
+                // si no, desmarcaría la canción con la que entraste en selección.
+                if (justLongPressed.current === item.id) return;
+                if (selecting) toggleSelect(item.id);
+                else onPlay(origIndex);
+              }}
             />
           );
         }}

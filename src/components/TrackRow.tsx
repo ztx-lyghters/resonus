@@ -49,6 +49,9 @@ interface Props {
   selected?: boolean;
   onLongPress?: () => void;
   onPress: () => void;
+  /** Inicio de la pulsación (antes de onPress/onLongPress); lo usa la lista
+   *  para descartar el onPress que sigue al long-press de entrar en selección. */
+  onPressIn?: () => void;
 }
 
 /**
@@ -77,6 +80,7 @@ export function TrackRow({
   selected = false,
   onLongPress,
   onPress,
+  onPressIn,
 }: Props) {
   const openMenu = useSongMenu((s) => s.open);
   const t = useT();
@@ -126,6 +130,7 @@ export function TrackRow({
       // Sin feedback visual al pulsar (como Spotify): el "pressed" saltaba con
       // el dedo al scrollear y parecía que se estaban pulsando las filas.
       style={styles.row}
+      onPressIn={onPressIn}
       onPress={onPress}
       onLongPress={onLongPress}
     >

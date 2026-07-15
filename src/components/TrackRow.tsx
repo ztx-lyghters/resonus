@@ -171,6 +171,7 @@ export function TrackRow({
       {showMenu && !selecting ? (
         <Pressable
           hitSlop={8}
+          style={styles.menuButton}
           accessibilityRole="button"
           accessibilityLabel={t('More options')}
           onPress={() => openMenu(song, menuContext)}
@@ -208,6 +209,14 @@ const styles = StyleSheet.create({
     width: 24,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // Separa el icono de tres puntos del borde derecho y amplía el área de toque
+  // (estilo Spotify): el padding vertical hace que casi todo el alto de la fila
+  // por su lado sea pulsable, así se atina mucho mejor con el dedo.
+  menuButton: {
+    paddingLeft: spacing.md,
+    paddingRight: spacing.md,
+    paddingVertical: spacing.md,
   },
   artwork: {
     width: 44,

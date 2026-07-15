@@ -9,7 +9,8 @@
  */
 import { create } from 'zustand';
 
-import { makeAuth, ping, type SubsonicAuth } from '@/api/backend';
+import { makeAuth, normalizeUrl, ping, reachable, type SubsonicAuth } from '@/api/backend';
+import { primaryUrl } from '@/lib/serverUrls';
 import { clearLocalCatalog } from '@/lib/localLibrary';
 import { queryClient } from '@/lib/query';
 import { deleteItem, getItem, setItem } from '@/lib/storage';
@@ -28,12 +29,18 @@ export type ServerProfile = SubsonicAuth & { _type: 'server' };
 export type OfflineProfile = { _type: 'offline'; name: string; source: OfflineSource };
 export type Profile = ServerProfile | OfflineProfile;
 
+/** Asegura que un perfil de servidor tenga `urls` (migración de los antiguos). */
+function withUrls(a: SubsonicAuth): SubsonicAuth {
+  if (a.urls && a.urls.length > 0) return a;
+  return { ...a, urls: [a.serverUrl] };
+}
+
 function same(a: Profile, b: Profile): boolean {
   if (a._type === 'offline' && b._type === 'offline') {
     return a.name === b.name;
   }
   if (a._type === 'server' && b._type === 'server') {
-    return a.serverUrl === b.serverUrl && a.username === b.username;
+    return primaryUrl(a) === primaryUrl(b) && a.username === b.username;
   }
   return false;
 }
@@ -49,6 +56,26 @@ function offlineLabel(source: OfflineSource): string {
     return decoded.split(/[:/]/).filter(Boolean).pop() ?? 'Sin conexión';
   }
   return 'Sin conexión';
+}
+
+/**
+ * Persiste un cambio en el perfil ACTIVO: actualiza `auth`, su entrada en
+ * `profiles` (vía `patch`) y ambas claves de almacenamiento. Lo comparten las
+ * acciones de URL, que siempre operan sobre el perfil activo.
+ */
+async function persistActive(
+  get: () => AuthState,
+  set: (partial: Partial<AuthState>) => void,
+  auth: SubsonicAuth,
+  patch: (p: ServerProfile) => ServerProfile,
+): Promise<void> {
+  const asProfile: ServerProfile = { ...auth, _type: 'server' };
+  const profiles = get().profiles.map((p) =>
+    p._type === 'server' && same(p, asProfile) ? patch(p) : p,
+  );
+  await setItem(ACTIVE_KEY, JSON.stringify(auth));
+  await setItem(PROFILES_KEY, JSON.stringify(profiles));
+  set({ auth, profiles });
 }
 
 interface AuthState {
@@ -68,6 +95,16 @@ interface AuthState {
   ) => Promise<void>;
   switchProfile: (profile: Profile) => Promise<void>;
   removeProfile: (profile: Profile) => Promise<void>;
+  /** Conmuta la URL activa del perfil (una de sus `urls`). Recarga la pista en
+   *  curso contra la nueva URL; la cola se conserva. */
+  setActiveUrl: (url: string) => Promise<void>;
+  /** Añade una URL alternativa al perfil activo. Valida que responda con las
+   *  credenciales actuales (mismo servidor). Devuelve el resultado para la UI. */
+  addServerUrl: (url: string) => Promise<'ok' | 'duplicate' | 'unreachable'>;
+  /** Quita una URL del perfil activo (si era la activa, vuelve a la principal). */
+  removeServerUrl: (url: string) => Promise<void>;
+  /** Activa/desactiva la conmutación automática de URL en el perfil activo. */
+  setAutoUrl: (value: boolean) => Promise<void>;
   /**
    * Guarda la contraseña de la API nativa de Navidrome en el perfil activo
    * (para perfiles creados antes de que el login la guardara).
@@ -97,13 +134,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const profiles: Profile[] = rawProfiles
         ? (JSON.parse(rawProfiles) as any[]).map((p: any): Profile => {
             if (p._type === 'offline') return p as OfflineProfile;
-            if (p._type === 'server') return p as ServerProfile;
-            // Migración de perfiles antiguos (sin _type) → server
-            return { ...p, _type: 'server' } as ServerProfile;
+            // Perfiles de servidor (con o sin `_type`): garantiza `urls`.
+            return { ...withUrls(p), _type: 'server' } as ServerProfile;
           })
         : [];
+      const activeAuth = rawAuth ? (JSON.parse(rawAuth) as SubsonicAuth) : null;
       set({
-        auth: rawAuth ? (JSON.parse(rawAuth) as SubsonicAuth) : null,
+        auth: activeAuth ? withUrls(activeAuth) : null,
         profiles,
         offline: rawOffline === '1',
         offlineSource: rawSource ? (JSON.parse(rawSource) as OfflineSource) : null,
@@ -116,10 +153,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   login: async (serverUrl, username, password, serverType) => {
+    const base = await makeAuth(serverUrl, username, password, serverType);
     const auth: ServerProfile = {
-      ...(await makeAuth(serverUrl, username, password, serverType)),
+      ...base,
+      // Nace con su URL como única candidata; se añaden más desde Ajustes › Red.
+      urls: [base.serverUrl],
       _type: 'server',
     };
+    // Si es un perfil ya conocido (re-login por cambio de contraseña, etc.),
+    // conservamos las URLs alternativas y la preferencia de conmutación.
+    const existing = get().profiles.find(
+      (p): p is ServerProfile => p._type === 'server' && same(p, auth),
+    );
+    if (existing?.urls?.length) {
+      auth.urls = existing.urls;
+      auth.autoUrl = existing.autoUrl;
+    }
     await ping(auth);
     // El perfil recién usado va el primero (orden por último uso).
     const profiles = [auth, ...get().profiles.filter((p) => !same(p, auth))];
@@ -154,6 +203,59 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const profiles = get().profiles.filter((p) => !same(p, profile));
     await setItem(PROFILES_KEY, JSON.stringify(profiles));
     set({ profiles });
+  },
+
+  setActiveUrl: async (url) => {
+    const current = get().auth;
+    if (!current || current.serverUrl === url) return;
+    const urls = current.urls ?? [current.serverUrl];
+    if (!urls.includes(url)) return; // no es una URL candidata del perfil
+    const auth: SubsonicAuth = { ...current, serverUrl: url };
+    await persistActive(get, set, auth, (p) => ({ ...p, serverUrl: url }));
+    // La pista en curso apuntaba a la URL vieja (ya sin respuesta): la
+    // recargamos contra la nueva. La cola se conserva.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require('./player').usePlayerStore.getState().reloadCurrent();
+  },
+
+  addServerUrl: async (url) => {
+    const current = get().auth;
+    if (!current) return 'unreachable';
+    const norm = normalizeUrl(url);
+    const urls = current.urls ?? [current.serverUrl];
+    if (urls.includes(norm)) return 'duplicate';
+    // Debe responder con las credenciales actuales: así confirmamos que es el
+    // mismo servidor/cuenta y no una URL cualquiera.
+    if (!(await reachable(current, norm))) return 'unreachable';
+    const next = [...urls, norm]; // orden de inserción; urls[0] sigue siendo la principal
+    // NO tocamos `autoUrl`: la conmutación automática la enciende el usuario a
+    // mano si la quiere (añadir una URL no debe activar nada por su cuenta).
+    const auth: SubsonicAuth = { ...current, urls: next };
+    await persistActive(get, set, auth, (p) => ({ ...p, urls: next }));
+    return 'ok';
+  },
+
+  removeServerUrl: async (url) => {
+    const current = get().auth;
+    if (!current) return;
+    // La principal (urls[0]) es la identidad del perfil: no se borra.
+    if (url === primaryUrl(current)) return;
+    const urls = (current.urls ?? [current.serverUrl]).filter((u) => u !== url);
+    const wasActive = current.serverUrl === url;
+    const serverUrl = wasActive ? urls[0] : current.serverUrl;
+    const auth: SubsonicAuth = { ...current, urls, serverUrl };
+    await persistActive(get, set, auth, (p) => ({ ...p, urls, serverUrl }));
+    if (wasActive) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require('./player').usePlayerStore.getState().reloadCurrent();
+    }
+  },
+
+  setAutoUrl: async (value) => {
+    const current = get().auth;
+    if (!current) return;
+    const auth: SubsonicAuth = { ...current, autoUrl: value };
+    await persistActive(get, set, auth, (p) => ({ ...p, autoUrl: value }));
   },
 
   saveNativePassword: async (password) => {

@@ -1,6 +1,7 @@
 /** Búsquedas recientes (persistidas por perfil) para la pantalla de Buscar. */
 import { create } from 'zustand';
 
+import { primaryUrl } from '@/lib/serverUrls';
 import { getItem, setItem } from '@/lib/storage';
 import { useAuthStore } from './auth';
 
@@ -34,7 +35,7 @@ function safe(s: string): string {
 function storageKey(): string {
   const { auth, offline } = useAuthStore.getState();
   if (offline) return 'resonus.recentSearches.offline';
-  if (auth) return `resonus.recentSearches.server.${safe(auth.serverUrl)}.${safe(auth.username)}`;
+  if (auth) return `resonus.recentSearches.server.${safe(primaryUrl(auth))}.${safe(auth.username)}`;
   return 'resonus.recentSearches';
 }
 

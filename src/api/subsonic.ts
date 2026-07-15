@@ -13,6 +13,18 @@ const API_VERSION = '1.16.1';
 export interface SubsonicAuth {
   serverUrl: string;
   username: string;
+  /**
+   * URLs candidatas del mismo servidor/cuenta (local, dominio, Tailscale…),
+   * ordenadas por prioridad; `urls[0]` es la principal (identidad del perfil).
+   * `serverUrl` es la que está activa ahora mismo. Si falta, equivale a
+   * `[serverUrl]`. Ver `store/autoUrl.ts` para la conmutación automática.
+   */
+  urls?: string[];
+  /**
+   * Conmutar `serverUrl` sola a la primera URL alcanzable al cambiar de red
+   * (p. ej. salir de casa: IP local deja de responder → Tailscale/dominio).
+   */
+  autoUrl?: boolean;
   /** md5(password + salt) en hexadecimal */
   token: string;
   /** salt aleatorio usado para generar el token */

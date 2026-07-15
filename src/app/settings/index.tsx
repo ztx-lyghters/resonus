@@ -52,6 +52,10 @@ export default function SettingsScreen() {
       title: offline ? 'Local music' : 'Library',
       icon: offline ? ('phone-portrait-outline' as const) : ('server-outline' as const),
     },
+    // Red: varias URLs de servidor y conmutación automática. Solo con servidor.
+    ...(offline
+      ? []
+      : [{ key: 'network', title: 'Network', icon: 'git-network-outline' as const }]),
     // Tema vive dentro de Aspecto (fila con chevron, como Idioma).
     { key: 'personalization', title: 'Appearance', icon: 'color-palette-outline' as const },
     { key: 'about', title: 'About', icon: 'information-circle-outline' as const },

@@ -50,6 +50,31 @@ export function makeAuth(
 
 export const ping = (auth: SubsonicAuth) => api(auth).ping(auth);
 
+/**
+ * ¿Responde el servidor en `serverUrl` con estas credenciales? Sonda corta
+ * (para elegir entre varias URLs candidatas al cambiar de red). El `ping`
+ * interno aborta a los 15 s; aquí cortamos antes con una carrera contra el
+ * timeout para no esperar tanto por una URL inalcanzable.
+ */
+export async function reachable(
+  auth: SubsonicAuth,
+  serverUrl: string,
+  timeoutMs = 4000,
+): Promise<boolean> {
+  const candidate: SubsonicAuth = { ...auth, serverUrl };
+  try {
+    await Promise.race([
+      ping(candidate),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), timeoutMs),
+      ),
+    ]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export const getMusicFolders = (auth: SubsonicAuth) => api(auth).getMusicFolders(auth);
 
 // Navegación por carpetas: solo protocolo Subsonic (Jellyfin no la usa; la UI

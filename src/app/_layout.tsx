@@ -23,6 +23,7 @@ import { useAuthStore } from '@/store/auth';
 import { useDownloads } from '@/store/downloads';
 import { useLastPlayed } from '@/store/lastPlayed';
 import { useLibraries } from '@/store/libraries';
+import { checkAutoUrlNow, initAutoUrl } from '@/store/autoUrl';
 import { initNetworkType } from '@/store/networkType';
 import { usePins } from '@/store/pins';
 import { initRemoteIntegration, usePlayerStore } from '@/store/player';
@@ -50,8 +51,14 @@ export default function RootLayout() {
   // Con descargas, el perfil local funciona sin haber elegido origen de música.
   const hasDownloads = useDownloads((s) => Object.keys(s.files).length > 0);
   const ready = !!auth || (offline && (!!offlineSource || hasDownloads));
-  // Perfil activo identificado para recargar búsquedas recientes al cambiar
-  const activeProfile = auth ? `${auth.serverUrl}|${auth.username}` : offline ? 'offline' : '';
+  // Perfil activo identificado para recargar búsquedas recientes al cambiar.
+  // Cuelga de la URL PRINCIPAL (no la activa): al conmutar de red la URL activa
+  // cambia pero seguimos en el mismo perfil, así que no debe reinicializarse.
+  const activeProfile = auth
+    ? `${auth.urls?.[0] ?? auth.serverUrl}|${auth.username}`
+    : offline
+      ? 'offline'
+      : '';
 
   useEffect(() => {
     hydrate();
@@ -64,6 +71,10 @@ export default function RootLayout() {
     void usePins.getState().hydrate();
     void useDownloads.getState().hydrate();
     initNetworkType();
+    // Conmutación de URL de servidor al cambiar de red (perfiles con varias
+    // URLs); re-sondea también al cambiar de perfil.
+    initAutoUrl();
+    checkAutoUrlNow();
     // Bibliotecas: hidrata el filtro guardado y refresca la lista del servidor.
     void useLibraries
       .getState()

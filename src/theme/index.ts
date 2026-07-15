@@ -18,6 +18,8 @@ export const colors = {
   accent: DEFAULT_ACCENT,
   accentPressed: '#1AA34A',
   danger: '#E03131',
+  // Verde de estado "correcto" (independiente del acento, que es configurable).
+  success: '#2F9E44',
 };
 
 /** Oscurece un hex (por defecto ~14%) para el estado "pressed". */

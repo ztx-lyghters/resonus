@@ -14,6 +14,7 @@ import { create } from 'zustand';
 
 import { getMusicFolders, type MusicFolder, type SubsonicAuth } from '@/api/backend';
 import { queryClient } from '@/lib/query';
+import { primaryUrl } from '@/lib/serverUrls';
 import { getItem, setItem } from '@/lib/storage';
 
 const STORAGE_KEY = 'resonus.libraries';
@@ -21,7 +22,8 @@ const STORAGE_KEY = 'resonus.libraries';
 /** Identifica un perfil de servidor (los ids de biblioteca son por servidor). */
 export function profileKeyOf(auth: SubsonicAuth | null | undefined): string | null {
   if (!auth || auth.serverType === 'jellyfin') return null;
-  return `${auth.serverUrl}|${auth.username}`;
+  // URL principal, no la activa: al conmutar de red no debe verse como otro perfil.
+  return `${primaryUrl(auth)}|${auth.username}`;
 }
 
 interface LibrariesState {

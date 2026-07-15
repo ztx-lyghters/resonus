@@ -8,6 +8,7 @@
 import { create } from 'zustand';
 
 import { type Song } from '@/api/subsonic';
+import { primaryUrl } from '@/lib/serverUrls';
 import { deleteItem, getItem, setItem } from '@/lib/storage';
 import { useAuthStore } from './auth';
 
@@ -24,7 +25,7 @@ function safe(s: string): string {
 function storageKey(): string {
   const { auth, offline } = useAuthStore.getState();
   if (offline) return 'resonus.playHistory.offline';
-  if (auth) return `resonus.playHistory.server.${safe(auth.serverUrl)}.${safe(auth.username)}`;
+  if (auth) return `resonus.playHistory.server.${safe(primaryUrl(auth))}.${safe(auth.username)}`;
   return LEGACY_KEY;
 }
 

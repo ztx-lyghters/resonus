@@ -730,7 +730,12 @@ function safeKey(s: string): string {
 function queueStorageKey(): string | null {
   const { auth, offline } = useAuthStore.getState();
   if (offline) return 'resonus.queue.offline';
-  if (auth) return `resonus.queue.server.${safeKey(auth.serverUrl)}.${safeKey(auth.username)}`;
+  // URL principal (no la activa): así la cola no se pierde al conmutar de red
+  // (la URL activa cambia; la principal identifica al perfil). Ver auth store.
+  if (auth) {
+    const primary = auth.urls?.[0] ?? auth.serverUrl;
+    return `resonus.queue.server.${safeKey(primary)}.${safeKey(auth.username)}`;
+  }
   return null;
 }
 
@@ -936,6 +941,10 @@ interface PlayerState {
   restoreFromStorage: () => Promise<boolean>;
   /** Retoma la última cola: primero la copia local; si no hay, la del servidor. */
   restoreQueue: () => Promise<void>;
+  /** Recarga la pista en curso contra la URL de servidor activa, conservando
+   *  posición y estado de reproducción. Se llama al conmutar de URL de red
+   *  (la fuente vieja dejó de responder). No afecta a radio/local/descargadas. */
+  reloadCurrent: () => void;
   reset: () => Promise<void>;
 }
 
@@ -1430,6 +1439,25 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     // salvo que la copia local diga que la cola se vació adrede.
     const handled = await get().restoreFromStorage();
     if (!handled && get().queue.length === 0) await get().restoreFromServer();
+  },
+
+  reloadCurrent: () => {
+    const { queue, index, positionSec, isPlaying } = get();
+    const song = queue[index];
+    // Radio (url propia), local y descargadas suenan igual pase lo que pase:
+    // su fuente no depende de la URL de servidor.
+    if (!song || song.url || song.localUri || downloadedUri(song)) return;
+    // El cast (UPnP) lleva su propia sesión; no lo tocamos.
+    if (remoteKind()) return;
+    const sec = positionSec;
+    void (async () => {
+      await loadIndex(index, isPlaying);
+      if (sec > 0) {
+        pendingSeek = { sec, at: Date.now() };
+        activePlayer()?.seekTo(sec);
+        usePlayerStore.setState({ positionSec: sec });
+      }
+    })();
   },
 
   reset: async () => {

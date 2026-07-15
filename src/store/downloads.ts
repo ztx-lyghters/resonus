@@ -36,6 +36,7 @@ import { hashKey, normKey, registerCover } from '@/lib/localLibrary';
 import { serializeLrc } from '@/lib/lrc';
 import { siblingLrcUri } from '@/lib/localLyrics';
 import { queryClient } from '@/lib/query';
+import { primaryUrl } from '@/lib/serverUrls';
 import { useAuthStore } from './auth';
 import { useSettings } from './settings';
 import { useToast } from './toast';
@@ -67,7 +68,9 @@ export interface DownloadsCatalog {
 }
 
 function serverDir(auth: SubsonicAuth): string {
-  return `${ROOT_DIR}${hashKey(`${auth.serverUrl}|${auth.username}`)}/`;
+  // URL PRINCIPAL, no la activa: al conmutar de red la activa cambia, y con ella
+  // este directorio, ocultando las descargas. La principal identifica al perfil.
+  return `${ROOT_DIR}${hashKey(`${primaryUrl(auth)}|${auth.username}`)}/`;
 }
 
 function catalogFile(dir: string): string {

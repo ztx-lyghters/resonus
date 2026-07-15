@@ -99,21 +99,6 @@ export default function PlayerSettings() {
           ]}
         />
 
-        <Text style={settingsStyles.sectionTitle}>{t('On cover tap')}</Text>
-        <Text style={settingsStyles.sectionDescription}>
-          {t('What tapping the cover art in the player does.')}
-        </Text>
-        <SelectList<CoverTapAction>
-          collapsible={false}
-          options={[
-            { value: 'none', label: t('Nothing') },
-            { value: 'screen', label: t('Open lyrics screen') },
-            { value: 'inline', label: t('Show lyrics on the cover') },
-          ]}
-          value={coverTapAction}
-          onChange={setCoverTapAction}
-        />
-
         <Text style={settingsStyles.sectionTitle}>{t('Buttons')}</Text>
         <SwitchList
           options={[
@@ -133,12 +118,9 @@ export default function PlayerSettings() {
                 ]),
           ]}
         />
-        <Text style={settingsStyles.sectionTitle}>{t('Skip buttons')}</Text>
-        <Text style={settingsStyles.sectionDescription}>
-          {t('Jump back or forward next to the play button.')}
-        </Text>
         <SelectList
-          collapsible={false}
+          label={t('Skip buttons')}
+          description={t('Jump back or forward next to the play button.')}
           options={[
             { value: 0, label: t('No') },
             { value: 5, label: '5 s' },
@@ -147,6 +129,19 @@ export default function PlayerSettings() {
           ]}
           value={seekButtonsSec}
           onChange={setSeekButtonsSec}
+        />
+
+        <Text style={settingsStyles.sectionTitle}>{t('Lyrics')}</Text>
+        <SelectList<CoverTapAction>
+          label={t('On cover tap')}
+          description={t('What tapping the cover art in the player does.')}
+          options={[
+            { value: 'none', label: t('Nothing') },
+            { value: 'screen', label: t('Open lyrics screen') },
+            { value: 'inline', label: t('Show lyrics on the cover') },
+          ]}
+          value={coverTapAction}
+          onChange={setCoverTapAction}
         />
       </ScrollView>
     </SettingsPage>

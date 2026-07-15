@@ -21,6 +21,11 @@ export { normalizeUrl } from './subsonic';
 
 export function coverArtUrl(id: string | undefined, _size?: number): string | undefined {
   if (isOffline()) return Local.coverUrl(id);
+  // Si la carátula está descargada (álbum/artista en disco), úsala aunque
+  // estemos en modo servidor: funciona sin conexión y no gasta datos, igual
+  // que el audio suena desde el fichero descargado. Si no, va al servidor.
+  const local = Local.coverUrl(id);
+  if (local) return local;
   return Subsonic.coverArtUrl(auth(), id, _size);
 }
 

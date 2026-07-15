@@ -35,7 +35,7 @@ import { AudioQualityBadge } from '@/components/AudioQualityBadge';
 import { Cover } from '@/components/Cover';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { StarRating } from '@/components/StarRating';
-import { LyricsCard } from '@/components/LyricsCard';
+import { CoverLyrics, LyricsCard } from '@/components/LyricsCard';
 import { MarqueeText } from '@/components/MarqueeText';
 import { OutputSheet } from '@/components/OutputSheet';
 import { useDominantColor } from '@/hooks/useDominantColor';
@@ -132,6 +132,7 @@ export default function PlayerScreen() {
   const showQualityBadge = useSettings((s) => s.showAudioQuality);
   const showRating = useSettings((s) => s.showRating);
   const showLyricsCard = useSettings((s) => s.showLyricsCard);
+  const coverTapAction = useSettings((s) => s.coverTapAction);
   const marqueeTitles = useSettings((s) => s.marqueeTitles);
   const showQueueButton = useSettings((s) => s.showQueueButton);
   const showDevicesButton = useSettings((s) => s.showDevicesButton);
@@ -244,11 +245,21 @@ export default function PlayerScreen() {
         offset.value = withSpring(target, { damping: 20, stiffness: 200 });
       }
     });
-  // Tocar la carátula abre la letra (si la hay). Convive con el swipe: el tap
+  // Tocar la carátula muestra la letra (si la hay). Convive con el swipe: el tap
   // solo gana si no hubo arrastre. `hasLyrics` es un booleano para poder leerlo
   // desde el hilo de UI del gesto.
   const hasLyrics = !!lyrics;
-  const openLyrics = () => router.push('/lyrics');
+  // Qué hace el tap según el ajuste: «inline» la muestra en el sitio de la
+  // carátula (toggle), «screen» abre la pantalla completa, «none» nada.
+  const [inlineLyrics, setInlineLyrics] = useState(false);
+  // Al cambiar de canción se vuelve a la carátula (cada canción se toca aparte).
+  useEffect(() => {
+    setInlineLyrics(false);
+  }, [song?.id]);
+  const openLyrics = () => {
+    if (coverTapAction === 'inline') setInlineLyrics((v) => !v);
+    else if (coverTapAction === 'screen') router.push('/lyrics');
+  };
   const coverTap = Gesture.Tap()
     .maxDistance(10)
     .onEnd((_e, success) => {
@@ -380,12 +391,22 @@ export default function PlayerScreen() {
                 const paneCover = rel === 0 ? cover : rel === 1 ? nextCover : prevCover;
                 return (
                   <Animated.View key={k} style={[styles.coverPane, paneStyle]}>
-                    {paneSong ? <Cover uri={paneCover} size={COVER} transition={0} /> : null}
+                    {/* Con la letra en el sitio se oculta la carátula: la letra
+                        (fondo transparente) queda sobre el fondo del player. */}
+                    {paneSong && !inlineLyrics ? (
+                      <Cover uri={paneCover} size={COVER} transition={0} />
+                    ) : null}
                   </Animated.View>
                 );
               })}
             </Animated.View>
           </GestureDetector>
+          {/* Letra en el sitio de la carátula (ajuste): mismo cuadro, encima. */}
+          {inlineLyrics && hasLyrics ? (
+            <View style={styles.lyricsOverlay}>
+              <CoverLyrics size={COVER} onClose={() => setInlineLyrics(false)} />
+            </View>
+          ) : null}
           {showQualityBadge ? (
             <View style={styles.qualityWrap}>
               <AudioQualityBadge song={song} />
@@ -673,6 +694,17 @@ const styles = StyleSheet.create({
   // reserva el hueco de la carátula.
   coverRow: { width: COVER, height: COVER },
   coverPane: { position: 'absolute', top: 0, left: 0 },
+  // Superposición de la letra sobre el cuadro de la carátula: ocupa el mismo
+  // alto (top 0, height COVER) y se centra en horizontal (coverWrap es más
+  // ancho que la carátula; sin esto la letra queda pegada a la izquierda).
+  lyricsOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: COVER,
+    alignItems: 'center',
+  },
   bottom: {
     flex: 1,
     justifyContent: 'flex-end',

@@ -4,7 +4,7 @@ import { ScrollView, Text } from 'react-native';
 import { SelectList, SettingsPage, settingsStyles, SwitchList } from '@/components/SettingsUI';
 import { useT } from '@/i18n';
 import { useAuthStore } from '@/store/auth';
-import { useSettings } from '@/store/settings';
+import { type CoverTapAction, useSettings } from '@/store/settings';
 
 export default function PlayerSettings() {
   const t = useT();
@@ -26,6 +26,8 @@ export default function PlayerSettings() {
   const setLyricsColorBackground = useSettings((s) => s.setLyricsColorBackground);
   const showLyricsCard = useSettings((s) => s.showLyricsCard);
   const setShowLyricsCard = useSettings((s) => s.setShowLyricsCard);
+  const coverTapAction = useSettings((s) => s.coverTapAction);
+  const setCoverTapAction = useSettings((s) => s.setCoverTapAction);
   const marqueeTitles = useSettings((s) => s.marqueeTitles);
   const setMarqueeTitles = useSettings((s) => s.setMarqueeTitles);
   const showQueueButton = useSettings((s) => s.showQueueButton);
@@ -95,6 +97,21 @@ export default function PlayerSettings() {
               onChange: setMarqueeTitles,
             },
           ]}
+        />
+
+        <Text style={settingsStyles.sectionTitle}>{t('On cover tap')}</Text>
+        <Text style={settingsStyles.sectionDescription}>
+          {t('What tapping the cover art in the player does.')}
+        </Text>
+        <SelectList<CoverTapAction>
+          collapsible={false}
+          options={[
+            { value: 'none', label: t('Nothing') },
+            { value: 'screen', label: t('Open lyrics screen') },
+            { value: 'inline', label: t('Show lyrics on the cover') },
+          ]}
+          value={coverTapAction}
+          onChange={setCoverTapAction}
         />
 
         <Text style={settingsStyles.sectionTitle}>{t('Buttons')}</Text>

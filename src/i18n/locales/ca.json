@@ -392,6 +392,12 @@
   "Server addresses": "Adreces del servidor",
   "Switches to your remote address automatically when you leave home.": "Canvia sola a la teva adreça remota quan surtis de casa.",
   "This address is already in the list.": "Aquesta adreça ja és a la llista.",
+  "Nothing": "Res",
+  "On cover tap": "En tocar la caràtula",
+  "Open lyrics screen": "Obre la pantalla de lletra",
+  "Show cover": "Mostra la caràtula",
+  "Show lyrics on the cover": "Mostra la lletra a la caràtula",
+  "What tapping the cover art in the player does.": "Què fa tocar la caràtula al reproductor.",
   "{songs} will be saved to this device.": "{songs} es guardaran en aquest dispositiu.",
   "“Original” uses the highest quality; a lower bitrate saves data.": "«Original» utilitza la màxima qualitat; un bitrate més baix estalvia dades.",
   "“{name}” will no longer be available offline.": "«{name}» ja no estarà disponible fora de línia."

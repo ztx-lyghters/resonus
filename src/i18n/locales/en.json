@@ -392,6 +392,12 @@
   "Server addresses": "Server addresses",
   "Switches to your remote address automatically when you leave home.": "Switches to your remote address automatically when you leave home.",
   "This address is already in the list.": "This address is already in the list.",
+  "Nothing": "Nothing",
+  "On cover tap": "On cover tap",
+  "Open lyrics screen": "Open lyrics screen",
+  "Show cover": "Show cover",
+  "Show lyrics on the cover": "Show lyrics on the cover",
+  "What tapping the cover art in the player does.": "What tapping the cover art in the player does.",
   "{songs} will be saved to this device.": "{songs} will be saved to this device.",
   "“Original” uses the highest quality; a lower bitrate saves data.": "“Original” uses the highest quality; a lower bitrate saves data.",
   "“{name}” will no longer be available offline.": "“{name}” will no longer be available offline."

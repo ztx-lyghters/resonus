@@ -392,6 +392,12 @@
   "Server addresses": "Direcciones del servidor",
   "Switches to your remote address automatically when you leave home.": "Cambia sola a tu dirección remota cuando salgas de casa.",
   "This address is already in the list.": "Esta dirección ya está en la lista.",
+  "Nothing": "Nada",
+  "On cover tap": "Al tocar la carátula",
+  "Open lyrics screen": "Abrir pantalla de letra",
+  "Show cover": "Mostrar carátula",
+  "Show lyrics on the cover": "Mostrar la letra en la carátula",
+  "What tapping the cover art in the player does.": "Qué hace tocar la carátula en el reproductor.",
   "{songs} will be saved to this device.": "{songs} se guardarán en este dispositivo.",
   "“Original” uses the highest quality; a lower bitrate saves data.": "«Original» usa la máxima calidad; bajar el bitrate ahorra datos.",
   "“{name}” will no longer be available offline.": "«{name}» dejará de estar disponible sin conexión."

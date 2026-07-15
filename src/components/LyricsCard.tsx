@@ -81,6 +81,49 @@ export function LyricsCard() {
 }
 
 /**
+ * Letra en el sitio de la carátula (ajuste «Lyrics on the cover»): ocupa el
+ * mismo cuadro que la carátula del reproductor. Mismo karaoke que la tarjeta,
+ * con un botón en la esquina para volver a la carátula. Si no hay letra, no se
+ * pinta (el que llama solo la monta cuando la hay).
+ */
+export function CoverLyrics({ size, onClose }: { size: number; onClose: () => void }) {
+  const t = useT();
+  const song = usePlayerStore(currentSong);
+  const { data } = useLyrics(song ?? undefined);
+
+  if (!data) return null;
+
+  return (
+    // Fondo transparente: la letra va directa sobre el fondo del reproductor
+    // (la carátula se oculta mientras se muestra).
+    <View style={[styles.coverBox, { width: size, height: size }]}>
+      <View style={styles.coverBody}>
+        {data.synced ? (
+          <SyncedLyricsView lines={data.lines} nested />
+        ) : (
+          <ScrollView
+            nestedScrollEnabled
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.content}
+          >
+            <Text style={lyricsStyles.line}>{data.lines.map((l) => l.value).join('\n')}</Text>
+          </ScrollView>
+        )}
+      </View>
+      <Pressable
+        style={({ pressed }) => [styles.expand, pressed && { opacity: 0.7 }]}
+        accessibilityRole="button"
+        accessibilityLabel={t('Show cover')}
+        hitSlop={8}
+        onPress={onClose}
+      >
+        <MaterialIcons name="image" size={16} color="#000" />
+      </Pressable>
+    </View>
+  );
+}
+
+/**
  * Lista karaoke reutilizable (tarjeta y pantalla completa): la línea que suena
  * se ilumina y crece un poco (resorte), el resto se atenúa. Auto-scroll que
  * mantiene el foco arriba; el scroll manual lo pausa unos segundos. Tocar una
@@ -343,6 +386,9 @@ const styles = StyleSheet.create({
   },
   title: { color: colors.text, fontSize: fontSize.md, fontWeight: '700', marginBottom: spacing.sm },
   body: { height: CARD_BODY_H, overflow: 'hidden' },
+  // Letra en el sitio de la carátula: cuadro del tamaño exacto de la carátula.
+  coverBox: { borderRadius: radius.md, overflow: 'hidden', padding: spacing.lg },
+  coverBody: { flex: 1, overflow: 'hidden' },
   wrap: { flex: 1 },
   // Hueco a la derecha para que la línea activa (que crece un 8 % desde la
   // izquierda) no se recorte contra el borde.

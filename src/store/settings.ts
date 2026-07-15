@@ -53,6 +53,10 @@ export type ReplayGainMode = 'off' | 'auto' | 'track' | 'album';
  */
 export type AppFont = 'system' | 'condensed' | 'serif' | 'monospace' | 'casual' | 'typewriter';
 
+/** Qué hace tocar la carátula en el reproductor: nada, abrir la pantalla de
+ *  letra, o mostrar la letra en el sitio de la carátula. */
+export type CoverTapAction = 'none' | 'screen' | 'inline';
+
 /** Nombre visible de cada fuente (nombres propios: no se traducen). */
 export const APP_FONT_LABELS: Record<AppFont, string> = {
   system: 'Roboto',
@@ -118,6 +122,9 @@ interface SettingsState {
   miniPlayerColorBackground: boolean;
   /** Tarjeta de letras bajo los controles del reproductor. */
   showLyricsCard: boolean;
+  /** Qué hace tocar la carátula del reproductor (nada / pantalla de letra /
+   *  letra en el sitio de la carátula). */
+  coverTapAction: CoverTapAction;
   /** Marquee: los títulos largos del reproductor se desplazan solos. */
   marqueeTitles: boolean;
   /** Botones inferiores del reproductor (cola y dispositivos). */
@@ -164,6 +171,7 @@ interface SettingsState {
   setPlayerColorBackground: (value: boolean) => void;
   setMiniPlayerColorBackground: (value: boolean) => void;
   setShowLyricsCard: (value: boolean) => void;
+  setCoverTapAction: (value: CoverTapAction) => void;
   setMarqueeTitles: (value: boolean) => void;
   setShowQueueButton: (value: boolean) => void;
   setShowDevicesButton: (value: boolean) => void;
@@ -210,6 +218,7 @@ function snapshot(get: () => SettingsState) {
     playerColorBackground: s.playerColorBackground,
     miniPlayerColorBackground: s.miniPlayerColorBackground,
     showLyricsCard: s.showLyricsCard,
+    coverTapAction: s.coverTapAction,
     marqueeTitles: s.marqueeTitles,
     showQueueButton: s.showQueueButton,
     showDevicesButton: s.showDevicesButton,
@@ -249,6 +258,8 @@ const DEFAULTS = {
   playerColorBackground: true,
   miniPlayerColorBackground: true,
   showLyricsCard: true,
+  // Por defecto, tocar la carátula abre la pantalla de letra (como siempre).
+  coverTapAction: 'screen' as CoverTapAction,
   marqueeTitles: true,
   showQueueButton: true,
   showDevicesButton: true,
@@ -368,6 +379,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
     persist(snapshot(get));
   },
 
+  setCoverTapAction: (coverTapAction) => {
+    set({ coverTapAction });
+    persist(snapshot(get));
+  },
+
   setMarqueeTitles: (marqueeTitles) => {
     set({ marqueeTitles });
     persist(snapshot(get));
@@ -471,6 +487,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
           playerColorBackground: boolean;
           miniPlayerColorBackground: boolean;
           showLyricsCard: boolean;
+          coverTapAction: CoverTapAction;
           marqueeTitles: boolean;
           showQueueButton: boolean;
           showDevicesButton: boolean;
@@ -567,6 +584,13 @@ export const useSettings = create<SettingsState>((set, get) => ({
         }
         if (typeof parsed.showLyricsCard === 'boolean') {
           set({ showLyricsCard: parsed.showLyricsCard });
+        }
+        if (
+          parsed.coverTapAction === 'none' ||
+          parsed.coverTapAction === 'screen' ||
+          parsed.coverTapAction === 'inline'
+        ) {
+          set({ coverTapAction: parsed.coverTapAction });
         }
         if (typeof parsed.marqueeTitles === 'boolean') {
           set({ marqueeTitles: parsed.marqueeTitles });

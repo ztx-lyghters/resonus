@@ -9,12 +9,19 @@ import { applyAccent, DEFAULT_ACCENT } from '@/theme';
 // value. Con `color` se evita ese falso positivo en el picker de Theme.
 /** Colores de acento elegibles (misma paleta viva; verde por defecto). */
 export const ACCENT_OPTIONS: { name: string; color: string }[] = [
+  // Ordenados por tono (arcoíris), con el verde por defecto el primero.
   { name: 'Green', color: DEFAULT_ACCENT },
-  { name: 'Blue', color: '#4E9BF5' },
-  { name: 'Purple', color: '#A66CFF' },
-  { name: 'Pink', color: '#F25D94' },
-  { name: 'Orange', color: '#F58C3C' },
   { name: 'Teal', color: '#1FC7B6' },
+  { name: 'Cyan', color: '#2CC4E0' },
+  { name: 'Blue', color: '#4E9BF5' },
+  { name: 'Indigo', color: '#6C79F5' },
+  { name: 'Purple', color: '#A66CFF' },
+  { name: 'Magenta', color: '#D65AE0' },
+  { name: 'Pink', color: '#F25D94' },
+  { name: 'Red', color: '#F2555A' },
+  { name: 'Orange', color: '#F58C3C' },
+  { name: 'Yellow', color: '#F5C53C' },
+  { name: 'Lime', color: '#A6D93C' },
 ];
 
 const STORAGE_KEY = 'resonus.settings';

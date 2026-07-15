@@ -105,6 +105,9 @@ export function MediaMenuSheet() {
     try {
       if (album.starred) {
         await unstar(album.id, 'album');
+        // Sin favorito el álbum ya no aparece en la Biblioteca, así que su pin
+        // quedaría huérfano ocupando un slot: lo soltamos al desfavoritar.
+        if (pins[pinKey]) togglePin(pinKey);
         toast(t('Removed from favorites'));
       } else {
         await star(album.id, 'album');
@@ -189,23 +192,27 @@ export function MediaMenuSheet() {
           />
         ) : null}
         {/* Chincheta diagonal (MaterialCommunity), como la de Spotify; la de
-            Ionicons es otra cosa y queda rara. */}
-        <Pressable
-          style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
-          onPress={() => {
-            const ok = togglePin(pinKey);
-            close();
-            if (!ok) toast(t('You can pin up to {n} items.', { n: MAX_PINS }));
-          }}
-        >
-          <MaterialCommunityIcons
-            name={pinned ? 'pin' : 'pin-outline'}
-            size={24}
-            color={colors.text}
-            style={styles.pinIcon}
-          />
-          <Text style={styles.actionText}>{pinned ? t('Unpin') : t('Pin to top')}</Text>
-        </Pressable>
+            Ionicons es otra cosa y queda rara. Solo tiene sentido si el ítem
+            puede aparecer en la Biblioteca: las playlists siempre salen, pero
+            los álbumes solo si son favoritos (la lista viene de getStarred). */}
+        {playlist || album?.starred ? (
+          <Pressable
+            style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
+            onPress={() => {
+              const ok = togglePin(pinKey);
+              close();
+              if (!ok) toast(t('You can pin up to {n} items.', { n: MAX_PINS }));
+            }}
+          >
+            <MaterialCommunityIcons
+              name={pinned ? 'pin' : 'pin-outline'}
+              size={24}
+              color={colors.text}
+              style={styles.pinIcon}
+            />
+            <Text style={styles.actionText}>{pinned ? t('Unpin') : t('Pin to top')}</Text>
+          </Pressable>
+        ) : null}
       </Animated.View>
     </Modal>
   );

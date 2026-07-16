@@ -1,7 +1,7 @@
 /** Detalle de un álbum con sus canciones. */
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Text, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -38,6 +38,7 @@ export default function AlbumScreen() {
   const toast = useToast((s) => s.show);
   const [confirmDownload, setConfirmDownload] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmStop, setConfirmStop] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
   // Canciones marcadas en el modo selección pendientes de "añadir a playlist".
   const [addingSongs, setAddingSongs] = useState<Song[] | null>(null);
@@ -54,8 +55,17 @@ export default function AlbumScreen() {
   const songIds = data?.songs.map((s) => s.id) ?? [];
   const download = useDownloads(useShallow((s) => groupDownloadState(s, `album:${id}`, songIds)));
   const downloadAlbum = useDownloads((s) => s.downloadAlbum);
+  const cancelDownload = useDownloads((s) => s.cancelDownload);
   const deleteSongs = useDownloads((s) => s.deleteSongs);
   const downloadSongs = useDownloads((s) => s.downloadSongs);
+  // Estable entre ticks de progreso (solo cambia con el estado): si su identidad
+  // cambiara en cada actualización del %, el Pressable perdería el toque y habría
+  // que pulsar varias veces.
+  const onDownloadPress = useCallback(() => {
+    if (download.status === 'none') setConfirmDownload(true);
+    else if (download.status === 'done') setConfirmDelete(true);
+    else if (download.status === 'active') setConfirmStop(true);
+  }, [download.status]);
 
   if (isLoading) {
     return <TrackListSkeleton />;
@@ -106,17 +116,7 @@ export default function AlbumScreen() {
           type: 'album',
           starred: favAlbumIds ? favAlbumIds.has(data.album.id) : !!data.album.starred,
         }}
-        download={
-          !offline
-            ? {
-                ...download,
-                onPress: () => {
-                  if (download.status === 'none') setConfirmDownload(true);
-                  else if (download.status === 'done') setConfirmDelete(true);
-                },
-              }
-            : undefined
-        }
+        download={!offline ? { ...download, onPress: onDownloadPress } : undefined}
         footer={
           data.album.artistId || labelText ? (
             <>
@@ -182,6 +182,18 @@ export default function AlbumScreen() {
         onConfirm={() => {
           setConfirmDelete(false);
           void deleteSongs(songIds);
+        }}
+      />
+      <Dialog
+        visible={confirmStop}
+        title={t('Stop download?')}
+        message={t('Songs already downloaded will be kept.')}
+        confirmLabel={t('Stop')}
+        destructive
+        onCancel={() => setConfirmStop(false)}
+        onConfirm={() => {
+          setConfirmStop(false);
+          cancelDownload(`album:${id}`);
         }}
       />
     </>

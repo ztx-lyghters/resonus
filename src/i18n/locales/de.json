@@ -398,6 +398,10 @@
   "Show cover": "Cover anzeigen",
   "Show lyrics on the cover": "Songtext auf dem Cover anzeigen",
   "What tapping the cover art in the player does.": "Was ein Tippen aufs Cover im Player macht.",
+  "Download stopped": "Download gestoppt",
+  "Songs already downloaded will be kept.": "Bereits heruntergeladene Titel bleiben erhalten.",
+  "Stop": "Stoppen",
+  "Stop download?": "Download stoppen?",
   "{songs} will be saved to this device.": "{songs} werden auf diesem Gerät gespeichert.",
   "“Original” uses the highest quality; a lower bitrate saves data.": "„Original“ nutzt die höchste Qualität; eine niedrigere Bitrate spart Daten.",
   "“{name}” will no longer be available offline.": "„{name}“ ist offline nicht mehr verfügbar."

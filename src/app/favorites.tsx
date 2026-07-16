@@ -1,7 +1,7 @@
 /** Pantalla de Favoritos: canciones marcadas con estrella, estilo Spotify. */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -43,6 +43,7 @@ export default function FavoritesScreen() {
 
   const [confirmDownload, setConfirmDownload] = useState(false);
   const [confirmRemoveDl, setConfirmRemoveDl] = useState(false);
+  const [confirmStop, setConfirmStop] = useState(false);
   // Canciones marcadas en el modo selección pendientes de "añadir a otra".
   const [addingSongs, setAddingSongs] = useState<Song[] | null>(null);
 
@@ -55,8 +56,16 @@ export default function FavoritesScreen() {
   const songIds = (data?.songs ?? []).map((s) => s.id);
   const download = useDownloads(useShallow((s) => groupDownloadState(s, 'favorites', songIds)));
   const downloadFavorites = useDownloads((s) => s.downloadFavorites);
+  const cancelDownload = useDownloads((s) => s.cancelDownload);
   const deleteSongs = useDownloads((s) => s.deleteSongs);
   const downloadSongs = useDownloads((s) => s.downloadSongs);
+  // Estable entre ticks de progreso (solo cambia con el estado): evita que el
+  // Pressable pierda el toque al recrearse su onPress con cada actualización.
+  const onDownloadPress = useCallback(() => {
+    if (download.status === 'none') setConfirmDownload(true);
+    else if (download.status === 'done') setConfirmRemoveDl(true);
+    else if (download.status === 'active') setConfirmStop(true);
+  }, [download.status]);
 
   const { songs: displaySongs, openSort, sortSheet } = useSongSort(data?.songs ?? [], 'favorites');
 
@@ -141,13 +150,7 @@ export default function FavoritesScreen() {
         addAction={{ label: t('Add to favorites'), onPress: () => router.push('/favorites-add') }}
         download={
           !offline && displaySongs.length > 0
-            ? {
-                ...download,
-                onPress: () => {
-                  if (download.status === 'none') setConfirmDownload(true);
-                  else if (download.status === 'done') setConfirmRemoveDl(true);
-                },
-              }
+            ? { ...download, onPress: onDownloadPress }
             : undefined
         }
         selection={{
@@ -189,6 +192,18 @@ export default function FavoritesScreen() {
         onConfirm={() => {
           setConfirmRemoveDl(false);
           void deleteSongs(songIds);
+        }}
+      />
+      <Dialog
+        visible={confirmStop}
+        title={t('Stop download?')}
+        message={t('Songs already downloaded will be kept.')}
+        confirmLabel={t('Stop')}
+        destructive
+        onCancel={() => setConfirmStop(false)}
+        onConfirm={() => {
+          setConfirmStop(false);
+          cancelDownload('favorites');
         }}
       />
     </>

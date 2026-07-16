@@ -2,7 +2,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -49,6 +49,7 @@ export default function PlaylistScreen() {
   const [deleting, setDeleting] = useState(false);
   const [confirmDownload, setConfirmDownload] = useState(false);
   const [confirmRemoveDl, setConfirmRemoveDl] = useState(false);
+  const [confirmStop, setConfirmStop] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
   const [reordering, setReordering] = useState(false);
   // Canciones marcadas en el modo selección pendientes de "añadir a otra".
@@ -72,8 +73,16 @@ export default function PlaylistScreen() {
     useShallow((s) => groupDownloadState(s, `playlist:${id}`, songIds)),
   );
   const downloadPlaylist = useDownloads((s) => s.downloadPlaylist);
+  const cancelDownload = useDownloads((s) => s.cancelDownload);
   const deleteSongs = useDownloads((s) => s.deleteSongs);
   const downloadSongs = useDownloads((s) => s.downloadSongs);
+  // Estable entre ticks de progreso (solo cambia con el estado): evita que el
+  // Pressable pierda el toque al recrearse su onPress con cada actualización.
+  const onDownloadPress = useCallback(() => {
+    if (download.status === 'none') setConfirmDownload(true);
+    else if (download.status === 'done') setConfirmRemoveDl(true);
+    else if (download.status === 'active') setConfirmStop(true);
+  }, [download.status]);
 
   // En playlists 'recent' = orden guardado en el servidor = orden manual, así
   // que se etiqueta "Personalizado"; 'added' = orden de adición ("Recientes").
@@ -250,13 +259,7 @@ export default function PlaylistScreen() {
         onSort={data.songs.length > 1 ? openSort : undefined}
         download={
           !offline && data.songs.length > 0
-            ? {
-                ...download,
-                onPress: () => {
-                  if (download.status === 'none') setConfirmDownload(true);
-                  else if (download.status === 'done') setConfirmRemoveDl(true);
-                },
-              }
+            ? { ...download, onPress: onDownloadPress }
             : undefined
         }
         emptyState={
@@ -411,6 +414,19 @@ export default function PlaylistScreen() {
         onConfirm={() => {
           setConfirmRemoveDl(false);
           void deleteSongs(songIds);
+        }}
+      />
+
+      <Dialog
+        visible={confirmStop}
+        title={t('Stop download?')}
+        message={t('Songs already downloaded will be kept.')}
+        confirmLabel={t('Stop')}
+        destructive
+        onCancel={() => setConfirmStop(false)}
+        onConfirm={() => {
+          setConfirmStop(false);
+          cancelDownload(`playlist:${id}`);
         }}
       />
 

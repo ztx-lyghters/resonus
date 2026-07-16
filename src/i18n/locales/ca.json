@@ -398,6 +398,10 @@
   "Show cover": "Mostra la caràtula",
   "Show lyrics on the cover": "Mostra la lletra a la caràtula",
   "What tapping the cover art in the player does.": "Què fa tocar la caràtula al reproductor.",
+  "Download stopped": "Descàrrega aturada",
+  "Songs already downloaded will be kept.": "Les cançons ja descarregades es conserven.",
+  "Stop": "Atura",
+  "Stop download?": "Vols aturar la descàrrega?",
   "{songs} will be saved to this device.": "{songs} es guardaran en aquest dispositiu.",
   "“Original” uses the highest quality; a lower bitrate saves data.": "«Original» utilitza la màxima qualitat; un bitrate més baix estalvia dades.",
   "“{name}” will no longer be available offline.": "«{name}» ja no estarà disponible fora de línia."

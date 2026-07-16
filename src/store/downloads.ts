@@ -289,6 +289,8 @@ interface DownloadsState {
   downloadSong: (song: Song) => Promise<void>;
   /** Descarga un lote suelto de canciones (selección múltiple). */
   downloadSongs: (songs: Song[]) => Promise<void>;
+  /** Detiene una descarga de grupo en curso (lo ya bajado se conserva). */
+  cancelDownload: (groupKey: string) => void;
   /** Borra los ficheros de esas canciones y las quita del catálogo. */
   deleteSongs: (songIds: string[]) => Promise<void>;
   clearAll: () => Promise<void>;
@@ -306,6 +308,15 @@ async function onMobileData(): Promise<boolean> {
 }
 
 export const useDownloads = create<DownloadsState>((set, get) => {
+  // Grupos con parada solicitada: los workers lo comprueban y dejan de coger
+  // canciones nuevas. Lo ya bajado se conserva.
+  const cancelling = new Set<string>();
+  // Descargas en curso por grupo, para abortarlas al parar (stop instantáneo).
+  const activeTasks = new Map<
+    string,
+    Set<ReturnType<typeof FileSystem.createDownloadResumable>>
+  >();
+
   /** Descarga un grupo de canciones y actualiza catálogo + progreso. */
   async function downloadGroup(groupKey: string, songs: Song[], albums: Album[]): Promise<void> {
     const auth = useAuthStore.getState().auth;
@@ -333,34 +344,48 @@ export const useDownloads = create<DownloadsState>((set, get) => {
     try {
       await FileSystem.makeDirectoryAsync(`${dir}files/`, { intermediates: true }).catch(() => {});
 
-      // Carátulas y entradas de álbum primero (idempotente si ya existían).
-      const albumEntries: DlAlbum[] = [];
-      for (const album of albums) {
+      // La carátula y la entrada de cada álbum se bajan la primera vez que
+      // aparece una de sus canciones, no todas de golpe al principio. Así la
+      // descarga empieza enseguida (sin "escanear" antes todos los álbumes) y la
+      // parada responde también durante esa fase.
+      const albumById = new Map(albums.map((a) => [a.id, a]));
+      const albumDone = new Set<string>();
+      const ensureAlbum = async (song: Song): Promise<void> => {
+        const album = song.albumId ? albumById.get(song.albumId) : undefined;
+        if (!album || albumDone.has(album.id)) return;
+        albumDone.add(album.id); // marcar antes del await: que otro worker no lo repita
         const coverUri = await downloadCover(auth, dir, album);
-        albumEntries.push(toLocalAlbum(album, coverUri));
-      }
-      await commitToCatalog(dir, { albums: albumEntries });
+        await commitToCatalog(dir, { albums: [toLocalAlbum(album, coverUri)] });
+      };
+
+      // Tareas en curso, para poder abortarlas al parar (stop instantáneo).
+      const tasks = new Set<ReturnType<typeof FileSystem.createDownloadResumable>>();
+      activeTasks.set(groupKey, tasks);
 
       let failed = 0;
       let next = 0;
       const workers = Array.from({ length: Math.min(CONCURRENCY, pending.length) }, async () => {
         while (next < pending.length) {
+          if (cancelling.has(groupKey)) break; // parada pedida por el usuario
           const song = pending[next++];
+          await ensureAlbum(song);
+          if (cancelling.has(groupKey)) break; // pudo pararse durante la carátula
           const { url, ext } = songFileUrl(auth, song);
           const file = `${dir}files/${hashKey(song.id)}.${ext}`;
-          try {
-            const task = FileSystem.createDownloadResumable(url, file, {}, (p) => {
-              if (p.totalBytesExpectedToWrite > 0) {
-                const fraction = p.totalBytesWritten / p.totalBytesExpectedToWrite;
-                const cur = get().active[groupKey];
-                // Actualiza con grano grueso para no re-renderizar sin parar.
-                if (cur && fraction - cur.fraction > 0.05) {
-                  set((st) => ({
-                    active: { ...st.active, [groupKey]: { ...cur, fraction } },
-                  }));
-                }
+          const task = FileSystem.createDownloadResumable(url, file, {}, (p) => {
+            if (p.totalBytesExpectedToWrite > 0) {
+              const fraction = p.totalBytesWritten / p.totalBytesExpectedToWrite;
+              const cur = get().active[groupKey];
+              // Actualiza con grano grueso para no re-renderizar sin parar.
+              if (cur && fraction - cur.fraction > 0.05) {
+                set((st) => ({
+                  active: { ...st.active, [groupKey]: { ...cur, fraction } },
+                }));
               }
-            });
+            }
+          });
+          tasks.add(task);
+          try {
             const res = await task.downloadAsync();
             if (!res || res.status !== 200) throw new Error(`HTTP ${res?.status}`);
             await cacheLyricsForDownload(auth, song, file);
@@ -377,15 +402,21 @@ export const useDownloads = create<DownloadsState>((set, get) => {
               };
             });
           } catch {
-            failed++;
+            // Abortada al parar o error de red: se descarta el fichero a medias.
+            // Si fue por parada no cuenta como fallo (el toast ya dice "detenida").
+            if (!cancelling.has(groupKey)) failed++;
             await FileSystem.deleteAsync(file, { idempotent: true }).catch(() => {});
+          } finally {
+            tasks.delete(task);
           }
         }
       });
       await Promise.all(workers);
 
       invalidate();
-      if (failed > 0) {
+      if (cancelling.has(groupKey)) {
+        useToast.getState().show(tg('Download stopped'));
+      } else if (failed > 0) {
         useToast.getState().show(tg("{n} songs couldn't be downloaded", { n: failed }));
       } else {
         // Confirmación al terminar (el "Descargando…" inicial no dice cuándo acaba).
@@ -398,6 +429,8 @@ export const useDownloads = create<DownloadsState>((set, get) => {
           );
       }
     } finally {
+      cancelling.delete(groupKey);
+      activeTasks.delete(groupKey);
       set((st) => {
         const active = { ...st.active };
         delete active[groupKey];
@@ -469,6 +502,14 @@ export const useDownloads = create<DownloadsState>((set, get) => {
         if (!byId.has(al.id)) byId.set(al.id, al);
       }
       await downloadGroup('favorites', songs, Array.from(byId.values()));
+    },
+
+    cancelDownload: (groupKey) => {
+      if (!get().active[groupKey]) return;
+      cancelling.add(groupKey);
+      // Aborta lo que se esté bajando ahora mismo (no espera a que termine).
+      const tasks = activeTasks.get(groupKey);
+      if (tasks) for (const t of tasks) void t.cancelAsync().catch(() => {});
     },
 
     deleteSongs: async (songIds) => {

@@ -398,6 +398,10 @@
   "Show cover": "Mostrar carátula",
   "Show lyrics on the cover": "Mostrar la letra en la carátula",
   "What tapping the cover art in the player does.": "Qué hace tocar la carátula en el reproductor.",
+  "Download stopped": "Descarga detenida",
+  "Songs already downloaded will be kept.": "Las canciones ya descargadas se conservan.",
+  "Stop": "Detener",
+  "Stop download?": "¿Detener la descarga?",
   "{songs} will be saved to this device.": "{songs} se guardarán en este dispositivo.",
   "“Original” uses the highest quality; a lower bitrate saves data.": "«Original» usa la máxima calidad; bajar el bitrate ahorra datos.",
   "“{name}” will no longer be available offline.": "«{name}» dejará de estar disponible sin conexión."

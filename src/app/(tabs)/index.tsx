@@ -38,6 +38,7 @@ import { useScanProgress } from '@/store/scanProgress';
 import { useSettings, type ExploreChipKey, type HomeSectionKey } from '@/store/settings';
 import { colors, fontSize, radius, spacing, SCREEN_BOTTOM_PADDING } from '@/theme';
 import { listPerf } from '@/lib/listPerf';
+import { playShuffle } from '@/lib/playShuffle';
 
 const TILE_W = (Dimensions.get('window').width - spacing.lg * 2 - spacing.sm) / 2;
 
@@ -268,10 +269,11 @@ function DiscoverSection({ title }: { title: string }) {
   );
 }
 
-/** Destino y aspecto de cada chip; el orden y el estado los pone el usuario
- *  (Ajustes → Aspecto → Chips de explorar). */
-const EXPLORE: Record<ExploreChipKey, { href: string; icon: keyof typeof Ionicons.glyphMap; label: string }> = {
-  shuffle: { href: '/shuffle', icon: 'shuffle', label: 'Shuffle' },
+/** Aspecto y destino de cada chip; el orden y el estado los pone el usuario
+ *  (Ajustes → Aspecto → Chips de explorar). Sin `href` = reproduce en vez de
+ *  navegar (solo el de aleatorio). */
+const EXPLORE: Record<ExploreChipKey, { href?: string; icon: keyof typeof Ionicons.glyphMap; label: string }> = {
+  shuffle: { icon: 'shuffle', label: 'Shuffle' },
   albums: { href: '/browse/albums', icon: 'disc-outline', label: 'Albums' },
   artists: { href: '/browse/artists', icon: 'people-outline', label: 'Artists' },
   genres: { href: '/genres', icon: 'pricetags-outline', label: 'Genres' },
@@ -286,6 +288,20 @@ function ExploreChips({ offline }: { offline: boolean }) {
   const chips = useSettings((s) => s.exploreChips).filter(
     (c) => c.enabled && (!offline || OFFLINE_KEYS.has(c.key)),
   );
+  // El aleatorio tarda lo que tarde el servidor: sin esto, tocas y no pasa nada
+  // durante medio segundo y parece roto.
+  const [shuffling, setShuffling] = useState(false);
+
+  async function onShuffle() {
+    if (shuffling) return;
+    setShuffling(true);
+    try {
+      await playShuffle();
+    } finally {
+      setShuffling(false);
+    }
+  }
+
   // Sin chips no hay fila: eso sustituye al interruptor general que había.
   if (chips.length === 0) return null;
   return (
@@ -295,14 +311,36 @@ function ExploreChips({ offline }: { offline: boolean }) {
       style={styles.chipsRow}
       contentContainerStyle={styles.chips}
     >
-      {chips.map(({ key }) => (
-        <Link key={key} href={EXPLORE[key].href} asChild>
-          <Pressable style={styles.chip}>
-            <Ionicons name={EXPLORE[key].icon} size={16} color={colors.text} />
-            <Text style={styles.chipText}>{t(EXPLORE[key].label)}</Text>
-          </Pressable>
-        </Link>
-      ))}
+      {chips.map(({ key }) => {
+        const cfg = EXPLORE[key];
+        // El de aleatorio es el único que suena en vez de llevarte a un sitio:
+        // pedirlo y que te salga una lista es lo contrario de lo que pediste.
+        if (!cfg.href) {
+          return (
+            <Pressable
+              key={key}
+              style={styles.chip}
+              accessibilityRole="button"
+              onPress={onShuffle}
+            >
+              {shuffling ? (
+                <ActivityIndicator size={16} color={colors.text} />
+              ) : (
+                <Ionicons name={cfg.icon} size={16} color={colors.text} />
+              )}
+              <Text style={styles.chipText}>{t(cfg.label)}</Text>
+            </Pressable>
+          );
+        }
+        return (
+          <Link key={key} href={cfg.href} asChild>
+            <Pressable style={styles.chip}>
+              <Ionicons name={cfg.icon} size={16} color={colors.text} />
+              <Text style={styles.chipText}>{t(cfg.label)}</Text>
+            </Pressable>
+          </Link>
+        );
+      })}
     </ScrollView>
   );
 }

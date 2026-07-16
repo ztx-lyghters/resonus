@@ -2,6 +2,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -14,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getAlbumsByGenre } from '@/api/data';
+import { playShuffle } from '@/lib/playShuffle';
 import { AlbumCard } from '@/components/AlbumCard';
 import { AlbumCardsSkeleton } from '@/components/AlbumCardsSkeleton';
 import { EmptyState } from '@/components/EmptyState';
@@ -34,6 +36,18 @@ export default function GenreScreen() {
   const router = useRouter();
   const t = useT();
   const auth = useAuthStore((s) => s.auth);
+  // Sin esto, tocar y no oír nada durante medio segundo parece que no funciona.
+  const [shuffling, setShuffling] = useState(false);
+
+  async function onShuffle() {
+    if (shuffling) return;
+    setShuffling(true);
+    try {
+      await playShuffle(genre);
+    } finally {
+      setShuffling(false);
+    }
+  }
 
   const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery({
@@ -53,14 +67,14 @@ export default function GenreScreen() {
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </Pressable>
         <Text style={styles.title} numberOfLines={1}>{genre}</Text>
-        {/* Ocupa el hueco que equilibraba el título. Lleva al Aleatorio con el
-            género puesto: escuchar el género sin ir álbum por álbum. */}
-        <Pressable
-          hitSlop={10}
-          onPress={() => router.push({ pathname: '/shuffle', params: { genre } })}
-          accessibilityLabel={t('Shuffle')}
-        >
-          <Ionicons name="shuffle" size={26} color={colors.text} />
+        {/* Ocupa el hueco que equilibraba el título. Suena el género al momento:
+            escucharlo sin ir álbum por álbum es de lo que va este botón. */}
+        <Pressable hitSlop={10} onPress={onShuffle} accessibilityLabel={t('Shuffle')}>
+          {shuffling ? (
+            <ActivityIndicator color={colors.text} />
+          ) : (
+            <Ionicons name="shuffle" size={26} color={colors.text} />
+          )}
         </Pressable>
       </View>
 

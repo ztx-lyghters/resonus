@@ -146,7 +146,6 @@
   "Interface": "Interfaz",
   "Jump back or forward next to the play button.": "Saltar atrás o adelante junto al botón de play.",
   "Keep at least one library on": "Deja al menos una biblioteca activada",
-  "Keep playing similar songs when your queue ends.": "Sigue sonando música parecida cuando se acaba la cola.",
   "Keep screen on": "Mantener la pantalla encendida",
   "Language": "Idioma",
   "Layout": "Disposición",
@@ -430,5 +429,6 @@
   "Song menu": "Menú de canción",
   "Choose which actions show in a song’s ⋯ menu.": "Elige qué acciones aparecen en el menú ⋯ de una canción.",
   "Stop the mix": "Detener el mix",
-  "The mix won’t grow any further": "El mix ya no se alargará más"
+  "The mix won’t grow any further": "El mix ya no se alargará más",
+  "Keep playing similar songs when your queue ends. A mix you start yourself always does, even with this off.": "Sigue sonando música parecida cuando se acaba la cola. Un mix que inicies tú lo hace igualmente, aunque esto esté apagado."
 }

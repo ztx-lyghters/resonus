@@ -146,7 +146,6 @@
   "Interface": "Interface",
   "Jump back or forward next to the play button.": "Jump back or forward next to the play button.",
   "Keep at least one library on": "Keep at least one library on",
-  "Keep playing similar songs when your queue ends.": "Keep playing similar songs when your queue ends.",
   "Keep screen on": "Keep screen on",
   "Language": "Language",
   "Layout": "Layout",
@@ -430,5 +429,6 @@
   "Song menu": "Song menu",
   "Choose which actions show in a song’s ⋯ menu.": "Choose which actions show in a song’s ⋯ menu.",
   "Stop the mix": "Stop the mix",
-  "The mix won’t grow any further": "The mix won’t grow any further"
+  "The mix won’t grow any further": "The mix won’t grow any further",
+  "Keep playing similar songs when your queue ends. A mix you start yourself always does, even with this off.": "Keep playing similar songs when your queue ends. A mix you start yourself always does, even with this off."
 }

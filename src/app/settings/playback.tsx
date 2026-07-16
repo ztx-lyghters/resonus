@@ -92,7 +92,7 @@ export default function PlaybackSettings() {
             options={[
               {
                 label: t('Autoplay'),
-                description: t('Keep playing similar songs when your queue ends.'),
+                description: t('Keep playing similar songs when your queue ends. A mix you start yourself always does, even with this off.'),
                 value: autoplaySimilar,
                 onChange: setAutoplaySimilar,
               },

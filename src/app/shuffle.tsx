@@ -55,8 +55,10 @@ export default function ShuffleScreen() {
     queryKey: ['randomSongs', genre ?? ''],
     queryFn: () => getRandomSongs(SHUFFLE_SIZE, genre),
     enabled: canFetch,
-    // No caduca sola: se rebaraja con "Volver a barajar" y punto. Si caducara,
-    // volver atrás desde el reproductor te cambiaría la lista debajo.
+    // Mientras la pantalla siga viva la lista no se rebaraja sola: volver atrás
+    // desde el reproductor no debe cambiártela debajo. Al salir sí caduca (el
+    // `gcTime` por defecto son 5 min), así que volver más tarde da mezcla nueva,
+    // que es lo que se espera de "Aleatorio".
     staleTime: Infinity,
   });
 

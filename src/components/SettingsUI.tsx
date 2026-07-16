@@ -11,7 +11,20 @@ import { useRef, useState } from 'react';
 import { Dimensions, Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useSettings } from '@/store/settings';
 import { colors, fontSize, radius, spacing, SCREEN_BOTTOM_PADDING } from '@/theme';
+
+/**
+ * Acento vivo, leído del store en vez de la constante global.
+ *
+ * `colors.accent` se muta al elegir otro acento, pero eso no repinta nada por
+ * sí solo: las pantallas de Ajustes que quedan montadas debajo del selector no
+ * se enteran y siguen enseñando el color anterior hasta salir y volver a
+ * entrar. Suscribiéndose aquí se repintan todas a la vez.
+ */
+function useAccent(): string {
+  return useSettings((s) => s.accentColor);
+}
 
 /** Cabecera con flecha de volver y título centrado. */
 export function ScreenHeader({ title }: { title: string }) {
@@ -122,6 +135,7 @@ export function SelectList<T extends string | number | boolean>({
   description?: string;
   collapsible?: boolean;
 }) {
+  const accent = useAccent();
   // Posición de la fila en pantalla (medida al abrir) y alto real del menú
   // (medido al pintarse): con ambos se ancla exacto, pegado a la fila.
   const [anchor, setAnchor] = useState<{ y: number; h: number } | null>(null);
@@ -162,7 +176,7 @@ export function SelectList<T extends string | number | boolean>({
               <Ionicons
                 name={isActive ? 'radio-button-on' : 'radio-button-off'}
                 size={22}
-                color={isActive ? colors.accent : colors.textMuted}
+                color={isActive ? accent : colors.textMuted}
               />
             </Pressable>
           );
@@ -220,12 +234,10 @@ export function SelectList<T extends string | number | boolean>({
                     if (!isActive) onChange(opt.value);
                   }}
                 >
-                  <Text
-                    style={[settingsStyles.menuItemText, isActive && { color: colors.accent }]}
-                  >
+                  <Text style={[settingsStyles.menuItemText, isActive && { color: accent }]}>
                     {opt.label}
                   </Text>
-                  {isActive ? <Ionicons name="checkmark" size={18} color={colors.accent} /> : null}
+                  {isActive ? <Ionicons name="checkmark" size={18} color={accent} /> : null}
                 </Pressable>
               );
             })}
@@ -261,6 +273,7 @@ export function SliderRow({
   formatValue: (value: number) => string;
   onChange: (value: number) => void;
 }) {
+  const accent = useAccent();
   const [live, setLive] = useState<number | null>(null);
   const shown = live ?? value;
   return (
@@ -283,7 +296,7 @@ export function SliderRow({
           setLive(null);
           onChange(v);
         }}
-        minimumTrackTintColor={colors.accent}
+        minimumTrackTintColor={accent}
         maximumTrackTintColor={colors.border}
         thumbTintColor={colors.text}
       />
@@ -302,6 +315,7 @@ export function SwitchList({
     onChange: (value: boolean) => void;
   }[];
 }) {
+  const accent = useAccent();
   return (
     <View style={settingsStyles.cardBox}>
       {options.map((opt, i) => (
@@ -315,7 +329,7 @@ export function SwitchList({
           <Switch
             value={opt.value}
             onValueChange={opt.onChange}
-            trackColor={{ false: colors.border, true: colors.accent }}
+            trackColor={{ false: colors.border, true: accent }}
             thumbColor={colors.text}
           />
         </View>

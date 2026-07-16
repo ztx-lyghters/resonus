@@ -31,6 +31,9 @@ function SectionRow({ section }: { section: HomeSection }) {
   const t = useT();
   const drag = useReorderableDrag();
   const setHomeSection = useSettings((s) => s.setHomeSection);
+  // Del store, no de `colors.accent`: sin suscripción el switch se quedaría con
+  // el acento anterior mientras la pantalla siga montada.
+  const accent = useSettings((s) => s.accentColor);
   return (
     <View style={styles.row}>
       <Pressable
@@ -48,7 +51,7 @@ function SectionRow({ section }: { section: HomeSection }) {
       <Switch
         value={section.enabled}
         onValueChange={(v) => setHomeSection(section.key, v)}
-        trackColor={{ false: colors.border, true: colors.accent }}
+        trackColor={{ false: colors.border, true: accent }}
         thumbColor={colors.text}
       />
     </View>

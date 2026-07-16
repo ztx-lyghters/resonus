@@ -62,6 +62,9 @@ export default function DownloadsSettings() {
   const toast = useToast((s) => s.show);
   const offline = useAuthStore((s) => s.offline);
   const lang = useSettings((s) => s.language);
+  // Del store, no de `colors.accent`: sin suscripción la barra de espacio se
+  // quedaría con el acento anterior mientras la pantalla siga montada.
+  const accent = useSettings((s) => s.accentColor);
   const downloadBitRate = useSettings((s) => s.downloadBitRate);
   const setDownloadBitRate = useSettings((s) => s.setDownloadBitRate);
   const downloadWifiOnly = useSettings((s) => s.downloadWifiOnly);
@@ -129,13 +132,13 @@ export default function DownloadsSettings() {
             <>
               <View style={styles.bar}>
                 <View style={{ flex: frac(other), backgroundColor: OTHER_COLOR }} />
-                <View style={{ flex: frac(usage), backgroundColor: colors.accent }} />
+                <View style={{ flex: frac(usage), backgroundColor: accent }} />
                 <View style={{ flex: frac(disk.free), backgroundColor: colors.surfaceHighlight }} />
               </View>
               <View style={styles.legend}>
                 <LegendItem color={OTHER_COLOR} label={t('Other')} value={formatBytes(other)} />
                 <LegendItem
-                  color={colors.accent}
+                  color={accent}
                   label={t('Downloads')}
                   value={`${formatBytes(usage)} (${songsLabel(count, lang)})`}
                 />

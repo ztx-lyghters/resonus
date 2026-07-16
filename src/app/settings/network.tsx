@@ -15,6 +15,7 @@ import { isLanUrl } from '@/lib/serverUrls';
 import { useT } from '@/i18n';
 import { useAuthStore } from '@/store/auth';
 import { checkAutoUrlNow } from '@/store/autoUrl';
+import { useSettings } from '@/store/settings';
 import { useToast } from '@/store/toast';
 import { colors, fontSize, radius, spacing } from '@/theme';
 
@@ -31,6 +32,10 @@ export default function NetworkSettings() {
   const addServerUrl = useAuthStore((s) => s.addServerUrl);
   const removeServerUrl = useAuthStore((s) => s.removeServerUrl);
   const setAutoUrl = useAuthStore((s) => s.setAutoUrl);
+  // Del store, no de `colors.accent`: sin suscripción el radio de la URL activa
+  // y el «Añadir dirección» se quedarían con el acento anterior mientras la
+  // pantalla siga montada.
+  const accent = useSettings((s) => s.accentColor);
 
   const [health, setHealth] = useState<'checking' | 'ok' | 'down'>('checking');
   const [adding, setAdding] = useState(false);
@@ -125,7 +130,7 @@ export default function NetworkSettings() {
                 <Ionicons
                   name={isActive ? 'radio-button-on' : 'radio-button-off'}
                   size={20}
-                  color={isActive ? colors.accent : colors.textMuted}
+                  color={isActive ? accent : colors.textMuted}
                 />
                 <View style={settingsStyles.rowLabelBox}>
                   <Text style={settingsStyles.rowLabel} numberOfLines={1}>
@@ -161,8 +166,8 @@ export default function NetworkSettings() {
           ]}
           onPress={() => setAdding(true)}
         >
-          <Ionicons name="add" size={22} color={colors.accent} />
-          <Text style={[settingsStyles.rowLabel, { color: colors.accent }]}>
+          <Ionicons name="add" size={22} color={accent} />
+          <Text style={[settingsStyles.rowLabel, { color: accent }]}>
             {t('Add address')}
           </Text>
         </Pressable>

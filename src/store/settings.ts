@@ -64,6 +64,9 @@ export type AppFont = 'system' | 'condensed' | 'serif' | 'monospace' | 'casual' 
  *  letra, o mostrar la letra en el sitio de la carátula. */
 export type CoverTapAction = 'none' | 'screen' | 'inline';
 
+/** Acción al deslizar una canción a la derecha en las listas (customizable). */
+export type SwipeAction = 'off' | 'queue' | 'next' | 'favorite' | 'menu';
+
 /** Nombre visible de cada fuente (nombres propios: no se traducen). */
 export const APP_FONT_LABELS: Record<AppFont, string> = {
   system: 'Roboto',
@@ -139,8 +142,10 @@ interface SettingsState {
   showDevicesButton: boolean;
   /** Botones de salto ±N segundos junto al play (0 = ocultos). Solo 5/10/30: son los iconos numerados que existen en MaterialIcons. */
   seekButtonsSec: number;
-  /** Gesto de deslizar una canción a la derecha para encolarla. */
-  swipeToQueue: boolean;
+  /** Acción al deslizar una canción a la derecha en las listas. */
+  swipeAction: SwipeAction;
+  /** Acción al deslizar una canción a la izquierda en las listas. */
+  swipeLeftAction: SwipeAction;
   /** Cuadrícula de acceso rápido (Favoritos + recientes) arriba en Inicio. */
   showQuickGrid: boolean;
   /** Chips de explorar (Álbumes/Artistas/Géneros/Radio) arriba en Inicio. */
@@ -183,7 +188,8 @@ interface SettingsState {
   setShowQueueButton: (value: boolean) => void;
   setShowDevicesButton: (value: boolean) => void;
   setSeekButtonsSec: (value: number) => void;
-  setSwipeToQueue: (value: boolean) => void;
+  setSwipeAction: (value: SwipeAction) => void;
+  setSwipeLeftAction: (value: SwipeAction) => void;
   setShowQuickGrid: (value: boolean) => void;
   setShowExploreChips: (value: boolean) => void;
   setShowFolderBrowser: (value: boolean) => void;
@@ -230,7 +236,8 @@ function snapshot(get: () => SettingsState) {
     showQueueButton: s.showQueueButton,
     showDevicesButton: s.showDevicesButton,
     seekButtonsSec: s.seekButtonsSec,
-    swipeToQueue: s.swipeToQueue,
+    swipeAction: s.swipeAction,
+    swipeLeftAction: s.swipeLeftAction,
     showQuickGrid: s.showQuickGrid,
     showExploreChips: s.showExploreChips,
     showFolderBrowser: s.showFolderBrowser,
@@ -271,7 +278,10 @@ const DEFAULTS = {
   showQueueButton: true,
   showDevicesButton: true,
   seekButtonsSec: 0,
-  swipeToQueue: true,
+  // Por defecto, deslizar a la derecha encola (comportamiento previo) y a la
+  // izquierda no hace nada (opt-in).
+  swipeAction: 'queue' as SwipeAction,
+  swipeLeftAction: 'off' as SwipeAction,
   showQuickGrid: true,
   showExploreChips: true,
   showFolderBrowser: false,
@@ -411,8 +421,13 @@ export const useSettings = create<SettingsState>((set, get) => ({
     persist(snapshot(get));
   },
 
-  setSwipeToQueue: (swipeToQueue) => {
-    set({ swipeToQueue });
+  setSwipeLeftAction: (swipeLeftAction) => {
+    set({ swipeLeftAction });
+    persist(snapshot(get));
+  },
+
+  setSwipeAction: (swipeAction) => {
+    set({ swipeAction });
     persist(snapshot(get));
   },
 
@@ -499,6 +514,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
           showQueueButton: boolean;
           showDevicesButton: boolean;
           seekButtonsSec: number;
+          swipeAction: SwipeAction;
+          swipeLeftAction: SwipeAction;
+          /** Ajuste antiguo (booleano); se migra a swipeAction. */
           swipeToQueue: boolean;
           showQuickGrid: boolean;
           showExploreChips: boolean;
@@ -611,8 +629,26 @@ export const useSettings = create<SettingsState>((set, get) => ({
         if (parsed.seekButtonsSec === 0 || parsed.seekButtonsSec === 5 || parsed.seekButtonsSec === 10 || parsed.seekButtonsSec === 30) {
           set({ seekButtonsSec: parsed.seekButtonsSec });
         }
-        if (typeof parsed.swipeToQueue === 'boolean') {
-          set({ swipeToQueue: parsed.swipeToQueue });
+        if (
+          parsed.swipeAction === 'off' ||
+          parsed.swipeAction === 'queue' ||
+          parsed.swipeAction === 'next' ||
+          parsed.swipeAction === 'favorite' ||
+          parsed.swipeAction === 'menu'
+        ) {
+          set({ swipeAction: parsed.swipeAction });
+        } else if (typeof parsed.swipeToQueue === 'boolean') {
+          // Migración del ajuste antiguo: activado → encolar, desactivado → nada.
+          set({ swipeAction: parsed.swipeToQueue ? 'queue' : 'off' });
+        }
+        if (
+          parsed.swipeLeftAction === 'off' ||
+          parsed.swipeLeftAction === 'queue' ||
+          parsed.swipeLeftAction === 'next' ||
+          parsed.swipeLeftAction === 'favorite' ||
+          parsed.swipeLeftAction === 'menu'
+        ) {
+          set({ swipeLeftAction: parsed.swipeLeftAction });
         }
         if (typeof parsed.showQuickGrid === 'boolean') {
           set({ showQuickGrid: parsed.showQuickGrid });

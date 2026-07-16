@@ -2,11 +2,22 @@
 import { useRouter } from 'expo-router';
 import { ScrollView, Text } from 'react-native';
 
-import { SettingRow, SettingsPage, settingsStyles, SwitchList } from '@/components/SettingsUI';
+import {
+  SelectList,
+  SettingRow,
+  SettingsPage,
+  settingsStyles,
+  SwitchList,
+} from '@/components/SettingsUI';
 import { useT } from '@/i18n';
 import { haptic } from '@/lib/haptics';
 import { useAuthStore } from '@/store/auth';
-import { APP_FONT_LABELS, LANGUAGE_NAMES, useSettings } from '@/store/settings';
+import {
+  APP_FONT_LABELS,
+  LANGUAGE_NAMES,
+  useSettings,
+  type SwipeAction,
+} from '@/store/settings';
 
 export default function AppearanceSettings() {
   const router = useRouter();
@@ -27,8 +38,10 @@ export default function AppearanceSettings() {
   const setShowHistoryButton = useSettings((s) => s.setShowHistoryButton);
   const showProfileButton = useSettings((s) => s.showProfileButton);
   const setShowProfileButton = useSettings((s) => s.setShowProfileButton);
-  const swipeToQueue = useSettings((s) => s.swipeToQueue);
-  const setSwipeToQueue = useSettings((s) => s.setSwipeToQueue);
+  const swipeAction = useSettings((s) => s.swipeAction);
+  const setSwipeAction = useSettings((s) => s.setSwipeAction);
+  const swipeLeftAction = useSettings((s) => s.swipeLeftAction);
+  const setSwipeLeftAction = useSettings((s) => s.setSwipeLeftAction);
   const showQuickGrid = useSettings((s) => s.showQuickGrid);
   const setShowQuickGrid = useSettings((s) => s.setShowQuickGrid);
   const showExploreChips = useSettings((s) => s.showExploreChips);
@@ -133,14 +146,34 @@ export default function AppearanceSettings() {
         />
 
         <Text style={settingsStyles.sectionTitle}>{t('Interaction')}</Text>
+        <SelectList<SwipeAction>
+          label={t('Swipe right')}
+          description={t('Action when you swipe a song to the right in lists.')}
+          options={[
+            { value: 'off', label: t('Off') },
+            { value: 'queue', label: t('Add to queue') },
+            { value: 'next', label: t('Play next') },
+            { value: 'favorite', label: t('Add to favorites') },
+            { value: 'menu', label: t('More options') },
+          ]}
+          value={swipeAction}
+          onChange={setSwipeAction}
+        />
+        <SelectList<SwipeAction>
+          label={t('Swipe left')}
+          description={t('Action when you swipe a song to the left in lists.')}
+          options={[
+            { value: 'off', label: t('Off') },
+            { value: 'queue', label: t('Add to queue') },
+            { value: 'next', label: t('Play next') },
+            { value: 'favorite', label: t('Add to favorites') },
+            { value: 'menu', label: t('More options') },
+          ]}
+          value={swipeLeftAction}
+          onChange={setSwipeLeftAction}
+        />
         <SwitchList
           options={[
-            {
-              label: t('Swipe to queue'),
-              description: t('Swipe a song to the right to add it to the queue.'),
-              value: swipeToQueue,
-              onChange: setSwipeToQueue,
-            },
             {
               label: t('Haptic feedback'),
               description: t('Subtle vibration on key actions.'),

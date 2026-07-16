@@ -1,5 +1,6 @@
 /** Fila de una canción dentro de una lista (álbum, playlist, resultados). */
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import ReanimatedSwipeable, {
@@ -8,14 +9,14 @@ import ReanimatedSwipeable, {
 } from 'react-native-gesture-handler/ReanimatedSwipeable';
 import Reanimated, { useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
 
-import { coverArtUrl } from '@/api/data';
+import { coverArtUrl, star, unstar } from '@/api/data';
 import { type Song } from '@/api/subsonic';
 import { useFavoriteIds } from '@/hooks/useFavoriteIds';
 import { formatDuration } from '@/lib/format';
 import { useDownloads } from '@/store/downloads';
 import { usePlayerStore } from '@/store/player';
 import { useSongMenu, type SongMenuContext } from '@/store/songMenu';
-import { useSettings } from '@/store/settings';
+import { useSettings, type SwipeAction } from '@/store/settings';
 import { haptic } from '@/lib/haptics';
 import { useToast } from '@/store/toast';
 import { useT } from '@/i18n';
@@ -54,16 +55,39 @@ interface Props {
   onPressIn?: () => void;
 }
 
+/** Icono de la franja de swipe según la acción configurada. */
+const SWIPE_ICON: Record<Exclude<SwipeAction, 'off'>, keyof typeof Ionicons.glyphMap> = {
+  queue: 'list',
+  next: 'play-forward',
+  favorite: 'heart',
+  menu: 'ellipsis-horizontal',
+};
+
 /**
- * Franja "a la cola" que asoma tras la fila durante el swipe. Invisible en
+ * Franja de acción que asoma tras la fila durante el swipe. Invisible en
  * reposo: la fila es transparente (deja pasar el degradado de la cabecera,
  * estilo Spotify), así que la franja solo puede existir mientras dura el gesto.
  */
-function QueueAction({ progress }: { progress: SharedValue<number> }) {
+function SwipeActionPanel({
+  progress,
+  icon,
+  side,
+}: {
+  progress: SharedValue<number>;
+  icon: keyof typeof Ionicons.glyphMap;
+  /** Lado donde asoma la franja: el icono se pega al borde por el que entra. */
+  side: 'left' | 'right';
+}) {
   const visible = useAnimatedStyle(() => ({ opacity: progress.value > 0.01 ? 1 : 0 }));
   return (
-    <Reanimated.View style={[styles.queueAction, { backgroundColor: colors.accent }, visible]}>
-      <Ionicons name="list" size={22} color={colors.text} />
+    <Reanimated.View
+      style={[
+        styles.queueAction,
+        { backgroundColor: colors.accent, alignItems: side === 'left' ? 'flex-start' : 'flex-end' },
+        visible,
+      ]}
+    >
+      <Ionicons name={icon} size={22} color={colors.text} />
     </Reanimated.View>
   );
 }
@@ -85,45 +109,93 @@ export function TrackRow({
   const openMenu = useSongMenu((s) => s.open);
   const t = useT();
   const showDuration = useSettings((s) => s.showSongDuration);
-  const swipeToQueue = useSettings((s) => s.swipeToQueue);
+  const swipeAction = useSettings((s) => s.swipeAction);
+  const swipeLeftAction = useSettings((s) => s.swipeLeftAction);
   const addToQueue = usePlayerStore((s) => s.addToQueue);
+  const playNext = usePlayerStore((s) => s.playNext);
+  const queryClient = useQueryClient();
   const toast = useToast((s) => s.show);
   const swipeRef = useRef<SwipeableMethods>(null);
 
-  // Favorito = marcado por el endpoint o presente en la lista central de
-  // favoritos (fiable), ya que no todos los endpoints traen `starred`.
+  // Favorito: la lista central de favoritos (`favIds`) es la fuente fiable —
+  // refleja marcar/desmarcar al invalidarse. El `starred` de la canción (que
+  // getAlbum trae pero NO refresca) solo se usa como respaldo mientras esa
+  // lista aún carga; si no, al desmarcar en un álbum el corazón se quedaba
+  // pegado (el OR con `song.starred` nunca dejaba de ser true).
   const favIds = useFavoriteIds(showFavorite);
-  const favorited = showFavorite && (!!song.starred || (favIds?.has(song.id) ?? false));
+  const favorited = showFavorite && (favIds ? favIds.has(song.id) : !!song.starred);
   const downloaded = useDownloads((s) => !!s.files[song.id]);
 
-  // Swipe a la derecha = añadir a la cola (gesto estilo Spotify). La fila
-  // vuelve sola a su sitio; la acción de fondo solo asoma durante el gesto.
+  // Swipe a la derecha = acción configurable (gesto estilo Spotify). La fila
+  // vuelve sola a su sitio; la franja de fondo solo asoma durante el gesto.
   // OJO: el gesto solo convive bien con el scroll si la lista contenedora es
   // de react-native-gesture-handler (FlatList/ScrollView de esa librería).
-  function onSwipeToQueue() {
+  async function toggleFavoriteSwipe() {
+    const next = !favorited;
+    try {
+      if (next) await star(song.id, 'song');
+      else await unstar(song.id, 'song');
+      queryClient.invalidateQueries({ queryKey: ['starred'] });
+      toast(next ? t('Added to favorites') : t('Removed from favorites'));
+    } catch {
+      toast(t("Couldn't complete the action"));
+    }
+  }
+
+  function runSwipeAction(action: SwipeAction) {
     haptic('light');
     swipeRef.current?.close();
-    addToQueue(song);
-    toast(t('Added to queue'));
+    switch (action) {
+      case 'queue':
+        addToQueue(song);
+        toast(t('Added to queue'));
+        break;
+      case 'next':
+        playNext(song);
+        toast(t('Playing next'));
+        break;
+      case 'favorite':
+        void toggleFavoriteSwipe();
+        break;
+      case 'menu':
+        openMenu(song, menuContext);
+        break;
+      default:
+        break;
+    }
   }
 
   return (
     <ReanimatedSwipeable
       ref={swipeRef}
-      renderLeftActions={(progress) => <QueueAction progress={progress} />}
-      // Menos sensible a propósito: `dragOffsetFromLeftEdge` obliga a un
-      // recorrido horizontal claro antes de que el gesto se active (así un
-      // scroll vertical con algo de lateral ya no lo dispara sin querer), y
-      // `leftThreshold` pide arrastrar bastante para confirmar el encolado.
+      // La franja izquierda la abre el swipe a la DERECHA (y viceversa).
+      renderLeftActions={(progress) =>
+        swipeAction === 'off' ? null : (
+          <SwipeActionPanel progress={progress} icon={SWIPE_ICON[swipeAction]} side="left" />
+        )
+      }
+      renderRightActions={(progress) =>
+        swipeLeftAction === 'off' ? null : (
+          <SwipeActionPanel progress={progress} icon={SWIPE_ICON[swipeLeftAction]} side="right" />
+        )
+      }
+      // Menos sensible a propósito: `dragOffsetFrom…Edge` obliga a un recorrido
+      // horizontal claro antes de activarse (así un scroll vertical con algo de
+      // lateral ya no lo dispara sin querer), y el `threshold` pide arrastrar
+      // bastante para confirmar la acción.
       dragOffsetFromLeftEdge={30}
+      dragOffsetFromRightEdge={30}
       leftThreshold={90}
+      rightThreshold={90}
       friction={1}
       overshootLeft={false}
-      enabled={!selecting && swipeToQueue}
+      overshootRight={false}
+      enabled={!selecting && (swipeAction !== 'off' || swipeLeftAction !== 'off')}
       onSwipeableWillOpen={(direction) => {
         // `direction` es la dirección del GESTO (no el lado del panel):
-        // deslizar a la derecha (abre la acción izquierda) llega como RIGHT.
-        if (direction === SwipeDirection.RIGHT) onSwipeToQueue();
+        // deslizar a la derecha (abre la franja izquierda) llega como RIGHT.
+        if (direction === SwipeDirection.RIGHT) runSwipeAction(swipeAction);
+        else if (direction === SwipeDirection.LEFT) runSwipeAction(swipeLeftAction);
       }}
     >
     <Pressable

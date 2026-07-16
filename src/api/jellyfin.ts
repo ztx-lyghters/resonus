@@ -43,7 +43,7 @@ const TICKS_PER_MS = 10_000;
 
 /** Campos extra que hay que pedir explícitamente en cada tipo de item. */
 const ALBUM_FIELDS = 'ChildCount,DateCreated';
-const SONG_FIELDS = 'MediaSources,DateCreated,NormalizationGain';
+const SONG_FIELDS = 'MediaSources,DateCreated,NormalizationGain,Genres';
 const PLAYLIST_FIELDS = 'ChildCount,DateCreated,DateLastMediaAdded';
 
 /** Subconjunto de BaseItemDto que usa la app. */
@@ -64,6 +64,7 @@ interface JfItem {
   ChildCount?: number;
   DateCreated?: string;
   DateLastMediaAdded?: string;
+  Genres?: string[];
   ImageTags?: { Primary?: string };
   AlbumPrimaryImageTag?: string;
   UserData?: { IsFavorite?: boolean };
@@ -229,6 +230,7 @@ function toSong(it: JfItem): Song {
         : it.ImageTags?.Primary
           ? it.Id
           : undefined,
+    genre: it.Genres?.[0],
     duration: it.RunTimeTicks ? Math.round(it.RunTimeTicks / TICKS_PER_SECOND) : undefined,
     track: it.IndexNumber,
     discNumber: it.ParentIndexNumber,

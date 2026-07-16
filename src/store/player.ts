@@ -29,6 +29,7 @@ import {
   coverArtUrl,
   getOpenSubsonicExtensions,
   getPlayQueue,
+  getRandomSongs,
   getSimilarSongs,
   getTopSongs,
   savePlayQueue,
@@ -412,26 +413,33 @@ function onTrackChanged(song: Song) {
 let autoplayFetchedFor: string | null = null;
 
 /**
- * Canciones con las que alargar una radio a partir de `seed`.
+ * Canciones con las que alargar una radio a partir de `seed`, por orden de
+ * afinidad: parecidas → lo más escuchado del artista → al azar de su género.
  *
- * Primero las parecidas del servidor. Si vienen pocas, tira de lo más escuchado
- * del artista: `getSimilarSongs` depende de que el servidor tenga Last.fm
- * configurado, y sin eso la radio se moriría a la primera. Queda un mix más
- * pobre (mismo artista), pero suena, que es lo que se pidió.
+ * Se baja de nivel cuando el anterior no da NINGUNA que no esté ya en la cola,
+ * no cuando da pocas. La diferencia importa: `getSimilarSongs` necesita Last.fm
+ * en el servidor, y sin él la radio caía al artista, agotaba sus ~20 temas y
+ * entonces todos los candidatos ya estaban en la cola → cero nuevas → la radio
+ * se moría en silencio a la vuelta de un rato. El género sale de las etiquetas
+ * y no depende de nada externo, así que siempre queda de dónde tirar.
  */
-async function radioCandidates(auth: SubsonicAuth, seed: Song, want: number): Promise<Song[]> {
-  let similar: Song[] = [];
-  try {
-    similar = await getSimilarSongs(auth, seed.id, want);
-  } catch {
-    // Sin similares seguimos: aún queda el plan B.
+async function radioCandidates(auth: SubsonicAuth, seed: Song, have: Set<string>): Promise<Song[]> {
+  const tiers: (() => Promise<Song[]>)[] = [
+    () => getSimilarSongs(auth, seed.id, 20),
+    () => (seed.artist ? getTopSongs(auth, seed.artist, 20) : Promise.resolve([])),
+    () => (seed.genre ? getRandomSongs(auth, 20, seed.genre) : Promise.resolve([])),
+  ];
+  for (const tier of tiers) {
+    let songs: Song[];
+    try {
+      songs = await tier();
+    } catch {
+      continue; // este nivel falló; el siguiente puede funcionar
+    }
+    const fresh = songs.filter((s) => !have.has(s.id) && !s.url);
+    if (fresh.length > 0) return fresh;
   }
-  if (similar.length >= 5 || !seed.artist) return similar;
-  try {
-    return [...similar, ...(await getTopSongs(auth, seed.artist, 20))];
-  } catch {
-    return similar;
-  }
+  return [];
 }
 
 async function maybeQueueAutoplay() {
@@ -447,10 +455,10 @@ async function maybeQueueAutoplay() {
   autoplayFetchedFor = last.id;
   let similar: Song[];
   try {
-    // El plan B (top del artista) solo en radio: el autoplay de siempre se
-    // comporta como hasta ahora.
+    // Los niveles de respaldo (artista, género) solo en radio: el autoplay de
+    // siempre se comporta como hasta ahora.
     similar = radioMode
-      ? await radioCandidates(auth, last, 20)
+      ? await radioCandidates(auth, last, new Set(queue.map((s) => s.id)))
       : await getSimilarSongs(auth, last.id, 20);
   } catch {
     return; // sin autoplay: la reproducción parará al final, como antes
@@ -783,18 +791,21 @@ interface StoredQueue {
   queue: Song[];
   index: number;
   positionSec: number;
+  /** La cola era una radio: al restaurarla debe seguir alargándose sola. */
+  radioMode?: boolean;
 }
 
 function saveQueueLocal() {
   const key = queueStorageKey();
   if (!key) return;
-  const { queue, index, positionSec } = usePlayerStore.getState();
+  const { queue, index, positionSec, radioMode } = usePlayerStore.getState();
   if (queue.length === 0) return;
   // Tope de tamaño por prudencia con SecureStore; 500 canciones dan de sobra.
   const payload: StoredQueue = {
     queue: queue.slice(0, 500),
     index: Math.min(index, 499),
     positionSec,
+    radioMode,
   };
   void setItem(key, JSON.stringify(payload));
 }
@@ -1446,7 +1457,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       isPlaying: false,
       source: null,
       sourceHref: null,
-      // Una cola restaurada no es una radio: eso no se guarda.
+      // La cola del servidor es Subsonic puro: no tiene dónde llevar esto, así
+      // que una radio recuperada desde ahí deja de serlo. La copia local sí lo
+      // guarda, y es la que se intenta primero (ver `restoreQueue`).
       radioMode: false,
     });
     // Cargamos la pista (sin reproducir) y dejamos la posición lista.
@@ -1488,8 +1501,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       isPlaying: false,
       source: null,
       sourceHref: null,
-      // Una cola restaurada no es una radio: eso no se guarda.
-      radioMode: false,
+      // Si era una radio, sigue siéndolo: cerrar la app no debería dejarla
+      // muda al llegar al final de lo que ya había encolado.
+      radioMode: saved.radioMode === true,
     });
     await loadIndex(index, false);
     if (positionSec > 0) {

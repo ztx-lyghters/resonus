@@ -79,6 +79,9 @@ export interface Song {
   userRating?: number;
   /** URL de streaming directa (usado para radio; evita generar URL Subsonic). */
   url?: string;
+  /** Género de la canción (lo mandan Subsonic y Jellyfin). Lo usa la radio
+   *  para no morirse cuando se acaban las parecidas del artista. */
+  genre?: string;
   /** Formato del archivo (mp3, flac, aac…). */
   suffix?: string;
   /** Bitrate en kbps. */

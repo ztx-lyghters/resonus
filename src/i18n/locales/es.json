@@ -426,5 +426,7 @@
   "Start mix": "Iniciar mix",
   "Mix of “{name}”": "Mix de «{name}»",
   "Explore chips": "Chips de explorar",
-  "Show, hide and reorder the chips at the top of Home.": "Muestra, oculta y reordena los chips de arriba en Inicio."
+  "Show, hide and reorder the chips at the top of Home.": "Muestra, oculta y reordena los chips de arriba en Inicio.",
+  "Song menu": "Menú de canción",
+  "Choose which actions show in a song’s ⋯ menu.": "Elige qué acciones aparecen en el menú ⋯ de una canción."
 }

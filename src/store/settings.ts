@@ -167,6 +167,82 @@ export function normalizeExploreChips(raw: unknown): ExploreChip[] {
   return out;
 }
 
+/**
+ * Acciones ocultables del menú ⋯ de una canción.
+ *
+ * «Quitar de la lista» no está: solo aparece dentro de una playlist, así que
+ * nunca estorba en el resto, y es la única vía para quitar una canción suelta
+ * desde el menú. El criterio no es "esencial" sino "estorba en algún sitio":
+ * el resto tiene además otro camino (el corazón de las filas y del reproductor,
+ * la carátula y la tarjeta para la letra, la selección múltiple para descargar
+ * y para añadir a una lista).
+ *
+ * Salvo `sleepTimer`, que solo vive aquí: ocultarlo deja el temporizador sin
+ * acceso hasta volver a activarlo. Es una decisión tomada, no un descuido — la
+ * app ya deja apagar vías únicas (el gesto de deslizar, tocar la carátula). Si
+ * algún día molesta, la salida buena es darle un segundo sitio (el ⋯ del
+ * reproductor), no quitar el interruptor.
+ */
+export type SongMenuActionKey =
+  | 'playlist'
+  | 'artist'
+  | 'album'
+  | 'lyrics'
+  | 'mix'
+  | 'playNext'
+  | 'queue'
+  | 'favorite'
+  | 'download'
+  | 'sleepTimer';
+
+/**
+ * Visibilidad de cada acción. Mapa y no lista (a diferencia de los chips y las
+ * secciones de Inicio) a propósito: aquí el orden no se puede cambiar, así que
+ * guardarlo sería insinuar que sí.
+ */
+export type SongMenuActions = Record<SongMenuActionKey, boolean>;
+
+const SONG_MENU_ACTION_KEYS: SongMenuActionKey[] = [
+  'playlist',
+  'artist',
+  'album',
+  'lyrics',
+  'mix',
+  'playNext',
+  'queue',
+  'favorite',
+  'download',
+  'sleepTimer',
+];
+
+/** Todas visibles: el menú de siempre. */
+export const DEFAULT_SONG_MENU_ACTIONS: SongMenuActions = {
+  playlist: true,
+  artist: true,
+  album: true,
+  lyrics: true,
+  mix: true,
+  playNext: true,
+  queue: true,
+  favorite: true,
+  download: true,
+  sleepTimer: true,
+};
+
+/**
+ * Sanea lo guardado: solo acepta booleanos de claves conocidas. Lo que falte
+ * (p. ej. una acción nueva) se queda visible, que es el valor por defecto.
+ */
+export function normalizeSongMenuActions(raw: unknown): SongMenuActions {
+  const out = { ...DEFAULT_SONG_MENU_ACTIONS };
+  if (!raw || typeof raw !== 'object') return out;
+  const obj = raw as Record<string, unknown>;
+  for (const key of SONG_MENU_ACTION_KEYS) {
+    if (typeof obj[key] === 'boolean') out[key] = obj[key];
+  }
+  return out;
+}
+
 /** Nombre visible de cada fuente (nombres propios: no se traducen). */
 export const APP_FONT_LABELS: Record<AppFont, string> = {
   system: 'Roboto',
@@ -253,6 +329,8 @@ interface SettingsState {
   /** Chips de explorar de Inicio, en orden (cada uno con su estado). Sin
    *  ninguno activo, la fila desaparece: eso sustituye al viejo interruptor. */
   exploreChips: ExploreChip[];
+  /** Qué acciones se ven en el menú ⋯ de una canción. */
+  songMenuActions: SongMenuActions;
   /** Sección "Carpetas" en la Biblioteca (navegación por directorios; Subsonic). */
   showFolderBrowser: boolean;
   /** Visibilidad de botones opcionales, para quien prefiera una UI mínima. */
@@ -300,6 +378,7 @@ interface SettingsState {
   setExploreChip: (key: ExploreChipKey, value: boolean) => void;
   /** Reemplaza la lista completa (para reordenar). */
   setExploreChips: (chips: ExploreChip[]) => void;
+  setSongMenuAction: (key: SongMenuActionKey, value: boolean) => void;
   setShowFolderBrowser: (value: boolean) => void;
   setShowHistoryButton: (value: boolean) => void;
   setShowProfileButton: (value: boolean) => void;
@@ -349,6 +428,7 @@ function snapshot(get: () => SettingsState) {
     homeSections: s.homeSections,
     showQuickGrid: s.showQuickGrid,
     exploreChips: s.exploreChips,
+    songMenuActions: s.songMenuActions,
     showFolderBrowser: s.showFolderBrowser,
     showHistoryButton: s.showHistoryButton,
     showProfileButton: s.showProfileButton,
@@ -394,6 +474,7 @@ const DEFAULTS = {
   homeSections: DEFAULT_HOME_SECTIONS.map((s) => ({ ...s })),
   showQuickGrid: true,
   exploreChips: DEFAULT_EXPLORE_CHIPS.map((c) => ({ ...c })),
+  songMenuActions: { ...DEFAULT_SONG_MENU_ACTIONS },
   showFolderBrowser: false,
   showHistoryButton: true,
   showProfileButton: true,
@@ -565,6 +646,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
     persist(snapshot(get));
   },
 
+  setSongMenuAction: (key, value) => {
+    set((s) => ({ songMenuActions: { ...s.songMenuActions, [key]: value } }));
+    persist(snapshot(get));
+  },
+
   setExploreChips: (exploreChips) => {
     set({ exploreChips });
     persist(snapshot(get));
@@ -651,6 +737,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
           showQuickGrid: boolean;
           showExploreChips: boolean;
           exploreChips: unknown;
+          songMenuActions: unknown;
           showFolderBrowser: boolean;
           showHistoryButton: boolean;
           showProfileButton: boolean;
@@ -786,6 +873,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
         }
         if (typeof parsed.showQuickGrid === 'boolean') {
           set({ showQuickGrid: parsed.showQuickGrid });
+        }
+        if (parsed.songMenuActions) {
+          set({ songMenuActions: normalizeSongMenuActions(parsed.songMenuActions) });
         }
         if (Array.isArray(parsed.exploreChips)) {
           set({ exploreChips: normalizeExploreChips(parsed.exploreChips) });

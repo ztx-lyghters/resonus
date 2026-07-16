@@ -151,6 +151,13 @@ export default function AppearanceSettings() {
           ]}
         />
 
+        <SettingRow
+          label={t('Song menu')}
+          description={t('Choose which actions show in a song\u2019s ⋯ menu.')}
+          chevron
+          onPress={() => router.push('/settings/song-menu')}
+        />
+
         <Text style={settingsStyles.sectionTitle}>{t('Interaction')}</Text>
         <SelectList<SwipeAction>
           label={t('Swipe right')}

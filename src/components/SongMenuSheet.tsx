@@ -35,6 +35,7 @@ import { useArtistPicker } from '@/store/artistPicker';
 import { useAuthStore } from '@/store/auth';
 import { useDownloads } from '@/store/downloads';
 import { usePlayerStore } from '@/store/player';
+import { useSettings } from '@/store/settings';
 import { useSongMenu } from '@/store/songMenu';
 import { showUndoToast, useToast } from '@/store/toast';
 import { useT } from '@/i18n';
@@ -84,6 +85,9 @@ export function SongMenuSheet() {
   const addToQueue = usePlayerStore((s) => s.addToQueue);
   const playNext = usePlayerStore((s) => s.playNext);
   const startRadio = usePlayerStore((s) => s.startRadio);
+  // Acciones visibles (Ajustes → Aspecto → Menú de canción). Se suma a las
+  // condiciones de cada una: esconderla no reactiva lo que ya no aplicaba.
+  const menu = useSettings((s) => s.songMenuActions);
   const setSleepTimer = usePlayerStore((s) => s.setSleepTimer);
   const setSleepAtSongEnd = usePlayerStore((s) => s.setSleepAtSongEnd);
   const cancelSleepTimer = usePlayerStore((s) => s.cancelSleepTimer);
@@ -305,11 +309,13 @@ export function SongMenuSheet() {
           </View>
         ) : (
           <>
-            <Action
-              icon="add-circle-outline"
-              label={t('Add to a playlist')}
-              onPress={() => setMode('playlists')}
-            />
+            {menu.playlist ? (
+              <Action
+                icon="add-circle-outline"
+                label={t('Add to a playlist')}
+                onPress={() => setMode('playlists')}
+              />
+            ) : null}
             {context ? (
               <Action
                 icon="remove-circle-outline"
@@ -317,7 +323,7 @@ export function SongMenuSheet() {
                 onPress={removeFromList}
               />
             ) : null}
-            {(song.artistId || song.artist) ? (
+            {menu.artist && (song.artistId || song.artist) ? (
               <Action
                 icon="person"
                 label={t('Go to artist')}
@@ -337,7 +343,7 @@ export function SongMenuSheet() {
                 }}
               />
             ) : null}
-            {(song.albumId || song.album) ? (
+            {menu.album && (song.albumId || song.album) ? (
               <Action
                 icon="disc"
                 label={t('Go to album')}
@@ -350,7 +356,7 @@ export function SongMenuSheet() {
                 }}
               />
             ) : null}
-            {showLyrics ? (
+            {menu.lyrics && showLyrics ? (
               <Action
                 icon="mic-outline"
                 label={t('Lyrics')}
@@ -360,7 +366,7 @@ export function SongMenuSheet() {
             {/* Con las de reproducción, no con las de organizar: esto cambia la
                 cola y se pone a sonar. Solo online (las parecidas las busca el
                 servidor) y no en emisoras (`url`), que no tienen "parecidas". */}
-            {!offline && !song.url ? (
+            {menu.mix && !offline && !song.url ? (
               <Action
                 icon="sparkles-outline"
                 label={t('Start mix')}
@@ -370,36 +376,42 @@ export function SongMenuSheet() {
                 }}
               />
             ) : null}
-            <Action
-              icon="play-forward"
-              label={t('Play next')}
-              onPress={() => {
-                playNext(song);
-                toast(t('Playing next'));
-                close();
-              }}
-            />
-            <Action
-              icon="list"
-              label={t('Add to queue')}
-              onPress={() => {
-                addToQueue(song);
-                toast(t('Added to queue'));
-                close();
-              }}
-            />
-            <Action
-              icon={favorited ? 'heart' : 'heart-outline'}
-              label={favorited ? t('Remove from favorites') : t('Add to favorites')}
-              onPress={() => {
-                (favorited ? unstar(song.id) : star(song.id)).then(() =>
-                  queryClient.invalidateQueries({ queryKey: ['starred'] }),
-                );
-                toast(favorited ? t('Removed from favorites') : t('Added to favorites'));
-                close();
-              }}
-            />
-            {downloaded ? (
+            {menu.playNext ? (
+              <Action
+                icon="play-forward"
+                label={t('Play next')}
+                onPress={() => {
+                  playNext(song);
+                  toast(t('Playing next'));
+                  close();
+                }}
+              />
+            ) : null}
+            {menu.queue ? (
+              <Action
+                icon="list"
+                label={t('Add to queue')}
+                onPress={() => {
+                  addToQueue(song);
+                  toast(t('Added to queue'));
+                  close();
+                }}
+              />
+            ) : null}
+            {menu.favorite ? (
+              <Action
+                icon={favorited ? 'heart' : 'heart-outline'}
+                label={favorited ? t('Remove from favorites') : t('Add to favorites')}
+                onPress={() => {
+                  (favorited ? unstar(song.id) : star(song.id)).then(() =>
+                    queryClient.invalidateQueries({ queryKey: ['starred'] }),
+                  );
+                  toast(favorited ? t('Removed from favorites') : t('Added to favorites'));
+                  close();
+                }}
+              />
+            ) : null}
+            {menu.download && downloaded ? (
               <Action
                 icon="arrow-down-circle"
                 label={t('Remove download')}
@@ -414,7 +426,7 @@ export function SongMenuSheet() {
                   close();
                 }}
               />
-            ) : !offline && !song.url ? (
+            ) : menu.download && !offline && !song.url ? (
               <Action
                 icon="download-outline"
                 label={t('Download')}
@@ -425,17 +437,19 @@ export function SongMenuSheet() {
                 }}
               />
             ) : null}
-            <Action
-              icon="moon-outline"
-              label={
-                sleepTimerMinutes
-                  ? t('Sleep timer ({n} min)', { n: sleepTimerMinutes })
-                  : sleepAtSongEnd
-                    ? t('Sleep timer (end of song)')
-                    : t('Sleep timer')
-              }
-              onPress={() => setMode('sleep')}
-            />
+            {menu.sleepTimer ? (
+              <Action
+                icon="moon-outline"
+                label={
+                  sleepTimerMinutes
+                    ? t('Sleep timer ({n} min)', { n: sleepTimerMinutes })
+                    : sleepAtSongEnd
+                      ? t('Sleep timer (end of song)')
+                      : t('Sleep timer')
+                }
+                onPress={() => setMode('sleep')}
+              />
+            ) : null}
           </>
         )}
       </Animated.View>

@@ -159,6 +159,7 @@ export default function RootLayout() {
                 <Stack.Screen name="settings/font" />
                 <Stack.Screen name="settings/personalization" />
                 <Stack.Screen name="settings/explore-chips" />
+                <Stack.Screen name="settings/song-menu" />
                 <Stack.Screen name="settings/home-sections" />
                 <Stack.Screen name="settings/equalizer" />
                 <Stack.Screen name="settings/theme" />

@@ -127,6 +127,11 @@ export default function QueueScreen() {
   const source = usePlayerStore((s) => s.source);
   const moveTrack = usePlayerStore((s) => s.moveTrack);
   const clearQueue = usePlayerStore((s) => s.clearQueue);
+  const radioMode = usePlayerStore((s) => s.radioMode);
+  const stopRadio = usePlayerStore((s) => s.stopRadio);
+  // El acento del store, no `colors.accent`: sin suscripción el icono se
+  // quedaría con el anterior mientras la pantalla siga montada.
+  const accent = useSettings((s) => s.accentColor);
   const toast = useToast((s) => s.show);
   const [confirmClear, setConfirmClear] = useState(false);
 
@@ -157,7 +162,7 @@ export default function QueueScreen() {
         <Pressable hitSlop={12} onPress={() => router.back()}>
           <Ionicons name="chevron-down" size={28} color={colors.text} />
         </Pressable>
-        <View style={styles.headerCenter}>
+        <View style={styles.headerCenter} pointerEvents="none">
           <Text style={styles.headerTitle}>{t('Queue')}</Text>
           {upcoming.length > 0 && totalSec > 0 ? (
             <Text style={styles.headerSub}>
@@ -165,19 +170,37 @@ export default function QueueScreen() {
             </Text>
           ) : null}
         </View>
-        {upcoming.length > 0 ? (
-          <Pressable
-            style={styles.headerAction}
-            hitSlop={10}
-            accessibilityRole="button"
-            accessibilityLabel={t('Clear queue')}
-            onPress={() => setConfirmClear(true)}
-          >
-            <Ionicons name="trash-outline" size={22} color={colors.textSecondary} />
-          </Pressable>
-        ) : (
-          <View style={{ width: 28 }} />
-        )}
+        <View style={styles.headerRight}>
+          {/* Que este icono ESTÉ es el aviso de que la radio sigue alargando la
+              cola; tocarlo la para. Sin radio no hay icono, así que no estorba.
+              Es un botón y no un interruptor: uno que desapareciera al apagarlo
+              no se podría volver a encender. Para reanudar, se inicia otro mix. */}
+          {radioMode ? (
+            <Pressable
+              style={styles.headerAction}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={t('Stop the mix')}
+              onPress={() => {
+                stopRadio();
+                toast(t('The mix won’t grow any further'));
+              }}
+            >
+              <Ionicons name="sparkles" size={22} color={accent} />
+            </Pressable>
+          ) : null}
+          {upcoming.length > 0 ? (
+            <Pressable
+              style={styles.headerAction}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={t('Clear queue')}
+              onPress={() => setConfirmClear(true)}
+            >
+              <Ionicons name="trash-outline" size={22} color={colors.textSecondary} />
+            </Pressable>
+          ) : null}
+        </View>
       </View>
 
       {current ? (
@@ -241,7 +264,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
-  headerCenter: { alignItems: 'center' },
+  // Absoluto y centrado sobre la barra: como hijo del flex se descentraba al
+  // aparecer o desaparecer iconos a la derecha (`space-between` reparte entre
+  // todos los hijos). Va con pointerEvents="none" para no comerse sus toques.
+  headerCenter: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   headerAction: { width: 28, alignItems: 'center' },
   headerTitle: { color: colors.text, fontSize: fontSize.lg, fontWeight: '700' },
   headerSub: { color: colors.textSecondary, fontSize: fontSize.xs, marginTop: 2 },

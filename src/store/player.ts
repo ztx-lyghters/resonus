@@ -968,6 +968,8 @@ interface PlayerState {
    * llenando sola con parecidas, sin fin.
    */
   startRadio: (seed: Song, source: string) => Promise<void>;
+  /** Deja de alargar la cola. No la toca: termina cuando termine. */
+  stopRadio: () => void;
   addToQueue: (song: Song) => void;
   playNext: (song: Song) => void;
   toggle: () => void;
@@ -1065,6 +1067,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     await get().playQueue([seed], 0, source);
     set({ radioMode: true });
     void maybeQueueAutoplay();
+  },
+
+  stopRadio: () => {
+    set({ radioMode: false });
+    saveQueueLocal();
   },
 
   // Estilo Spotify: lo añadido a mano suena justo después de la actual (y de

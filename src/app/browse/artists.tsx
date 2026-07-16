@@ -97,22 +97,30 @@ export default function BrowseArtistsScreen() {
     return m;
   }, [frequentAlbums]);
 
-  const artists = useMemo(() => {
+  const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const all = q
-      ? (data ?? []).filter((a) => a.name.toLowerCase().includes(q))
-      : (data ?? []).slice();
+    return q ? (data ?? []).filter((a) => a.name.toLowerCase().includes(q)) : (data ?? []);
+  }, [data, query]);
+
+  // Barajado en su propio memo, SIN depender de times/byArtist: el historial
+  // registra cada canción que empieza, así que con música sonando esas deps
+  // cambian a cada pista y el Fisher-Yates se re-ejecutaba — la rejilla se
+  // rebarajaba sola delante del usuario a cada cambio de canción.
+  const shuffledArtists = useMemo(() => {
+    if (sort !== 'random') return null;
+    const arr = filtered.slice();
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }, [filtered, sort]);
+
+  const artists = useMemo(() => {
+    if (sort === 'random') return shuffledArtists ?? [];
+    const all = filtered.slice();
     const byName = (a: Artist, b: Artist) => a.name.localeCompare(b.name);
     if (sort === 'alpha') return all.sort(byName);
-    if (sort === 'random') {
-      // Fisher-Yates. Se rebaraja solo al cambiar la lista o el filtro, no en
-      // cada render: si no, la rejilla bailaría al escribir en el buscador.
-      for (let i = all.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [all[i], all[j]] = [all[j], all[i]];
-      }
-      return all;
-    }
     const score =
       sort === 'frequent'
         ? (a: Artist) => playedByArtist.get(a.id) ?? 0
@@ -120,7 +128,7 @@ export default function BrowseArtistsScreen() {
     // Empate → alfabético, para que no salga un orden arbitrario entre los
     // muchos artistas sin escuchas ni álbumes contados.
     return all.sort((a, b) => score(b) - score(a) || byName(a, b));
-  }, [data, query, sort, times, byArtist, playedByArtist]);
+  }, [filtered, sort, shuffledArtists, times, byArtist, playedByArtist]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>

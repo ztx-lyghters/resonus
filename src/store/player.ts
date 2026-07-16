@@ -1283,23 +1283,35 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   clearQueue: () => {
-    const { queue, index, queuedCount, originalQueue } = get();
+    const { queue, index, queuedCount, originalQueue, radioMode } = get();
     const current = queue[index];
     if (!current) return undefined;
-    set({ queue: [current], index: 0, queuedCount: 0, originalQueue: null });
+    // Vaciar apaga también la radio. Si no, quedaba zombi: el autoplay solo se
+    // dispara al EMPEZAR una canción, y tras vaciar ya no empieza ninguna, así
+    // que el icono decía "radio activa" en una radio que nunca iba a alargarse.
+    set({ queue: [current], index: 0, queuedCount: 0, originalQueue: null, radioMode: false });
     scheduleSync();
     return () => {
       // Solo si la cola sigue como la dejó el vaciado (no se pisa nada nuevo).
       const st = get();
       if (st.queue.length !== 1 || st.queue[0]?.id !== current.id) return;
-      set({ queue, index, queuedCount, originalQueue });
+      set({ queue, index, queuedCount, originalQueue, radioMode });
       scheduleSync();
     };
   },
 
   stopAndClear: async () => {
-    const { queue, index, positionSec, queuedCount, originalQueue, shuffle, source, sourceHref } =
-      get();
+    const {
+      queue,
+      index,
+      positionSec,
+      queuedCount,
+      originalQueue,
+      shuffle,
+      source,
+      sourceHref,
+      radioMode,
+    } = get();
     if (queue.length === 0) return undefined;
     // Parada deliberada: se olvida también la copia guardada, para que la
     // cola no reaparezca al reabrir la app.
@@ -1321,6 +1333,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
           shuffle,
           source,
           sourceHref,
+          radioMode,
         });
         // Como al restaurar la cola guardada: pista cargada, en pausa.
         await loadIndex(index, false);
@@ -1583,6 +1596,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       originalQueue: null,
       source: null,
       sourceHref: null,
+      radioMode: false,
     });
   },
 }));

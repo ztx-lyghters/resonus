@@ -192,16 +192,20 @@ export default function ArtistScreen() {
         {top.length > 0 ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{t('Popular')}</Text>
-            {top.slice(0, songsExpanded ? 10 : 5).map((song, i) => (
-              <TrackRow
-                key={song.id}
-                song={song}
-                position={i + 1}
-                isCurrent={playing?.id === song.id}
-                showArtwork={showListArtwork}
-                onPress={() => playQueue(top, i, data.artist.name, `/artist/${id}`)}
-              />
-            ))}
+            {/* Mismo margen lateral que las listas (álbum/playlist) para que las
+                filas —y el botón de tres puntos— no queden pegadas al borde. */}
+            <View style={styles.popularRows}>
+              {top.slice(0, songsExpanded ? 10 : 5).map((song, i) => (
+                <TrackRow
+                  key={song.id}
+                  song={song}
+                  position={i + 1}
+                  isCurrent={playing?.id === song.id}
+                  showArtwork={showListArtwork}
+                  onPress={() => playQueue(top, i, data.artist.name, `/artist/${id}`)}
+                />
+              ))}
+            </View>
             {top.length > 5 ? (
               <Pressable
                 hitSlop={8}
@@ -347,6 +351,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   section: { marginBottom: spacing.xl },
+  popularRows: { paddingHorizontal: spacing.lg },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',

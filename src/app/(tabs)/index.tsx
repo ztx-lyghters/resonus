@@ -21,8 +21,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   coverArtUrl,
   getAlbumList,
+  getArtists,
   getPlaylists,
   type Album,
+  type Artist,
 } from '@/api/data';
 import { AlbumCard } from '@/components/AlbumCard';
 import { AlbumCardsSkeleton } from '@/components/AlbumCardsSkeleton';
@@ -33,7 +35,7 @@ import { useT } from '@/i18n';
 import { useAuthStore } from '@/store/auth';
 import { useLastPlayed } from '@/store/lastPlayed';
 import { useScanProgress } from '@/store/scanProgress';
-import { useSettings } from '@/store/settings';
+import { useSettings, type HomeSectionKey } from '@/store/settings';
 import { colors, fontSize, radius, spacing, SCREEN_BOTTOM_PADDING } from '@/theme';
 import { listPerf } from '@/lib/listPerf';
 
@@ -162,6 +164,110 @@ function AlbumSection({
   );
 }
 
+/** Baraja una copia (Fisher-Yates); para las secciones "al azar". */
+function shuffled<T>(arr: T[]): T[] {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+const ARTIST_SIZE = 130;
+
+function ArtistCircle({ artist }: { artist: Artist }) {
+  return (
+    <Link href={`/artist/${artist.id}`} asChild>
+      <Pressable style={styles.artistCard}>
+        <Cover uri={coverArtUrl(artist.coverArt ?? artist.id, 300)} size={ARTIST_SIZE} rounded />
+        <Text style={styles.artistName} numberOfLines={1}>
+          {artist.name}
+        </Text>
+      </Pressable>
+    </Link>
+  );
+}
+
+/** Fila de artistas al azar (para redescubrir). */
+function ArtistSection({ title }: { title: string }) {
+  const canFetch = useAuthStore((s) => !!s.auth || s.offline);
+  const { data, isLoading } = useQuery({
+    queryKey: ['artists'],
+    queryFn: () => getArtists(),
+    enabled: canFetch,
+  });
+  // Selección al azar estable: solo se rebaraja cuando cambia la lista.
+  const artists = useMemo(() => (data ? shuffled(data).slice(0, 10) : []), [data]);
+
+  if (isLoading) {
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        <AlbumCardsSkeleton horizontal />
+      </View>
+    );
+  }
+  if (artists.length === 0) return null;
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <FlatList
+        {...listPerf}
+        horizontal
+        data={artists}
+        keyExtractor={(item: Artist) => item.id}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.rowContent}
+        renderItem={({ item }) => <ArtistCircle artist={item} />}
+      />
+    </View>
+  );
+}
+
+// Discover = redescubrir: OpenSubsonic no tiene endpoint propio, así que
+// tomamos tus álbumes por última reproducción (`recent`), saltamos los más
+// recientes (offset) y barajamos la cola → "escuchado pero no últimamente".
+const DISCOVER_OFFSET = 15;
+const DISCOVER_POOL = 50;
+
+function DiscoverSection({ title }: { title: string }) {
+  const canFetch = useAuthStore((s) => !!s.auth || s.offline);
+  const { data, isLoading } = useQuery({
+    queryKey: ['albumList', 'discover'],
+    queryFn: () => getAlbumList('recent', DISCOVER_POOL, DISCOVER_OFFSET),
+    enabled: canFetch,
+  });
+  // Selección estable: solo se rebaraja al recargar la lista (pull-to-refresh).
+  const albums = useMemo(() => (data ? shuffled(data).slice(0, 10) : []), [data]);
+
+  if (isLoading) {
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        <AlbumCardsSkeleton horizontal />
+      </View>
+    );
+  }
+  if (albums.length === 0) return null;
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <FlatList
+        {...listPerf}
+        horizontal
+        data={albums}
+        keyExtractor={(item: Album) => item.id}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.rowContent}
+        renderItem={({ item }) => <AlbumCard album={item} />}
+      />
+    </View>
+  );
+}
+
 const EXPLORE: { href: string; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
   { href: '/browse/albums', icon: 'disc-outline', label: 'Albums' },
   { href: '/browse/artists', icon: 'people-outline', label: 'Artists' },
@@ -226,6 +332,18 @@ function ScanningPanel() {
   );
 }
 
+/** Título (clave i18n) y tipo de lista de las secciones que usan AlbumSection.
+ *  «discover» y «randomArtists» se pintan con sus propios componentes. */
+const HOME_ALBUM_CONFIG: Record<
+  Exclude<HomeSectionKey, 'randomArtists' | 'discover'>,
+  { title: string; type: 'newest' | 'recent' | 'frequent' | 'random' }
+> = {
+  recentlyAdded: { title: 'Recently added', type: 'newest' },
+  recentlyPlayed: { title: 'Recently played', type: 'recent' },
+  mostPlayed: { title: 'Most played', type: 'frequent' },
+  randomAlbums: { title: 'Random albums', type: 'random' },
+};
+
 export default function HomeScreen() {
   const auth = useAuthStore((s) => s.auth);
   const offline = useAuthStore((s) => s.offline);
@@ -237,6 +355,7 @@ export default function HomeScreen() {
   const showProfileButton = useSettings((s) => s.showProfileButton);
   const showQuickGrid = useSettings((s) => s.showQuickGrid);
   const showExploreChips = useSettings((s) => s.showExploreChips);
+  const homeSections = useSettings((s) => s.homeSections);
   // El anillo del avatar lee el acento del store (no la constante global), así
   // se recolorea siempre al cambiarlo o al hidratar; Home es la pantalla
   // inicial y se pinta antes de aplicarse el acento guardado.
@@ -326,19 +445,22 @@ export default function HomeScreen() {
           <>
             {showQuickGrid ? <QuickGrid /> : null}
 
-            {offline ? (
-              <>
-                <AlbumSection title={t('Recently added')} type="newest" />
-                <AlbumSection title={t('Most played')} type="frequent" />
-                <AlbumSection title={t('Shuffle')} type="random" />
-              </>
-            ) : (
-              <>
-                <AlbumSection title={t('Recently added')} type="newest" />
-                <AlbumSection title={t('Recently played')} type="recent" />
-                <AlbumSection title={t('Most played')} type="frequent" />
-              </>
-            )}
+            {/* Filas activables y reordenables (Ajustes → Personalización →
+                Secciones de Inicio). «Recently played» no existe en offline. */}
+            {homeSections.map((s) => {
+              // «Recently played» y «Discover» dependen del historial del
+              // servidor: no aplican en offline.
+              if (!s.enabled) return null;
+              if ((s.key === 'recentlyPlayed' || s.key === 'discover') && offline) return null;
+              if (s.key === 'discover') {
+                return <DiscoverSection key={s.key} title={t('Discover')} />;
+              }
+              if (s.key === 'randomArtists') {
+                return <ArtistSection key={s.key} title={t('Random artists')} />;
+              }
+              const cfg = HOME_ALBUM_CONFIG[s.key];
+              return <AlbumSection key={s.key} title={t(cfg.title)} type={cfg.type} />;
+            })}
           </>
         )}
       </ScrollView>
@@ -417,6 +539,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   rowContent: { paddingHorizontal: spacing.lg, gap: spacing.md },
+  artistCard: { width: ARTIST_SIZE, alignItems: 'center', gap: spacing.xs },
+  artistName: {
+    color: colors.text,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+    marginTop: spacing.xs,
+    textAlign: 'center',
+  },
   scanPanel: {
     alignItems: 'center',
     gap: spacing.sm,

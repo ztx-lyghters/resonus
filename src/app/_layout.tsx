@@ -154,6 +154,7 @@ export default function RootLayout() {
                 <Stack.Screen name="settings/language" />
                 <Stack.Screen name="settings/font" />
                 <Stack.Screen name="settings/personalization" />
+                <Stack.Screen name="settings/home-sections" />
                 <Stack.Screen name="settings/theme" />
                 <Stack.Screen name="settings/about" />
               </Stack.Protected>

@@ -121,6 +121,13 @@ export default function AppearanceSettings() {
           ]}
         />
 
+        <SettingRow
+          label={t('Home sections')}
+          description={t('Show, hide and reorder the album rows on Home.')}
+          chevron
+          onPress={() => router.push('/settings/home-sections')}
+        />
+
         <Text style={settingsStyles.sectionTitle}>{t('Interface')}</Text>
         <SwitchList
           options={[

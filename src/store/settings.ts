@@ -67,6 +67,64 @@ export type CoverTapAction = 'none' | 'screen' | 'inline';
 /** Acción al deslizar una canción a la derecha en las listas (customizable). */
 export type SwipeAction = 'off' | 'queue' | 'next' | 'favorite' | 'menu';
 
+/** Fila de Inicio. `recentlyPlayed` y `discover` son solo servidor; `discover`
+ *  redescubre álbumes escuchados hace tiempo; `randomAlbums`/`randomArtists`
+ *  son al azar puro. */
+export type HomeSectionKey =
+  | 'recentlyAdded'
+  | 'recentlyPlayed'
+  | 'mostPlayed'
+  | 'discover'
+  | 'randomAlbums'
+  | 'randomArtists';
+
+/** Sección de Inicio con su estado (el orden lo da la posición en la lista). */
+export interface HomeSection {
+  key: HomeSectionKey;
+  enabled: boolean;
+}
+
+const HOME_SECTION_KEYS: HomeSectionKey[] = [
+  'recentlyAdded',
+  'recentlyPlayed',
+  'mostPlayed',
+  'discover',
+  'randomAlbums',
+  'randomArtists',
+];
+
+/** Orden y estado por defecto (las opcionales apagadas para no recargar Inicio). */
+export const DEFAULT_HOME_SECTIONS: HomeSection[] = [
+  { key: 'recentlyAdded', enabled: true },
+  { key: 'recentlyPlayed', enabled: true },
+  { key: 'mostPlayed', enabled: true },
+  { key: 'discover', enabled: false },
+  { key: 'randomAlbums', enabled: false },
+  { key: 'randomArtists', enabled: false },
+];
+
+/**
+ * Sanea la lista guardada: conserva el orden y estado del usuario, descarta
+ * claves desconocidas y añade al final las secciones nuevas que no estuvieran
+ * (así una versión futura con más secciones no rompe la config existente).
+ */
+export function normalizeHomeSections(raw: unknown): HomeSection[] {
+  if (!Array.isArray(raw)) return DEFAULT_HOME_SECTIONS.map((s) => ({ ...s }));
+  const seen = new Set<HomeSectionKey>();
+  const out: HomeSection[] = [];
+  for (const item of raw) {
+    const key = item?.key as HomeSectionKey;
+    if (HOME_SECTION_KEYS.includes(key) && !seen.has(key)) {
+      seen.add(key);
+      out.push({ key, enabled: typeof item.enabled === 'boolean' ? item.enabled : true });
+    }
+  }
+  for (const def of DEFAULT_HOME_SECTIONS) {
+    if (!seen.has(def.key)) out.push({ ...def });
+  }
+  return out;
+}
+
 /** Nombre visible de cada fuente (nombres propios: no se traducen). */
 export const APP_FONT_LABELS: Record<AppFont, string> = {
   system: 'Roboto',
@@ -146,6 +204,8 @@ interface SettingsState {
   swipeAction: SwipeAction;
   /** Acción al deslizar una canción a la izquierda en las listas. */
   swipeLeftAction: SwipeAction;
+  /** Filas de álbumes de Inicio, en orden (cada una con su estado). */
+  homeSections: HomeSection[];
   /** Cuadrícula de acceso rápido (Favoritos + recientes) arriba en Inicio. */
   showQuickGrid: boolean;
   /** Chips de explorar (Álbumes/Artistas/Géneros/Radio) arriba en Inicio. */
@@ -190,6 +250,9 @@ interface SettingsState {
   setSeekButtonsSec: (value: number) => void;
   setSwipeAction: (value: SwipeAction) => void;
   setSwipeLeftAction: (value: SwipeAction) => void;
+  setHomeSection: (key: HomeSectionKey, value: boolean) => void;
+  /** Reemplaza la lista completa (para reordenar). */
+  setHomeSections: (sections: HomeSection[]) => void;
   setShowQuickGrid: (value: boolean) => void;
   setShowExploreChips: (value: boolean) => void;
   setShowFolderBrowser: (value: boolean) => void;
@@ -238,6 +301,7 @@ function snapshot(get: () => SettingsState) {
     seekButtonsSec: s.seekButtonsSec,
     swipeAction: s.swipeAction,
     swipeLeftAction: s.swipeLeftAction,
+    homeSections: s.homeSections,
     showQuickGrid: s.showQuickGrid,
     showExploreChips: s.showExploreChips,
     showFolderBrowser: s.showFolderBrowser,
@@ -282,6 +346,7 @@ const DEFAULTS = {
   // izquierda no hace nada (opt-in).
   swipeAction: 'queue' as SwipeAction,
   swipeLeftAction: 'off' as SwipeAction,
+  homeSections: DEFAULT_HOME_SECTIONS.map((s) => ({ ...s })),
   showQuickGrid: true,
   showExploreChips: true,
   showFolderBrowser: false,
@@ -426,6 +491,18 @@ export const useSettings = create<SettingsState>((set, get) => ({
     persist(snapshot(get));
   },
 
+  setHomeSection: (key, value) => {
+    set((s) => ({
+      homeSections: s.homeSections.map((x) => (x.key === key ? { ...x, enabled: value } : x)),
+    }));
+    persist(snapshot(get));
+  },
+
+  setHomeSections: (homeSections) => {
+    set({ homeSections });
+    persist(snapshot(get));
+  },
+
   setSwipeAction: (swipeAction) => {
     set({ swipeAction });
     persist(snapshot(get));
@@ -516,6 +593,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
           seekButtonsSec: number;
           swipeAction: SwipeAction;
           swipeLeftAction: SwipeAction;
+          homeSections: unknown;
           /** Ajuste antiguo (booleano); se migra a swipeAction. */
           swipeToQueue: boolean;
           showQuickGrid: boolean;
@@ -649,6 +727,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
           parsed.swipeLeftAction === 'menu'
         ) {
           set({ swipeLeftAction: parsed.swipeLeftAction });
+        }
+        if (Array.isArray(parsed.homeSections)) {
+          set({ homeSections: normalizeHomeSections(parsed.homeSections) });
         }
         if (typeof parsed.showQuickGrid === 'boolean') {
           set({ showQuickGrid: parsed.showQuickGrid });

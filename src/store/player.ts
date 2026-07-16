@@ -38,6 +38,7 @@ import {
 import { prefetchLyrics } from '@/hooks/useLyrics';
 import { getItem, setItem } from '@/lib/storage';
 import { useAuthStore } from './auth';
+import { useEqualizer } from './equalizer';
 import { useLastPlayed } from './lastPlayed';
 import {
   initUpnp,
@@ -112,6 +113,10 @@ function ensurePlayer(idx: number): AudioPlayer {
   // Solo el dueño de la sesión emite estos eventos; no hay dobles saltos.
   p.addListener('remotePrevious', () => usePlayerStore.getState().previous());
   p.addListener('remoteNext', () => usePlayerStore.getState().next());
+  // Ecualizador: el efecto nativo se engancha a la sesión de audio de ESTE
+  // player. Como son singletons (dos alternos para el crossfade), basta con
+  // hacerlo al crearlos; el estado guardado se aplica solo.
+  useEqualizer.getState().attach(p.audioSessionId);
   players[idx] = p;
   return p;
 }
@@ -308,6 +313,10 @@ async function loadIndex(index: number, autoplay: boolean) {
   if (!song) return;
   await ensureAudioMode();
   const p = ensurePlayer(activeIdx);
+  // Reintento de enganche del ecualizador: al crear el player la sesión de
+  // audio puede no estar asignada todavía. Es idempotente (el nativo ignora
+  // sesiones repetidas y el id 0), así que sale barato asegurarlo aquí.
+  useEqualizer.getState().attach(p.audioSessionId);
   try {
     p.replace(sourceFor(song));
     p.loop = repeat === 'one';

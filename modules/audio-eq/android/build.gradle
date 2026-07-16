@@ -1,0 +1,25 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+group = 'expo.modules.audioeq'
+version = '0.0.1'
+
+def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
+apply from: expoModulesCorePlugin
+applyKotlinExpoModulesCorePlugin()
+useCoreDependencies()
+useExpoPublishing()
+
+android {
+  namespace "expo.modules.audioeq"
+  compileSdk rootProject.ext.compileSdkVersion ?: 35
+  defaultConfig {
+    minSdkVersion rootProject.ext.minSdkVersion ?: 24
+    targetSdkVersion rootProject.ext.targetSdkVersion ?: 35
+  }
+}
+
+dependencies {
+  implementation project(':expo-modules-core')
+  // El ecualizador es del framework (android.media.audiofx): sin dependencias.
+}

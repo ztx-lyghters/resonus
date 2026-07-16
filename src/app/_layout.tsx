@@ -21,6 +21,7 @@ import { installAppFont, setAppFont } from '@/lib/appFont';
 import { queryClient } from '@/lib/query';
 import { useAuthStore } from '@/store/auth';
 import { useDownloads } from '@/store/downloads';
+import { useEqualizer } from '@/store/equalizer';
 import { useLastPlayed } from '@/store/lastPlayed';
 import { useLibraries } from '@/store/libraries';
 import { checkAutoUrlNow, initAutoUrl } from '@/store/autoUrl';
@@ -70,6 +71,8 @@ export default function RootLayout() {
     void useLastPlayed.getState().hydrate();
     void usePins.getState().hydrate();
     void useDownloads.getState().hydrate();
+    // Ecualizador: lee las capacidades del móvil y aplica lo guardado.
+    void useEqualizer.getState().hydrate();
     initNetworkType();
     // Conmutación de URL de servidor al cambiar de red (perfiles con varias
     // URLs); re-sondea también al cambiar de perfil.
@@ -155,6 +158,7 @@ export default function RootLayout() {
                 <Stack.Screen name="settings/font" />
                 <Stack.Screen name="settings/personalization" />
                 <Stack.Screen name="settings/home-sections" />
+                <Stack.Screen name="settings/equalizer" />
                 <Stack.Screen name="settings/theme" />
                 <Stack.Screen name="settings/about" />
               </Stack.Protected>

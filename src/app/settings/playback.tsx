@@ -4,15 +4,24 @@
  * en local (crossfade y letras online); el resto es de servidor. Lo relativo
  * a descargas vive en Ajustes › Descargas.
  */
+import { useRouter } from 'expo-router';
 import { ScrollView, Text } from 'react-native';
 
-import { SelectList, SettingsPage, settingsStyles, SliderRow, SwitchList } from '@/components/SettingsUI';
+import {
+  SelectList,
+  SettingRow,
+  SettingsPage,
+  settingsStyles,
+  SliderRow,
+  SwitchList,
+} from '@/components/SettingsUI';
 import { useT } from '@/i18n';
 import { useAuthStore } from '@/store/auth';
 import { BITRATE_OPTIONS, useSettings } from '@/store/settings';
 
 export default function PlaybackSettings() {
   const t = useT();
+  const router = useRouter();
   const offline = useAuthStore((s) => s.offline);
   const maxBitRate = useSettings((s) => s.maxBitRate);
   const setMaxBitRate = useSettings((s) => s.setMaxBitRate);
@@ -90,6 +99,13 @@ export default function PlaybackSettings() {
             ]}
           />
         )}
+
+        <SettingRow
+          label={t('Equalizer')}
+          description={t('Tune the sound band by band.')}
+          chevron
+          onPress={() => router.push('/settings/equalizer')}
+        />
 
         <Text style={settingsStyles.sectionTitle}>{t('Extras')}</Text>
         <SwitchList

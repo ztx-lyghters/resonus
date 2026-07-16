@@ -410,6 +410,13 @@
   "Songs already downloaded will be kept.": "Les cançons ja descarregades es conserven.",
   "Stop": "Atura",
   "Stop download?": "Vols aturar la descàrrega?",
+  "Apply the equalizer to the app audio.": "Aplica l'equalitzador a l'àudio de l'app.",
+  "Bands": "Bandes",
+  "Equalizer": "Equalitzador",
+  "Preset": "Predefinit",
+  "Reset bands": "Restableix les bandes",
+  "This device does not offer an equalizer.": "Aquest dispositiu no ofereix equalitzador.",
+  "Tune the sound band by band.": "Ajusta el so banda a banda.",
   "{songs} will be saved to this device.": "{songs} es guardaran en aquest dispositiu.",
   "“Original” uses the highest quality; a lower bitrate saves data.": "«Original» utilitza la màxima qualitat; un bitrate més baix estalvia dades.",
   "“{name}” will no longer be available offline.": "«{name}» ja no estarà disponible fora de línia."

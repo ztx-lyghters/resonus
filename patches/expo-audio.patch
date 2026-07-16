@@ -1,3 +1,23 @@
+diff --git a/android/src/main/java/expo/modules/audio/AudioModule.kt b/android/src/main/java/expo/modules/audio/AudioModule.kt
+index 72a6e9e990bdc9bab549536981fc2e08eeb4837e..cbc7c04fee051fb1caa9ac1bee6214fed3f6f102 100644
+--- a/android/src/main/java/expo/modules/audio/AudioModule.kt
++++ b/android/src/main/java/expo/modules/audio/AudioModule.kt
+@@ -332,6 +332,15 @@ class AudioModule : Module() {
+         player.id
+       }
+ 
++      // Android audio session id of the underlying ExoPlayer. Needed to attach
++      // audio effects (android.media.audiofx) such as an equalizer to this
++      // player's output. Already used internally for the Visualizer.
++      Property("audioSessionId") { player ->
++        runOnMain {
++          player.ref.audioSessionId
++        }
++      }
++
+       Property("isBuffering") { player ->
+         runOnMain {
+           player.ref.playbackState == Player.STATE_BUFFERING
 diff --git a/android/src/main/java/expo/modules/audio/AudioPlayer.kt b/android/src/main/java/expo/modules/audio/AudioPlayer.kt
 index f7c43641fc12b627c70759fb49bbe65e746c4c1d..ba58ad275b26e762070be2c07c193ae91890df51 100644
 --- a/android/src/main/java/expo/modules/audio/AudioPlayer.kt
@@ -238,10 +258,22 @@ index a290f9aed8224d89cca6361c102d26b24feaa2ce..7008466705ffdacc2d8ab113d334b822
  //# sourceMappingURL=AudioConstants.d.ts.map
 \ No newline at end of file
 diff --git a/build/AudioModule.types.d.ts b/build/AudioModule.types.d.ts
-index 93b69010ae4cef81c18761ca4fedca8b4089f16f..597d536de211bdaacdcc0b3d7fbfb679f2786bda 100644
+index 93b69010ae4cef81c18761ca4fedca8b4089f16f..da9d15434dd0393835bca178f8da2154f8ca6c00 100644
 --- a/build/AudioModule.types.d.ts
 +++ b/build/AudioModule.types.d.ts
-@@ -219,6 +219,10 @@ export type AudioEvents = {
+@@ -28,6 +28,11 @@ export declare class AudioPlayer extends SharedObject<AudioEvents> {
+      * Unique identifier for the player object.
+      */
+     id: string;
++    /**
++     * Android audio session id of the underlying player, for attaching audio
++     * effects (such as an equalizer) to this player's output. Android only.
++     */
++    audioSessionId: number;
+     /**
+      * Boolean value indicating whether the player is currently playing.
+      */
+@@ -219,6 +224,10 @@ export type AudioEvents = {
      playbackStatusUpdate(status: AudioStatus): void;
      /** Fired when audio sampling is enabled and new sample data is available. */
      audioSampleUpdate(data: AudioSample): void;

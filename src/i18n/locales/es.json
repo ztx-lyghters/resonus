@@ -410,6 +410,13 @@
   "Songs already downloaded will be kept.": "Las canciones ya descargadas se conservan.",
   "Stop": "Detener",
   "Stop download?": "¿Detener la descarga?",
+  "Apply the equalizer to the app audio.": "Aplica el ecualizador al audio de la app.",
+  "Bands": "Bandas",
+  "Equalizer": "Ecualizador",
+  "Preset": "Preajuste",
+  "Reset bands": "Restablecer bandas",
+  "This device does not offer an equalizer.": "Este dispositivo no ofrece ecualizador.",
+  "Tune the sound band by band.": "Ajusta el sonido banda a banda.",
   "{songs} will be saved to this device.": "{songs} se guardarán en este dispositivo.",
   "“Original” uses the highest quality; a lower bitrate saves data.": "«Original» usa la máxima calidad; bajar el bitrate ahorra datos.",
   "“{name}” will no longer be available offline.": "«{name}» dejará de estar disponible sin conexión."

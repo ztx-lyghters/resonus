@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenHeader, settingsStyles } from '@/components/SettingsUI';
 import { useT } from '@/i18n';
 import { haptic } from '@/lib/haptics';
+import { useAuthStore } from '@/store/auth';
 import { useSettings, type HomeSection, type HomeSectionKey } from '@/store/settings';
 import { colors, fontSize, radius, spacing, SCREEN_BOTTOM_PADDING } from '@/theme';
 
@@ -58,23 +59,37 @@ function SectionRow({ section }: { section: HomeSection }) {
   );
 }
 
+/** Secciones que en local no existen: su fila aquí prometería algo que Inicio
+ *  nunca pinta (mismo criterio que el navegador de carpetas en Aspecto). */
+const SERVER_ONLY: HomeSectionKey[] = ['discover'];
+
 export default function HomeSectionsSettings() {
   const t = useT();
+  const offline = useAuthStore((s) => s.offline);
   const homeSections = useSettings((s) => s.homeSections);
   const setHomeSections = useSettings((s) => s.setHomeSections);
+  const visible = offline
+    ? homeSections.filter((s) => !SERVER_ONLY.includes(s.key))
+    : homeSections;
 
   return (
     <SafeAreaView style={settingsStyles.safe} edges={['top']}>
       <ScreenHeader title={t('Home sections')} />
       <Text style={styles.hint}>{t('Drag to reorder, toggle to show or hide.')}</Text>
       <ReorderableList
-        data={homeSections}
+        data={visible}
         keyExtractor={(item) => item.key}
         renderItem={({ item }) => <SectionRow section={item} />}
         onReorder={({ from, to }: ReorderableListReorderEvent) => {
-          const next = homeSections.slice();
-          const [moved] = next.splice(from, 1);
-          next.splice(to, 0, moved);
+          const nextVisible = visible.slice();
+          const [moved] = nextVisible.splice(from, 1);
+          nextVisible.splice(to, 0, moved);
+          // Las ocultas vuelven a su posición absoluta: reordenar en local no
+          // debe perder ni recolocar la config de las filas solo-servidor.
+          let vi = 0;
+          const next = homeSections.map((s) =>
+            offline && SERVER_ONLY.includes(s.key) ? s : nextVisible[vi++],
+          );
           setHomeSections(next);
         }}
         contentContainerStyle={styles.list}

@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenHeader, settingsStyles } from '@/components/SettingsUI';
 import { useT } from '@/i18n';
 import { haptic } from '@/lib/haptics';
+import { useAuthStore } from '@/store/auth';
 import { useSettings, type ExploreChip, type ExploreChipKey } from '@/store/settings';
 import { colors, fontSize, radius, spacing, SCREEN_BOTTOM_PADDING } from '@/theme';
 
@@ -60,23 +61,37 @@ function ChipRow({ chip }: { chip: ExploreChip }) {
   );
 }
 
+/** Chips que en local no existen (Inicio los filtra por OFFLINE_KEYS): su fila
+ *  aquí prometería algo que nunca aparece. */
+const SERVER_ONLY: ExploreChipKey[] = ['genres', 'radio'];
+
 export default function ExploreChipsSettings() {
   const t = useT();
+  const offline = useAuthStore((s) => s.offline);
   const exploreChips = useSettings((s) => s.exploreChips);
   const setExploreChips = useSettings((s) => s.setExploreChips);
+  const visible = offline
+    ? exploreChips.filter((c) => !SERVER_ONLY.includes(c.key))
+    : exploreChips;
 
   return (
     <SafeAreaView style={settingsStyles.safe} edges={['top']}>
       <ScreenHeader title={t('Explore chips')} />
       <Text style={styles.hint}>{t('Drag to reorder, toggle to show or hide.')}</Text>
       <ReorderableList
-        data={exploreChips}
+        data={visible}
         keyExtractor={(item) => item.key}
         renderItem={({ item }) => <ChipRow chip={item} />}
         onReorder={({ from, to }: ReorderableListReorderEvent) => {
-          const next = exploreChips.slice();
-          const [moved] = next.splice(from, 1);
-          next.splice(to, 0, moved);
+          const nextVisible = visible.slice();
+          const [moved] = nextVisible.splice(from, 1);
+          nextVisible.splice(to, 0, moved);
+          // Las ocultas vuelven a su posición absoluta: reordenar en local no
+          // debe perder ni recolocar la config de los chips solo-servidor.
+          let vi = 0;
+          const next = exploreChips.map((c) =>
+            offline && SERVER_ONLY.includes(c.key) ? c : nextVisible[vi++],
+          );
           setExploreChips(next);
         }}
         contentContainerStyle={styles.list}

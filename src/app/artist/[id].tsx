@@ -135,8 +135,12 @@ export default function ArtistScreen() {
 
   async function shufflePlay() {
     if (top.length === 0) return;
-    await playQueue(top, 0, name, `/artist/${id}`);
-    toggleShuffle();
+    // Pista inicial al azar y DESPUÉS el modo aleatorio, como el resto de
+    // pantallas: el modo aleatorio solo baraja lo que queda por sonar, así que
+    // arrancar en la 0 hacía que la nº 1 del top sonara siempre primero.
+    // Se espera a playQueue (resetea `shuffle`, de ahí leerlo fresco después).
+    await playQueue(top, Math.floor(Math.random() * top.length), name, `/artist/${id}`);
+    if (!usePlayerStore.getState().shuffle) toggleShuffle();
   }
 
   return (

@@ -125,6 +125,48 @@ export function normalizeHomeSections(raw: unknown): HomeSection[] {
   return out;
 }
 
+/** Chip de la fila de explorar de Inicio. `genres` y `radio` son solo servidor. */
+export type ExploreChipKey = 'shuffle' | 'albums' | 'artists' | 'genres' | 'radio';
+
+/** Chip con su estado (el orden lo da la posición en la lista). */
+export interface ExploreChip {
+  key: ExploreChipKey;
+  enabled: boolean;
+}
+
+const EXPLORE_CHIP_KEYS: ExploreChipKey[] = ['shuffle', 'albums', 'artists', 'genres', 'radio'];
+
+/** Orden y estado por defecto: los de siempre, todos visibles. */
+export const DEFAULT_EXPLORE_CHIPS: ExploreChip[] = [
+  { key: 'shuffle', enabled: true },
+  { key: 'albums', enabled: true },
+  { key: 'artists', enabled: true },
+  { key: 'genres', enabled: true },
+  { key: 'radio', enabled: true },
+];
+
+/**
+ * Sanea la lista guardada: conserva el orden y estado del usuario, descarta
+ * claves desconocidas y añade al final los chips nuevos que no estuvieran (así
+ * una versión futura con más chips no rompe la config existente).
+ */
+export function normalizeExploreChips(raw: unknown): ExploreChip[] {
+  if (!Array.isArray(raw)) return DEFAULT_EXPLORE_CHIPS.map((c) => ({ ...c }));
+  const seen = new Set<ExploreChipKey>();
+  const out: ExploreChip[] = [];
+  for (const item of raw) {
+    const key = item?.key as ExploreChipKey;
+    if (EXPLORE_CHIP_KEYS.includes(key) && !seen.has(key)) {
+      seen.add(key);
+      out.push({ key, enabled: typeof item.enabled === 'boolean' ? item.enabled : true });
+    }
+  }
+  for (const def of DEFAULT_EXPLORE_CHIPS) {
+    if (!seen.has(def.key)) out.push({ ...def });
+  }
+  return out;
+}
+
 /** Nombre visible de cada fuente (nombres propios: no se traducen). */
 export const APP_FONT_LABELS: Record<AppFont, string> = {
   system: 'Roboto',
@@ -208,8 +250,9 @@ interface SettingsState {
   homeSections: HomeSection[];
   /** Cuadrícula de acceso rápido (Favoritos + recientes) arriba en Inicio. */
   showQuickGrid: boolean;
-  /** Chips de explorar (Álbumes/Artistas/Géneros/Radio) arriba en Inicio. */
-  showExploreChips: boolean;
+  /** Chips de explorar de Inicio, en orden (cada uno con su estado). Sin
+   *  ninguno activo, la fila desaparece: eso sustituye al viejo interruptor. */
+  exploreChips: ExploreChip[];
   /** Sección "Carpetas" en la Biblioteca (navegación por directorios; Subsonic). */
   showFolderBrowser: boolean;
   /** Visibilidad de botones opcionales, para quien prefiera una UI mínima. */
@@ -254,7 +297,9 @@ interface SettingsState {
   /** Reemplaza la lista completa (para reordenar). */
   setHomeSections: (sections: HomeSection[]) => void;
   setShowQuickGrid: (value: boolean) => void;
-  setShowExploreChips: (value: boolean) => void;
+  setExploreChip: (key: ExploreChipKey, value: boolean) => void;
+  /** Reemplaza la lista completa (para reordenar). */
+  setExploreChips: (chips: ExploreChip[]) => void;
   setShowFolderBrowser: (value: boolean) => void;
   setShowHistoryButton: (value: boolean) => void;
   setShowProfileButton: (value: boolean) => void;
@@ -303,7 +348,7 @@ function snapshot(get: () => SettingsState) {
     swipeLeftAction: s.swipeLeftAction,
     homeSections: s.homeSections,
     showQuickGrid: s.showQuickGrid,
-    showExploreChips: s.showExploreChips,
+    exploreChips: s.exploreChips,
     showFolderBrowser: s.showFolderBrowser,
     showHistoryButton: s.showHistoryButton,
     showProfileButton: s.showProfileButton,
@@ -348,7 +393,7 @@ const DEFAULTS = {
   swipeLeftAction: 'off' as SwipeAction,
   homeSections: DEFAULT_HOME_SECTIONS.map((s) => ({ ...s })),
   showQuickGrid: true,
-  showExploreChips: true,
+  exploreChips: DEFAULT_EXPLORE_CHIPS.map((c) => ({ ...c })),
   showFolderBrowser: false,
   showHistoryButton: true,
   showProfileButton: true,
@@ -513,8 +558,15 @@ export const useSettings = create<SettingsState>((set, get) => ({
     persist(snapshot(get));
   },
 
-  setShowExploreChips: (showExploreChips) => {
-    set({ showExploreChips });
+  setExploreChip: (key, value) => {
+    set((s) => ({
+      exploreChips: s.exploreChips.map((x) => (x.key === key ? { ...x, enabled: value } : x)),
+    }));
+    persist(snapshot(get));
+  },
+
+  setExploreChips: (exploreChips) => {
+    set({ exploreChips });
     persist(snapshot(get));
   },
 
@@ -598,6 +650,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
           swipeToQueue: boolean;
           showQuickGrid: boolean;
           showExploreChips: boolean;
+          exploreChips: unknown;
           showFolderBrowser: boolean;
           showHistoryButton: boolean;
           showProfileButton: boolean;
@@ -734,8 +787,13 @@ export const useSettings = create<SettingsState>((set, get) => ({
         if (typeof parsed.showQuickGrid === 'boolean') {
           set({ showQuickGrid: parsed.showQuickGrid });
         }
-        if (typeof parsed.showExploreChips === 'boolean') {
-          set({ showExploreChips: parsed.showExploreChips });
+        if (Array.isArray(parsed.exploreChips)) {
+          set({ exploreChips: normalizeExploreChips(parsed.exploreChips) });
+        } else if (parsed.showExploreChips === false) {
+          // Migración del interruptor único que había antes: quien tuviera la
+          // fila oculta debe seguir sin verla, no encontrarse los chips de
+          // vuelta. Apagarlos todos es justo lo que la esconde ahora.
+          set({ exploreChips: DEFAULT_EXPLORE_CHIPS.map((c) => ({ ...c, enabled: false })) });
         }
         if (typeof parsed.showFolderBrowser === 'boolean') {
           set({ showFolderBrowser: parsed.showFolderBrowser });

@@ -44,8 +44,6 @@ export default function AppearanceSettings() {
   const setSwipeLeftAction = useSettings((s) => s.setSwipeLeftAction);
   const showQuickGrid = useSettings((s) => s.showQuickGrid);
   const setShowQuickGrid = useSettings((s) => s.setShowQuickGrid);
-  const showExploreChips = useSettings((s) => s.showExploreChips);
-  const setShowExploreChips = useSettings((s) => s.setShowExploreChips);
   const showFolderBrowser = useSettings((s) => s.showFolderBrowser);
   const setShowFolderBrowser = useSettings((s) => s.setShowFolderBrowser);
   const hapticsEnabled = useSettings((s) => s.hapticsEnabled);
@@ -95,12 +93,6 @@ export default function AppearanceSettings() {
         <SwitchList
           options={[
             {
-              label: t('Show explore chips'),
-              description: t('The Albums, Artists, Genres and Radio chips on Home.'),
-              value: showExploreChips,
-              onChange: setShowExploreChips,
-            },
-            {
               label: t('Show quick grid'),
               description: t('The shortcut cards at the top of Home.'),
               value: showQuickGrid,
@@ -119,6 +111,13 @@ export default function AppearanceSettings() {
               onChange: setShowProfileButton,
             },
           ]}
+        />
+
+        <SettingRow
+          label={t('Explore chips')}
+          description={t('Show, hide and reorder the chips at the top of Home.')}
+          chevron
+          onPress={() => router.push('/settings/explore-chips')}
         />
 
         <SettingRow

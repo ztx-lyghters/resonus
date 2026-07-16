@@ -35,7 +35,7 @@ import { useT } from '@/i18n';
 import { useAuthStore } from '@/store/auth';
 import { useLastPlayed } from '@/store/lastPlayed';
 import { useScanProgress } from '@/store/scanProgress';
-import { useSettings, type HomeSectionKey } from '@/store/settings';
+import { useSettings, type ExploreChipKey, type HomeSectionKey } from '@/store/settings';
 import { colors, fontSize, radius, spacing, SCREEN_BOTTOM_PADDING } from '@/theme';
 import { listPerf } from '@/lib/listPerf';
 
@@ -268,22 +268,26 @@ function DiscoverSection({ title }: { title: string }) {
   );
 }
 
-const EXPLORE: { href: string; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
-  // Va primero: es el "ponme algo" sin elegir nada, y la fila hace scroll, así
-  // que en la cuarta o quinta posición nadie lo encontraría.
-  { href: '/shuffle', icon: 'shuffle', label: 'Shuffle' },
-  { href: '/browse/albums', icon: 'disc-outline', label: 'Albums' },
-  { href: '/browse/artists', icon: 'people-outline', label: 'Artists' },
-  { href: '/genres', icon: 'pricetags-outline', label: 'Genres' },
-  { href: '/radio', icon: 'radio-outline', label: 'Radio' },
-];
+/** Destino y aspecto de cada chip; el orden y el estado los pone el usuario
+ *  (Ajustes → Aspecto → Chips de explorar). */
+const EXPLORE: Record<ExploreChipKey, { href: string; icon: keyof typeof Ionicons.glyphMap; label: string }> = {
+  shuffle: { href: '/shuffle', icon: 'shuffle', label: 'Shuffle' },
+  albums: { href: '/browse/albums', icon: 'disc-outline', label: 'Albums' },
+  artists: { href: '/browse/artists', icon: 'people-outline', label: 'Artists' },
+  genres: { href: '/genres', icon: 'pricetags-outline', label: 'Genres' },
+  radio: { href: '/radio', icon: 'radio-outline', label: 'Radio' },
+};
 
-// En local hay álbumes, artistas y aleatorio (radio y géneros son de servidor).
-const OFFLINE_HREFS = new Set(['/shuffle', '/browse/albums', '/browse/artists']);
+// En local hay aleatorio, álbumes y artistas (radio y géneros son de servidor).
+const OFFLINE_KEYS = new Set<ExploreChipKey>(['shuffle', 'albums', 'artists']);
 
 function ExploreChips({ offline }: { offline: boolean }) {
   const t = useT();
-  const chips = offline ? EXPLORE.filter((c) => OFFLINE_HREFS.has(c.href)) : EXPLORE;
+  const chips = useSettings((s) => s.exploreChips).filter(
+    (c) => c.enabled && (!offline || OFFLINE_KEYS.has(c.key)),
+  );
+  // Sin chips no hay fila: eso sustituye al interruptor general que había.
+  if (chips.length === 0) return null;
   return (
     <ScrollView
       horizontal
@@ -291,11 +295,11 @@ function ExploreChips({ offline }: { offline: boolean }) {
       style={styles.chipsRow}
       contentContainerStyle={styles.chips}
     >
-      {chips.map((c) => (
-        <Link key={c.href} href={c.href} asChild>
+      {chips.map(({ key }) => (
+        <Link key={key} href={EXPLORE[key].href} asChild>
           <Pressable style={styles.chip}>
-            <Ionicons name={c.icon} size={16} color={colors.text} />
-            <Text style={styles.chipText}>{t(c.label)}</Text>
+            <Ionicons name={EXPLORE[key].icon} size={16} color={colors.text} />
+            <Text style={styles.chipText}>{t(EXPLORE[key].label)}</Text>
           </Pressable>
         </Link>
       ))}
@@ -357,7 +361,6 @@ export default function HomeScreen() {
   const showHistoryButton = useSettings((s) => s.showHistoryButton);
   const showProfileButton = useSettings((s) => s.showProfileButton);
   const showQuickGrid = useSettings((s) => s.showQuickGrid);
-  const showExploreChips = useSettings((s) => s.showExploreChips);
   const homeSections = useSettings((s) => s.homeSections);
   // El anillo del avatar lee el acento del store (no la constante global), así
   // se recolorea siempre al cambiarlo o al hidratar; Home es la pantalla
@@ -437,7 +440,7 @@ export default function HomeScreen() {
 
         {offline && scanning ? <ScanningPanel /> : null}
 
-        {showExploreChips ? <ExploreChips offline={offline} /> : null}
+        <ExploreChips offline={offline} />
 
         {!offline && serverUnreachable ? (
           <Message

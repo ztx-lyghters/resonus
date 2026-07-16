@@ -275,7 +275,6 @@
   "Show artist photo": "Show artist photo",
   "Show artwork": "Show artwork",
   "Show devices button": "Show devices button",
-  "Show explore chips": "Show explore chips",
   "Show format, bitrate and Lossless / Hi-Res in the player.": "Show format, bitrate and Lossless / Hi-Res in the player.",
   "Show history button": "Show history button",
   "Show less": "Show less",
@@ -328,7 +327,6 @@
   "Swipe right": "Swipe right",
   "Tab bar style": "Tab bar style",
   "Tap the heart on songs to see them here.": "Tap the heart on songs to see them here.",
-  "The Albums, Artists, Genres and Radio chips on Home.": "The Albums, Artists, Genres and Radio chips on Home.",
   "The clock button on Home.": "The clock button on Home.",
   "The current song keeps playing.": "The current song keeps playing.",
   "The lyrics card below the player controls.": "The lyrics card below the player controls.",
@@ -426,5 +424,7 @@
   "Nothing to shuffle yet": "Nothing to shuffle yet",
   "Couldn't load songs.": "Couldn't load songs.",
   "Start mix": "Start mix",
-  "Mix of “{name}”": "Mix of “{name}”"
+  "Mix of “{name}”": "Mix of “{name}”",
+  "Explore chips": "Explore chips",
+  "Show, hide and reorder the chips at the top of Home.": "Show, hide and reorder the chips at the top of Home."
 }

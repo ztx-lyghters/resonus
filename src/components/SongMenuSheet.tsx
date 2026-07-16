@@ -83,6 +83,7 @@ export function SongMenuSheet() {
   const close = () => dismiss(closeNow);
   const addToQueue = usePlayerStore((s) => s.addToQueue);
   const playNext = usePlayerStore((s) => s.playNext);
+  const startRadio = usePlayerStore((s) => s.startRadio);
   const setSleepTimer = usePlayerStore((s) => s.setSleepTimer);
   const setSleepAtSongEnd = usePlayerStore((s) => s.setSleepAtSongEnd);
   const cancelSleepTimer = usePlayerStore((s) => s.cancelSleepTimer);
@@ -354,6 +355,19 @@ export function SongMenuSheet() {
                 icon="mic-outline"
                 label={t('Lyrics')}
                 onPress={() => go('/lyrics')}
+              />
+            ) : null}
+            {/* Con las de reproducción, no con las de organizar: esto cambia la
+                cola y se pone a sonar. Solo online (las parecidas las busca el
+                servidor) y no en emisoras (`url`), que no tienen "parecidas". */}
+            {!offline && !song.url ? (
+              <Action
+                icon="sparkles-outline"
+                label={t('Start mix')}
+                onPress={() => {
+                  close();
+                  void startRadio(song, t('Mix of “{name}”', { name: song.title }));
+                }}
               />
             ) : null}
             <Action

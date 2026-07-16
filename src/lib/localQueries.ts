@@ -313,6 +313,25 @@ export async function getMostPlayedSongs(size = 50): Promise<Song[]> {
     .slice(0, size);
 }
 
+/**
+ * Canciones al azar del catálogo local (la mezcla de Inicio).
+ *
+ * Sin filtro de género a diferencia del servidor: los géneros son cosa del
+ * servidor en toda la app (no hay pantalla de géneros en local), así que aquí
+ * no habría con qué filtrar.
+ */
+export async function getRandomSongs(size = 200): Promise<Song[]> {
+  const c = await ensureCatalog();
+  if (!c) return [];
+  // Fisher-Yates sobre una copia: `c.songs` es el catálogo vivo.
+  const a = c.songs.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a.slice(0, size);
+}
+
 export async function getTopSongs(artist: string, count = 10): Promise<Song[]> {
   const c = await ensureCatalog();
   if (!c) return [];

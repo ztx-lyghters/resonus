@@ -457,6 +457,24 @@ export async function getMostPlayedSongs(
   return (res.Items ?? []).map(toSong);
 }
 
+/** Canciones al azar de toda la biblioteca (la mezcla de Inicio). */
+export async function getRandomSongs(
+  auth: SubsonicAuth,
+  size = 200,
+  genre?: string,
+  _musicFolderId?: string,
+): Promise<Song[]> {
+  const res = await request<JfItems>(auth, `/Users/${auth.jfUserId}/Items`, {
+    IncludeItemTypes: 'Audio',
+    Recursive: true,
+    SortBy: 'Random',
+    Limit: size,
+    ...(genre ? { Genres: genre } : {}),
+    Fields: SONG_FIELDS,
+  });
+  return (res.Items ?? []).map(toSong);
+}
+
 /** Canciones parecidas a una dada vía Instant Mix (autoplay / radio). */
 export async function getSimilarSongs(
   auth: SubsonicAuth,

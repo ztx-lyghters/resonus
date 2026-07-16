@@ -53,7 +53,15 @@ export default function GenreScreen() {
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </Pressable>
         <Text style={styles.title} numberOfLines={1}>{genre}</Text>
-        <View style={{ width: 26 }} />
+        {/* Ocupa el hueco que equilibraba el título. Lleva al Aleatorio con el
+            género puesto: escuchar el género sin ir álbum por álbum. */}
+        <Pressable
+          hitSlop={10}
+          onPress={() => router.push({ pathname: '/shuffle', params: { genre } })}
+          accessibilityLabel={t('Shuffle')}
+        >
+          <Ionicons name="shuffle" size={26} color={colors.text} />
+        </Pressable>
       </View>
 
       {isLoading ? (

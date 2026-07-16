@@ -128,6 +128,13 @@ export const getSimilarSongs = (auth: SubsonicAuth, id: string, count?: number) 
 export const getMostPlayedSongs = (auth: SubsonicAuth, size?: number, musicFolderId?: string) =>
   api(auth).getMostPlayedSongs(auth, size, musicFolderId);
 
+export const getRandomSongs = (
+  auth: SubsonicAuth,
+  size?: number,
+  genre?: string,
+  musicFolderId?: string,
+) => api(auth).getRandomSongs(auth, size, genre, musicFolderId);
+
 export const search = (auth: SubsonicAuth, query: string, musicFolderId?: string) =>
   api(auth).search(auth, query, musicFolderId);
 

@@ -95,8 +95,12 @@ interface Props {
   playlistIndices?: number[];
   /** Si se indica, muestra un botón de orden a la izquierda del ⋯. */
   onSort?: () => void;
-  /** Fila "+ Añadir…" bajo las acciones (estilo Spotify), p. ej. en Favoritos. */
-  addAction?: { label: string; onPress: () => void };
+  /**
+   * Fila de acción bajo las demás (estilo Spotify), p. ej. "+ Añadir…" en
+   * Favoritos. El icono es "+" salvo que se indique otro (la mezcla la usa para
+   * rebarajar).
+   */
+  addAction?: { label: string; icon?: keyof typeof Ionicons.glyphMap; onPress: () => void };
   /** Contenido extra al pie de la lista (p. ej. "Más de este artista"). */
   footer?: ReactNode;
   /** Qué mostrar bajo la cabecera cuando no hay canciones (p. ej. playlist vacía). */
@@ -541,7 +545,11 @@ export function TrackListView({
                 style={({ pressed }) => [styles.addRow, pressed && { opacity: 0.6 }]}
               >
                 <View style={styles.addBox}>
-                  <Ionicons name="add" size={26} color={colors.textSecondary} />
+                  <Ionicons
+                    name={addAction.icon ?? 'add'}
+                    size={26}
+                    color={colors.textSecondary}
+                  />
                 </View>
                 <Text style={styles.addLabel}>{addAction.label}</Text>
               </Pressable>

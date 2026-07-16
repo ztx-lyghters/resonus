@@ -30,10 +30,12 @@ import {
   getOpenSubsonicExtensions,
   getPlayQueue,
   getSimilarSongs,
+  getTopSongs,
   savePlayQueue,
   scrobble,
   streamUrl,
   type Song,
+  type SubsonicAuth,
 } from '@/api/backend';
 import { prefetchLyrics } from '@/hooks/useLyrics';
 import { getItem, setItem } from '@/lib/storage';
@@ -405,22 +407,51 @@ function onTrackChanged(song: Song) {
 }
 
 // ── Autoplay: al acercarse el final de la cola, encolar canciones parecidas ──
-// (estilo Spotify). Solo online, con el ajuste activo y sin repetir petición
-// para la misma última canción.
+// (estilo Spotify). Solo online, con el ajuste activo (o en modo radio) y sin
+// repetir petición para la misma última canción.
 let autoplayFetchedFor: string | null = null;
 
+/**
+ * Canciones con las que alargar una radio a partir de `seed`.
+ *
+ * Primero las parecidas del servidor. Si vienen pocas, tira de lo más escuchado
+ * del artista: `getSimilarSongs` depende de que el servidor tenga Last.fm
+ * configurado, y sin eso la radio se moriría a la primera. Queda un mix más
+ * pobre (mismo artista), pero suena, que es lo que se pidió.
+ */
+async function radioCandidates(auth: SubsonicAuth, seed: Song, want: number): Promise<Song[]> {
+  let similar: Song[] = [];
+  try {
+    similar = await getSimilarSongs(auth, seed.id, want);
+  } catch {
+    // Sin similares seguimos: aún queda el plan B.
+  }
+  if (similar.length >= 5 || !seed.artist) return similar;
+  try {
+    return [...similar, ...(await getTopSongs(auth, seed.artist, 20))];
+  } catch {
+    return similar;
+  }
+}
+
 async function maybeQueueAutoplay() {
-  const { queue, index, repeat } = usePlayerStore.getState();
+  const { queue, index, repeat, radioMode } = usePlayerStore.getState();
   // Con repeat la cola nunca "se acaba"; y si aún quedan 2+ canciones, aún no.
   if (repeat !== 'off' || index < queue.length - 2) return;
   const { auth, offline } = useAuthStore.getState();
-  if (!auth || offline || !useSettings.getState().autoplaySimilar) return;
+  if (!auth || offline) return;
+  // La radio se alarga aunque el ajuste esté apagado: la pediste tú a mano.
+  if (!useSettings.getState().autoplaySimilar && !radioMode) return;
   const last = queue[queue.length - 1];
   if (!last || last.url || autoplayFetchedFor === last.id) return;
   autoplayFetchedFor = last.id;
   let similar: Song[];
   try {
-    similar = await getSimilarSongs(auth, last.id, 20);
+    // El plan B (top del artista) solo en radio: el autoplay de siempre se
+    // comporta como hasta ahora.
+    similar = radioMode
+      ? await radioCandidates(auth, last, 20)
+      : await getSimilarSongs(auth, last.id, 20);
   } catch {
     return; // sin autoplay: la reproducción parará al final, como antes
   }
@@ -909,12 +940,23 @@ interface PlayerState {
   source: string | null;
   /** Ruta del origen para poder navegar a él desde el reproductor. */
   sourceHref: string | null;
+  /**
+   * La cola es una radio: se alarga sola con parecidas aunque el ajuste de
+   * autoplay esté apagado, porque la pediste tú a mano. La enciende
+   * `startRadio`; cualquier otra cola (álbum, lista…) la apaga.
+   */
+  radioMode: boolean;
   playQueue: (
     songs: Song[],
     startIndex?: number,
     source?: string,
     sourceHref?: string,
   ) => Promise<void>;
+  /**
+   * Arranca una radio a partir de una canción: suena ella ya y la cola se va
+   * llenando sola con parecidas, sin fin.
+   */
+  startRadio: (seed: Song, source: string) => Promise<void>;
   addToQueue: (song: Song) => void;
   playNext: (song: Song) => void;
   toggle: () => void;
@@ -978,6 +1020,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   sleepAtSongEnd: false,
   source: null,
   sourceHref: null,
+  radioMode: false,
 
   playQueue: async (songs, startIndex = 0, source, sourceHref) => {
     if (songs.length === 0) return;
@@ -998,8 +1041,19 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       originalQueue: null,
       source: source ?? null,
       sourceHref: sourceHref ?? null,
+      // Cualquier cola normal apaga la radio; `startRadio` la vuelve a encender.
+      radioMode: false,
     });
     await loadIndex(startIndex, true);
+  },
+
+  startRadio: async (seed, source) => {
+    // Suena la semilla ya y las parecidas se piden después: esperar a que
+    // responda el servidor antes de dar al play haría que "iniciar mix" se
+    // sintiera roto. `maybeQueueAutoplay` rellena la cola en segundo plano.
+    await get().playQueue([seed], 0, source);
+    set({ radioMode: true });
+    void maybeQueueAutoplay();
   },
 
   // Estilo Spotify: lo añadido a mano suena justo después de la actual (y de
@@ -1392,6 +1446,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       isPlaying: false,
       source: null,
       sourceHref: null,
+      // Una cola restaurada no es una radio: eso no se guarda.
+      radioMode: false,
     });
     // Cargamos la pista (sin reproducir) y dejamos la posición lista.
     await loadIndex(index, false);
@@ -1432,6 +1488,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       isPlaying: false,
       source: null,
       sourceHref: null,
+      // Una cola restaurada no es una radio: eso no se guarda.
+      radioMode: false,
     });
     await loadIndex(index, false);
     if (positionSec > 0) {

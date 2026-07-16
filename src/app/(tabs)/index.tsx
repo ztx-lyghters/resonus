@@ -269,14 +269,17 @@ function DiscoverSection({ title }: { title: string }) {
 }
 
 const EXPLORE: { href: string; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
+  // Va primero: es el "ponme algo" sin elegir nada, y la fila hace scroll, así
+  // que en la cuarta o quinta posición nadie lo encontraría.
+  { href: '/shuffle', icon: 'shuffle', label: 'Shuffle' },
   { href: '/browse/albums', icon: 'disc-outline', label: 'Albums' },
   { href: '/browse/artists', icon: 'people-outline', label: 'Artists' },
   { href: '/genres', icon: 'pricetags-outline', label: 'Genres' },
   { href: '/radio', icon: 'radio-outline', label: 'Radio' },
 ];
 
-// En local solo hay álbumes y artistas (radio y géneros son de servidor).
-const OFFLINE_HREFS = new Set(['/browse/albums', '/browse/artists']);
+// En local hay álbumes, artistas y aleatorio (radio y géneros son de servidor).
+const OFFLINE_HREFS = new Set(['/shuffle', '/browse/albums', '/browse/artists']);
 
 function ExploreChips({ offline }: { offline: boolean }) {
   const t = useT();

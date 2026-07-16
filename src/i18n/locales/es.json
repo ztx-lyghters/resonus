@@ -419,5 +419,12 @@
   "Tune the sound band by band.": "Ajusta el sonido banda a banda.",
   "{songs} will be saved to this device.": "{songs} se guardarán en este dispositivo.",
   "“Original” uses the highest quality; a lower bitrate saves data.": "«Original» usa la máxima calidad; bajar el bitrate ahorra datos.",
-  "“{name}” will no longer be available offline.": "«{name}» dejará de estar disponible sin conexión."
+  "“{name}” will no longer be available offline.": "«{name}» dejará de estar disponible sin conexión.",
+  "Shuffling…": "Barajando…",
+  "Add music to your library to hear it here.": "Añade música a tu biblioteca para escucharla aquí.",
+  "Shuffle again": "Volver a barajar",
+  "Nothing to shuffle yet": "Aún no hay nada que barajar",
+  "Couldn't load songs.": "No se pudieron cargar las canciones.",
+  "Start mix": "Iniciar mix",
+  "Mix of “{name}”": "Mix de «{name}»"
 }

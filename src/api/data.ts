@@ -152,6 +152,24 @@ export function getMostPlayedSongs(size = 50): Promise<Subsonic.Song[]> {
   );
 }
 
+/**
+ * Canciones al azar de la biblioteca (la mezcla de Inicio).
+ *
+ * Con varias bibliotecas activas se pide a cada una y se vuelve a barajar el
+ * conjunto: si no, saldrían agrupadas por biblioteca, que de aleatorio tiene
+ * poco.
+ */
+export function getRandomSongs(size = 200, genre?: string): Promise<Subsonic.Song[]> {
+  if (isOffline()) return Local.getRandomSongs(size);
+  const a = auth();
+  const ids = enabledFolderIds(a);
+  if (!ids) return Subsonic.getRandomSongs(a, size, genre);
+  if (ids.length === 1) return Subsonic.getRandomSongs(a, size, genre, ids[0]);
+  return Promise.all(ids.map((fid) => Subsonic.getRandomSongs(a, size, genre, fid))).then((lists) =>
+    shuffled(dedupeById(lists.flat())).slice(0, size),
+  );
+}
+
 export function getPlaylists(): Promise<Subsonic.Playlist[]> {
   if (isOffline()) return Local.getPlaylists();
   return Subsonic.getPlaylists(auth());
@@ -248,6 +266,16 @@ export function reorderPlaylist(id: string, songIds: string[]): Promise<void> {
 //
 // El API Subsonic solo filtra por una biblioteca por petición, así que cuando
 // hay varias activas se consulta cada una y se fusionan los resultados aquí.
+
+/** Baraja una copia (Fisher-Yates). */
+function shuffled<T>(items: T[]): T[] {
+  const a = items.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
 /** Quita duplicados por id conservando el primero visto. */
 function dedupeById<T extends { id: string }>(items: T[]): T[] {

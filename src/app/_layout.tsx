@@ -146,6 +146,7 @@ export default function RootLayout() {
                 <Stack.Screen name="genres" />
                 <Stack.Screen name="genre/[name]" />
                 <Stack.Screen name="radio" />
+                <Stack.Screen name="shuffle" />
                 <Stack.Screen name="favorites" />
                 <Stack.Screen name="favorites-add" />
                 <Stack.Screen name="history" />

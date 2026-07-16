@@ -641,6 +641,30 @@ export async function getMostPlayedSongs(
     .slice(0, size);
 }
 
+/**
+ * Canciones al azar de toda la biblioteca (la mezcla de Inicio).
+ *
+ * `size` no es un capricho: el endpoint topa alrededor de 500, así que esto no
+ * baraja la biblioteca entera sino una muestra. En la práctica es lo que se
+ * quiere; nadie navega una cola de 20.000 canciones.
+ *
+ * Acepta `genre` porque es lo que haría falta para una "radio de género" sin
+ * duplicar nada de esto.
+ */
+export async function getRandomSongs(
+  auth: SubsonicAuth,
+  size = 200,
+  genre?: string,
+  musicFolderId?: string,
+): Promise<Song[]> {
+  const res = await request<{ randomSongs?: { song?: Song[] } }>(
+    auth,
+    'getRandomSongs.view',
+    { size, ...(genre ? { genre } : {}), ...(musicFolderId ? { musicFolderId } : {}) },
+  );
+  return res.randomSongs?.song ?? [];
+}
+
 /** Canciones más populares de un artista (por nombre). */
 export async function getTopSongs(
   auth: SubsonicAuth,

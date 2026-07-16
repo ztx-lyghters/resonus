@@ -8,8 +8,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import Slider from '@react-native-community/slider';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Dimensions, Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { SafeAreaView, useSafeAreaFrame, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSettings } from '@/store/settings';
 import { colors, fontSize, radius, spacing, SCREEN_BOTTOM_PADDING } from '@/theme';
@@ -136,7 +136,9 @@ export function SelectList<T extends string | number | boolean>({
   collapsible?: boolean;
 }) {
   const accent = useAccent();
-  // Posición de la fila en pantalla (medida al abrir) y alto real del menú
+  const frame = useSafeAreaFrame();
+  const insets = useSafeAreaInsets();
+  // Posición de la fila en pantalla (medida al abrir) y alto natural del menú
   // (medido al pintarse): con ambos se ancla exacto, pegado a la fila.
   const [anchor, setAnchor] = useState<{ y: number; h: number } | null>(null);
   const [menuH, setMenuH] = useState(0);
@@ -144,15 +146,39 @@ export function SelectList<T extends string | number | boolean>({
   const active = options.find((o) => o.value === value) ?? options[0];
 
   function openMenu() {
-    rowRef.current?.measureInWindow((_x, y, _w, h) => setAnchor({ y, h }));
+    // `measureInWindow` mide desde el contenido de la ventana, es decir BAJO la
+    // barra de estado, mientras que el Modal pinta a pantalla completa, desde
+    // arriba del todo. Son dos orígenes separados justo `insets.top`, y no
+    // sumarlo dejaba el menú esa distancia demasiado alto. Se convierte aquí,
+    // una sola vez, para que el resto del cálculo viva entero en coordenadas de
+    // pantalla (que es en las que va `frame`).
+    rowRef.current?.measureInWindow((_x, y, _w, h) => setAnchor({ y: y + insets.top, h }));
   }
 
-  /** Debajo de la fila; si no cabe, por encima (sin salirse de pantalla). */
-  function menuTopFor(a: { y: number; h: number }, mh: number): number {
-    const winH = Dimensions.get('window').height;
-    const below = a.y + a.h - spacing.xs;
-    if (below + mh <= winH - spacing.xl) return below;
-    return Math.max(spacing.xl, a.y - mh + spacing.xs);
+  /**
+   * Sitúa el menú pegado a la fila: debajo si cabe y, si no, encima.
+   *
+   * Todo va en coordenadas de pantalla (las del Modal y las de `frame`); la
+   * `y` de la fila ya llega convertida desde `openMenu`. Los límites salen del
+   * frame de safe-area y no de `Dimensions.get('window')`, que es de otro
+   * espacio y hacía saltar el "no cabe" antes de tiempo.
+   *
+   * Devuelve también el hueco del lado elegido como tope de altura: con el menú
+   * limitado (y con scroll) siempre existe una posición pegada a la fila, así
+   * que nunca hay que despegarlo al borde de la pantalla.
+   */
+  function menuLayout(a: { y: number; h: number }, mh: number): { top: number; maxHeight: number } {
+    const limitTop = insets.top + spacing.sm;
+    const limitBottom = frame.height - insets.bottom - spacing.sm;
+    const belowTop = a.y + a.h - spacing.xs; // pegado bajo la fila
+    const aboveBottom = a.y + spacing.xs; // pegado sobre la fila
+    const roomBelow = limitBottom - belowTop;
+    const roomAbove = aboveBottom - limitTop;
+    // Abajo si cabe; si no, arriba si cabe; si no cabe en ninguno, el lado con
+    // más hueco (el scroll se encarga del resto).
+    const useBelow = mh <= roomBelow || (mh > roomAbove && roomBelow >= roomAbove);
+    if (useBelow) return { top: belowTop, maxHeight: Math.max(0, roomBelow) };
+    return { top: aboveBottom - Math.min(mh, roomAbove), maxHeight: Math.max(0, roomAbove) };
   }
 
   if (!collapsible) {
@@ -185,6 +211,8 @@ export function SelectList<T extends string | number | boolean>({
     );
   }
 
+  const menu = anchor != null ? menuLayout(anchor, menuH) : null;
+
   return (
     <>
       <Pressable
@@ -205,6 +233,9 @@ export function SelectList<T extends string | number | boolean>({
         <Ionicons name="chevron-down" size={18} color={colors.textMuted} />
       </Pressable>
 
+      {/* `statusBarTranslucent` deja el Modal a pantalla completa, que es el
+          espacio en el que está hecha la cuenta de `menuLayout` (el mismo que
+          mide `useSafeAreaFrame`). */}
       <Modal
         transparent
         statusBarTranslucent
@@ -213,34 +244,45 @@ export function SelectList<T extends string | number | boolean>({
         onRequestClose={() => setAnchor(null)}
       >
         <Pressable style={StyleSheet.absoluteFill} onPress={() => setAnchor(null)} />
-        {anchor != null ? (
+        {menu != null ? (
           <View
             // Invisible el primer frame (aún sin alto medido): evita verlo
             // saltar de sitio cuando abre hacia arriba.
             style={[
               settingsStyles.menu,
-              { top: menuTopFor(anchor, menuH), opacity: menuH > 0 ? 1 : 0 },
+              { top: menu.top, maxHeight: menu.maxHeight, opacity: menuH > 0 ? 1 : 0 },
             ]}
-            onLayout={(e) => setMenuH(e.nativeEvent.layout.height)}
           >
-            {options.map((opt) => {
-              const isActive = opt.value === value;
-              return (
-                <Pressable
-                  key={String(opt.value)}
-                  style={({ pressed }) => [settingsStyles.menuItem, pressed && { opacity: 0.6 }]}
-                  onPress={() => {
-                    setAnchor(null);
-                    if (!isActive) onChange(opt.value);
-                  }}
-                >
-                  <Text style={[settingsStyles.menuItemText, isActive && { color: accent }]}>
-                    {opt.label}
-                  </Text>
-                  {isActive ? <Ionicons name="checkmark" size={18} color={accent} /> : null}
-                </Pressable>
-              );
-            })}
+            <ScrollView
+              // El alto se mide aquí y no con `onLayout` del menú: al llevar
+              // tope, `onLayout` devolvería el alto ya recortado y se
+              // realimentaría. El tamaño del contenido es el natural, que es lo
+              // que hay que comparar con el hueco. Se le suma el relleno del
+              // menú, que queda fuera del ScrollView.
+              onContentSizeChange={(_w, h) => setMenuH(h + spacing.sm * 2)}
+              // Solo hace scroll si el menú no cabe entero; si cabe, ni se nota.
+              bounces={false}
+              showsVerticalScrollIndicator={false}
+            >
+              {options.map((opt) => {
+                const isActive = opt.value === value;
+                return (
+                  <Pressable
+                    key={String(opt.value)}
+                    style={({ pressed }) => [settingsStyles.menuItem, pressed && { opacity: 0.6 }]}
+                    onPress={() => {
+                      setAnchor(null);
+                      if (!isActive) onChange(opt.value);
+                    }}
+                  >
+                    <Text style={[settingsStyles.menuItemText, isActive && { color: accent }]}>
+                      {opt.label}
+                    </Text>
+                    {isActive ? <Ionicons name="checkmark" size={18} color={accent} /> : null}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
           </View>
         ) : null}
       </Modal>

@@ -1,0 +1,47 @@
+/**
+ * Esqueleto de carga para las cuadrículas de artistas: círculos con una línea
+ * de texto debajo, pulsando suave, del mismo tamaño que las tarjetas reales
+ * (`ArtistCard`) para que la transición no salte.
+ */
+import { useEffect } from 'react';
+import { StyleSheet, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
+
+import { colors, radius, spacing } from '@/theme';
+
+export function ArtistGridSkeleton({ width, count = 12 }: { width: number; count?: number }) {
+  const pulse = useSharedValue(1);
+  useEffect(() => {
+    pulse.value = withRepeat(withTiming(0.45, { duration: 700 }), -1, true);
+  }, [pulse]);
+  const pulseStyle = useAnimatedStyle(() => ({ opacity: pulse.value }));
+
+  return (
+    <Animated.View style={[styles.grid, pulseStyle]}>
+      {Array.from({ length: count }, (_, i) => (
+        <View key={i} style={[styles.card, { width }]}>
+          <View style={{ ...block, width, height: width, borderRadius: width / 2 }} />
+          <View style={[styles.bar, { width: width * 0.7 }]} />
+        </View>
+      ))}
+    </Animated.View>
+  );
+}
+
+const block = { backgroundColor: colors.surfaceHighlight } as const;
+
+const styles = StyleSheet.create({
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+  },
+  card: { alignItems: 'center', gap: spacing.xs },
+  bar: { ...block, height: 12, borderRadius: radius.sm, marginTop: spacing.xs },
+});

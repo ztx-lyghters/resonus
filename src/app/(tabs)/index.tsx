@@ -28,6 +28,7 @@ import {
 } from '@/api/data';
 import { AlbumCard } from '@/components/AlbumCard';
 import { AlbumCardsSkeleton } from '@/components/AlbumCardsSkeleton';
+import { ArtistCard } from '@/components/ArtistCard';
 import { Cover } from '@/components/Cover';
 import { FavoritesArt } from '@/components/FavoritesArt';
 import { Message } from '@/components/Message';
@@ -177,19 +178,6 @@ function shuffled<T>(arr: T[]): T[] {
 
 const ARTIST_SIZE = 130;
 
-function ArtistCircle({ artist }: { artist: Artist }) {
-  return (
-    <Link href={`/artist/${artist.id}`} asChild>
-      <Pressable style={styles.artistCard}>
-        <Cover uri={coverArtUrl(artist.coverArt ?? artist.id, 300)} size={ARTIST_SIZE} rounded />
-        <Text style={styles.artistName} numberOfLines={1}>
-          {artist.name}
-        </Text>
-      </Pressable>
-    </Link>
-  );
-}
-
 /** Fila de artistas al azar (para redescubrir). */
 function ArtistSection({ title }: { title: string }) {
   const canFetch = useAuthStore((s) => !!s.auth || s.offline);
@@ -221,7 +209,7 @@ function ArtistSection({ title }: { title: string }) {
         keyExtractor={(item: Artist) => item.id}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.rowContent}
-        renderItem={({ item }) => <ArtistCircle artist={item} />}
+        renderItem={({ item }) => <ArtistCard artist={item} width={ARTIST_SIZE} />}
       />
     </View>
   );
@@ -583,14 +571,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   rowContent: { paddingHorizontal: spacing.lg, gap: spacing.md },
-  artistCard: { width: ARTIST_SIZE, alignItems: 'center', gap: spacing.xs },
-  artistName: {
-    color: colors.text,
-    fontSize: fontSize.sm,
-    fontWeight: '600',
-    marginTop: spacing.xs,
-    textAlign: 'center',
-  },
   scanPanel: {
     alignItems: 'center',
     gap: spacing.sm,

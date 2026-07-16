@@ -3,7 +3,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useRouter } from 'expo-router';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -27,6 +27,7 @@ import {
   type Playlist,
 } from '@/api/data';
 import { Cover } from '@/components/Cover';
+import { useHistoryTimes } from '@/hooks/useHistoryTimes';
 import { Dialog } from '@/components/Dialog';
 import { EmptyState } from '@/components/EmptyState';
 import { FavoritesArt } from '@/components/FavoritesArt';
@@ -37,7 +38,6 @@ import { useAuthStore } from '@/store/auth';
 import { useLastPlayed } from '@/store/lastPlayed';
 import { useMediaMenu } from '@/store/mediaMenu';
 import { usePins } from '@/store/pins';
-import { usePlayHistory } from '@/store/playHistory';
 import { useSettings, type LibrarySort } from '@/store/settings';
 import { useAccent } from '@/hooks/useAccent';
 import { useToast } from '@/store/toast';
@@ -153,21 +153,6 @@ function withPins<T>(items: T[], key: (x: T) => string, pins: Record<string, num
     .sort((a, b) => pins[key(a)] - pins[key(b)]);
   if (pinned.length === 0) return items;
   return [...pinned, ...items.filter((x) => !pins[key(x)])];
-}
-
-/** Última escucha por álbum/artista según el historial de reproducción. */
-function useHistoryTimes(): { byAlbum: Map<string, number>; byArtist: Map<string, number> } {
-  const entries = usePlayHistory((s) => s.entries);
-  return useMemo(() => {
-    const byAlbum = new Map<string, number>();
-    const byArtist = new Map<string, number>();
-    for (const e of entries) {
-      const { albumId, artistId } = e.song;
-      if (albumId && (byAlbum.get(albumId) ?? 0) < e.playedAt) byAlbum.set(albumId, e.playedAt);
-      if (artistId && (byArtist.get(artistId) ?? 0) < e.playedAt) byArtist.set(artistId, e.playedAt);
-    }
-    return { byAlbum, byArtist };
-  }, [entries]);
 }
 
 function FavoritesEntry({ grid }: { grid?: boolean }) {

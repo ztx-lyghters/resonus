@@ -480,10 +480,11 @@ export default function HomeScreen() {
             {/* Filas activables y reordenables (Ajustes → Personalización →
                 Secciones de Inicio). «Recently played» no existe en offline. */}
             {homeSections.map((s) => {
-              // «Recently played» y «Discover» dependen del historial del
-              // servidor: no aplican en offline.
+              // «Discover» depende del historial del servidor (recent con
+              // offset): no aplica en offline. «Recently played» sí: el
+              // historial local registra igual en ese modo.
               if (!s.enabled) return null;
-              if ((s.key === 'recentlyPlayed' || s.key === 'discover') && offline) return null;
+              if (s.key === 'discover' && offline) return null;
               if (s.key === 'discover') {
                 return <DiscoverSection key={s.key} title={t('Discover')} />;
               }

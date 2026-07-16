@@ -6,6 +6,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 
 import { useAuthStore } from '@/store/auth';
 import { usePlayCounts } from '@/store/playCounts';
+import { usePlayHistory } from '@/store/playHistory';
 import { type Album, type Artist, type ArtistInfo, type Playlist, type SearchResult, type Song, type StarType, type Starred } from '@/api/subsonic';
 import { getItem, setItem } from '@/lib/storage';
 import { getDownloadsCatalog } from '@/store/downloads';
@@ -209,10 +210,24 @@ export async function getAlbumList(type: string, size = 20, offset = 0): Promise
   let albums = [...c.albums];
   switch (type) {
     case 'newest':
-    case 'recent':
       // Añadidos recientemente: por fecha del fichero (si falta, por año).
       albums.sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0) || (b.year ?? 0) - (a.year ?? 0));
       break;
+    case 'recent': {
+      // Escuchados recientemente, por el historial local (que registra igual
+      // en este modo). Solo álbumes que han sonado, como hace el servidor; con
+      // historial vacío la lista queda vacía y la sección de Inicio no sale.
+      // Más superficial que en servidor: el historial guarda ~100 canciones.
+      const lastPlayed = new Map<string, number>();
+      for (const e of usePlayHistory.getState().entries) {
+        const id = e.song.albumId;
+        if (id && (lastPlayed.get(id) ?? 0) < e.playedAt) lastPlayed.set(id, e.playedAt);
+      }
+      albums = albums
+        .filter((a) => lastPlayed.has(a.id))
+        .sort((a, b) => (lastPlayed.get(b.id) ?? 0) - (lastPlayed.get(a.id) ?? 0));
+      break;
+    }
     case 'frequent': {
       // Más escuchados: por nº de reproducciones locales acumuladas del álbum.
       const counts = usePlayCounts.getState().counts;
@@ -335,7 +350,13 @@ export async function getRandomSongs(size = 200): Promise<Song[]> {
 export async function getTopSongs(artist: string, count = 10): Promise<Song[]> {
   const c = await ensureCatalog();
   if (!c) return [];
-  return c.songs.filter((s) => s.artist === artist).slice(0, count);
+  // Por reproducciones locales, como ordena el servidor las suyas; el sort es
+  // estable, así que sin escuchas se conserva el orden del catálogo de antes.
+  const counts = usePlayCounts.getState().counts;
+  return c.songs
+    .filter((s) => s.artist === artist)
+    .sort((a, b) => (counts[b.id] ?? 0) - (counts[a.id] ?? 0))
+    .slice(0, count);
 }
 
 // ---- Listas de reproducción locales (modo sin conexión) -------------------

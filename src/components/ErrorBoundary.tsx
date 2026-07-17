@@ -26,7 +26,9 @@ export class ErrorBoundary extends Component<Props, State> {
         <View style={styles.container}>
           <Text style={styles.title}>Algo ha fallado</Text>
           <Text style={styles.message}>{this.state.error.message}</Text>
-          <Pressable style={styles.button} onPress={this.reset}>
+          {/* Acento inline: el módulo se importa antes de hidratar los ajustes
+              y la hoja congelaría el verde por defecto. */}
+          <Pressable style={[styles.button, { backgroundColor: colors.accent }]} onPress={this.reset}>
             <Text style={styles.buttonText}>Reintentar</Text>
           </Pressable>
         </View>
@@ -52,7 +54,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   button: {
-    backgroundColor: colors.accent,
     borderRadius: radius.pill,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.xl,

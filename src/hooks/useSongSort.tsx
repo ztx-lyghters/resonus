@@ -237,6 +237,5 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.surfaceHighlight,
   },
-  dirChipActive: { backgroundColor: colors.accent },
   dirChipText: { color: colors.text, fontSize: fontSize.sm, fontWeight: '600' },
 });

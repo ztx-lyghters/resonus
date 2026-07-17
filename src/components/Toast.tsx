@@ -44,7 +44,10 @@ export function Toast() {
           }}
           style={({ pressed }) => pressed && { opacity: 0.6 }}
         >
-          <Text style={styles.action}>{actionLabel}</Text>
+          {/* Acento inline, no en la hoja de estilos: este módulo se importa en
+              el arranque, ANTES de hidratar los ajustes, así que el valor de la
+              hoja quedaba congelado en el verde por defecto para siempre. */}
+          <Text style={[styles.action, { color: colors.accent }]}>{actionLabel}</Text>
         </Pressable>
       ) : null}
     </Animated.View>
@@ -65,5 +68,5 @@ const styles = StyleSheet.create({
   pillRow: { flexDirection: 'row', gap: spacing.lg },
   text: { color: colors.text, fontSize: fontSize.sm, fontWeight: '600' },
   textLeft: { flex: 1 },
-  action: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700' },
+  action: { fontSize: fontSize.sm, fontWeight: '700' },
 });

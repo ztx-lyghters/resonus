@@ -306,9 +306,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: fontSize.md,
   },
-  current: {
-    color: colors.accent,
-  },
   subRow: {
     flexDirection: 'row',
     alignItems: 'center',

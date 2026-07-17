@@ -373,7 +373,13 @@ export default function LoginScreen() {
                   {error ? <Text style={styles.error}>{error}</Text> : null}
 
                   <Pressable
-                    style={[styles.button, !canSubmit && styles.buttonDisabled]}
+                    // Acento inline: la hoja congela el valor del primer import
+                    // y cambiar el acento + cerrar sesión lo dejaría desfasado.
+                    style={[
+                      styles.button,
+                      { backgroundColor: colors.accent },
+                      !canSubmit && styles.buttonDisabled,
+                    ]}
                     disabled={!canSubmit}
                     onPress={onSubmit}
                   >
@@ -551,7 +557,6 @@ const styles = StyleSheet.create({
   form: { gap: spacing.md },
   error: { color: colors.danger, fontSize: fontSize.sm },
   button: {
-    backgroundColor: colors.accent,
     borderRadius: radius.pill,
     paddingVertical: spacing.md,
     alignItems: 'center',

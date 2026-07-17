@@ -678,7 +678,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: colors.surfaceHighlight,
   },
-  segmentActive: { backgroundColor: colors.accent },
   segmentText: { color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: '600' },
   segmentTextActive: { color: '#000' },
   list: {

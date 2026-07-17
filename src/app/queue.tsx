@@ -306,7 +306,6 @@ const styles = StyleSheet.create({
   artwork: { width: 44, height: 44 },
   info: { flex: 1 },
   title: { color: colors.text, fontSize: fontSize.md },
-  current: { color: colors.accent },
   artist: { color: colors.textSecondary, fontSize: fontSize.xs, marginTop: 2 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
 });

@@ -191,6 +191,37 @@ function invalidate() {
 
 // ── Descarga de ficheros ─────────────────────────────────────────────────────
 
+/** Lee una cabecera sin distinguir mayúsculas (la caja varía según plataforma). */
+function header(headers: Record<string, string> | undefined, name: string): string {
+  if (!headers) return '';
+  const key = Object.keys(headers).find((k) => k.toLowerCase() === name);
+  return key ? headers[key] : '';
+}
+
+/**
+ * ¿La respuesta es un error disfrazado de fichero?
+ *
+ * Subsonic señala los fallos con **HTTP 200 y un cuerpo de error** (`status:
+ * "failed"`), no con un código HTTP, así que mirar `res.status` no basta.
+ * Comprobado contra Navidrome 0.63.2: pedir `/rest/stream` o `/rest/download`
+ * con un id que ya no existe devuelve 200 y 182 bytes de JSON. Sin este filtro
+ * eso se guardaba como .mp3, la canción quedaba marcada como descargada y no se
+ * reintentaba nunca (`pending` descarta lo que ya está en `files`); te enterabas
+ * sin cobertura, que es justo para lo que la descargaste.
+ *
+ * Va por lista negra a propósito, no exigiendo `audio/*`: `/rest/download`
+ * devuelve el fichero crudo y hay servidores que lo mandan como
+ * `application/octet-stream`. Exigir audio/* dejaría a esos sin poder descargar
+ * nada — cambiaríamos un fallo raro por uno constante. Aquí solo se rechaza lo
+ * que no puede ser audio de ninguna manera: el JSON/XML de la propia API, y de
+ * paso el HTML de un proxy o de un portal cautivo de wifi.
+ */
+function isErrorBody(headers: Record<string, string> | undefined): boolean {
+  return /^\s*(application\/json|application\/xml|text\/xml|text\/html)/i.test(
+    header(headers, 'content-type'),
+  );
+}
+
 function songFileUrl(auth: SubsonicAuth, song: Song): { url: string; ext: string } {
   const bitrate = useSettings.getState().downloadBitRate;
   if (bitrate > 0) {
@@ -270,7 +301,14 @@ async function downloadCover(auth: SubsonicAuth, dir: string, album: Album): Pro
     if (existing.exists) return file;
     await FileSystem.makeDirectoryAsync(`${dir}covers/`, { intermediates: true }).catch(() => {});
     const res = await FileSystem.downloadAsync(url, file);
-    return res.status === 200 ? file : undefined;
+    // Mismo cuidado que con el audio, y además hay que borrar: la descarga
+    // escribe lo que venga, y con el fichero malo en disco el atajo de arriba
+    // (`existing.exists`) lo daría por portada buena para siempre.
+    if (res.status !== 200 || isErrorBody(res.headers)) {
+      await FileSystem.deleteAsync(file, { idempotent: true }).catch(() => {});
+      return undefined;
+    }
+    return file;
   } catch {
     return undefined;
   }
@@ -394,6 +432,7 @@ export const useDownloads = create<DownloadsState>((set, get) => {
           try {
             const res = await task.downloadAsync();
             if (!res || res.status !== 200) throw new Error(`HTTP ${res?.status}`);
+            if (isErrorBody(res.headers)) throw new Error('cuerpo de error, no audio');
             await cacheLyricsForDownload(auth, song, file);
             // Cada canción se persiste al completarse: si la app muere a mitad
             // de un álbum, lo ya bajado sobrevive al reinicio.

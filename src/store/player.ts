@@ -698,6 +698,10 @@ let fadeState: {
  * motor opere como si no hubiera crossfade.
  */
 function cutCrossfade() {
+  // Un traspaso de servidor en marcha también usa el player de reserva y también
+  // es una operación que cualquier intervención (cambio de pista, seek, pausa,
+  // reset…) debe abortar: pasa por aquí, que es el canal común.
+  cancelHandoff();
   if (fadeTimer) {
     clearInterval(fadeTimer);
     fadeTimer = null;
@@ -726,10 +730,143 @@ function cutCrossfade() {
   if (p) p.volume = effectiveVolume(currentSong(usePlayerStore.getState()));
 }
 
+// ── Traspaso de servidor sin corte ──────────────────────────────────────────
+// Al cambiar de servidor (manual o automático por red) la pista en curso apunta
+// al host viejo, que puede haber muerto. La vía barata era recargarla en seco
+// sobre el player activo: eso deja un silencio audible (el "blip") mientras el
+// host nuevo bufferea desde cero. En vez de eso cargamos el stream del host
+// nuevo en el player de reserva a volumen 0 y dejamos sonando el viejo de su
+// buffer; cuando el nuevo ya suena de verdad lo alineamos con la posición actual
+// del viejo y hacemos el cambio instantáneo. Sin fundido a propósito: es la
+// misma canción, y cruzar dos posiciones casi iguales sonaría a fase.
+//
+// Lo mueve el evento NATIVO del propio player de reserva (no un timer), así que
+// aguanta en segundo plano, que es donde ocurre el switch automático. Se aborta
+// por `cutCrossfade` (cambio de pista, seek, pausa, reset…) y, si el host nuevo
+// no arranca a tiempo, cae a la recarga en seco: nunca peor que antes.
+let handoffToken = 0;
+let handoffReserve: AudioPlayer | null = null;
+let handoffSub: { remove: () => void } | null = null;
+
+/** Aborta un traspaso en curso y suelta el player de reserva. */
+function cancelHandoff() {
+  if (!handoffSub && !handoffReserve) return;
+  handoffToken++;
+  if (handoffSub) {
+    try {
+      handoffSub.remove();
+    } catch {
+      // ignore
+    }
+    handoffSub = null;
+  }
+  if (handoffReserve) {
+    try {
+      handoffReserve.pause();
+      handoffReserve.volume = usePlayerStore.getState().volume;
+    } catch {
+      // ignore
+    }
+    handoffReserve = null;
+  }
+}
+
+/** Recarga en seco la pista actual contra la URL activa y vuelve a su posición
+ *  (comportamiento clásico; fallback del traspaso y vía para el caso en pausa). */
+function hardReload(index: number, sec: number, autoplay: boolean) {
+  void (async () => {
+    await loadIndex(index, autoplay);
+    if (sec > 0) {
+      pendingSeek = { sec, at: Date.now() };
+      activePlayer()?.seekTo(sec);
+      usePlayerStore.setState({ positionSec: sec });
+    }
+  })();
+}
+
+/** Traspaso sin corte de la pista en curso al host activo (ver bloque de arriba). */
+function handoffToNewSource(index: number, song: Song, sec: number) {
+  cutCrossfade(); // libera el player de reserva y cancela cualquier traspaso previo
+  const oldP = activePlayer();
+  if (!oldP) {
+    hardReload(index, sec, true);
+    return;
+  }
+  // Con stream transcodificado y soporte de timeOffset, el nuevo arranca ya en
+  // `sec` (el seek nativo no vale en un transcode al vuelo). Si no, desde 0 y
+  // buscamos: acceso aleatorio normal.
+  const useOffset = isTranscoded(song) && transcodeOffsetSupported === true;
+  const startAt = useOffset ? sec : 0;
+  const r = ensurePlayer(1 - activeIdx);
+  const token = ++handoffToken;
+  handoffReserve = r;
+  try {
+    r.replace(sourceFor(song, startAt));
+    r.loop = usePlayerStore.getState().repeat === 'one';
+    r.volume = 0; // inaudible hasta el cambio; el viejo sigue sonando de su buffer
+    r.play();
+    if (!useOffset && sec > 0) r.seekTo(sec);
+  } catch {
+    handoffReserve = null;
+    hardReload(index, sec, true);
+    return;
+  }
+  let ticks = 0;
+  let aligned = false;
+  handoffSub = r.addListener('playbackStatusUpdate', (st: AudioStatus) => {
+    if (token !== handoffToken) return; // ya cancelado
+    ticks += 1;
+    const ready = st.playing && st.isLoaded && !st.isBuffering && (st.currentTime ?? 0) > 0;
+    if (!ready) {
+      // ~6 s (12 ticks de 500 ms): el host nuevo no arranca → recarga en seco.
+      if (ticks > 12) {
+        cancelHandoff();
+        hardReload(index, sec, true);
+      }
+      return;
+    }
+    // Primer instante en que el nuevo suena: lo llevamos a donde está AHORA el
+    // viejo (ha avanzado mientras cargaba) y esperamos un tick a que llegue, para
+    // no repetir ni saltar audio. Con offset el arranque ya cuadra: no se re-pide.
+    if (!aligned && !useOffset) {
+      aligned = true;
+      try {
+        r.seekTo(oldP.currentTime ?? sec);
+      } catch {
+        // ignore
+      }
+      return;
+    }
+    // Listo y alineado: cambio instantáneo. Primero volteamos el activo para que
+    // el estado lo alimente ya el nuevo; así la pausa del viejo (que emite
+    // playing=false) se ignora y no parpadea el botón de play.
+    handoffSub?.remove();
+    handoffSub = null;
+    handoffReserve = null;
+    handoffToken += 1;
+    try {
+      r.volume = effectiveVolume(song);
+    } catch {
+      // ignore
+    }
+    activeIdx = 1 - activeIdx;
+    streamOffsetSec = useOffset ? startAt : 0;
+    try {
+      oldP.pause();
+      oldP.volume = usePlayerStore.getState().volume;
+    } catch {
+      // ignore
+    }
+    usePlayerStore.setState({ isBuffering: false });
+    applyLockScreen(r, song);
+  });
+}
+
 /** Si toca (ajuste activo y quedan ≤ N segundos), arranca el crossfade. */
 function maybeStartCrossfade(status: AudioStatus) {
   const fadeSec = useSettings.getState().crossfadeSec;
-  if (fadeSec <= 0 || fadingOut || !status.playing) return;
+  // `handoffReserve`: un traspaso de servidor está usando el player de reserva.
+  if (fadeSec <= 0 || fadingOut || handoffReserve || !status.playing) return;
   const st = usePlayerStore.getState();
   // Mismos casos que excluye el avance normal, más los que no tienen final
   // predecible (radio) o donde el fundido no pinta nada (pistas muy cortas).
@@ -1748,15 +1885,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (!song || song.url || song.localUri || downloadedUri(song)) return;
     // El cast (UPnP) lleva su propia sesión; no lo tocamos.
     if (remoteKind()) return;
-    const sec = positionSec;
-    void (async () => {
-      await loadIndex(index, isPlaying);
-      if (sec > 0) {
-        pendingSeek = { sec, at: Date.now() };
-        activePlayer()?.seekTo(sec);
-        usePlayerStore.setState({ positionSec: sec });
-      }
-    })();
+    // En pausa no hay audio que preservar: recarga en seco, más simple y segura.
+    // Sonando, traspaso sin corte contra el host nuevo (ver `handoffToNewSource`).
+    if (isPlaying) handoffToNewSource(index, song, positionSec);
+    else hardReload(index, positionSec, false);
   },
 
   reset: async () => {

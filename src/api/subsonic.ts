@@ -94,6 +94,11 @@ export interface Song {
   coverBase64?: string;
   /** MIME de la carátula embebida (image/jpeg, image/png…). */
   coverMime?: string;
+  /**
+   * Solo durante el escaneo local: el fichero trae carátula embebida pero aún
+   * no se ha leído. Se descarta al construir el catálogo.
+   */
+  hasCover?: boolean;
   /** URI de fichero local (modo sin conexión); si está, se reproduce sin servidor. */
   localUri?: string;
   /** Año de la canción (desde ID3, modo sin conexión). */

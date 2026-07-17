@@ -92,6 +92,11 @@ export interface ID3Tags {
   coverBase64?: string;
   /** Letra embebida (frame USLT); puede venir en formato LRC con timestamps. */
   lyrics?: string;
+  /**
+   * Id del frame que no cabía entero en el buffer: el tag llegó cortado y de
+   * ahí en adelante no se leyó nada. `undefined` si se parseó el tag completo.
+   */
+  cutFrame?: string;
 }
 
 function parseID3v2(buffer: Uint8Array): ID3Tags {
@@ -127,8 +132,17 @@ function parseID3v2(buffer: Uint8Array): ID3Tags {
     if (frameSize < 0 || frameSize > 50_000_000) break;
 
     const dataStart = offset + 10;
-    const dataEnd = Math.min(dataStart + frameSize, tagEnd);
     if (dataStart >= tagEnd) break;
+    // El frame no cabe entero en lo leído. Es lo normal en la primera pasada
+    // del escaneo, que solo pide la cabecera del tag para saltarse la carátula
+    // (ver `readTags` en localLibrary). Ni un JPEG a medias ni un título a
+    // medias valen para nada, así que paramos y dejamos anotado en `cutFrame`
+    // por dónde se cortó, para que quien llama decida si merece releer.
+    if (dataStart + frameSize > tagEnd) {
+      tags.cutFrame = frameId;
+      break;
+    }
+    const dataEnd = dataStart + frameSize;
 
     const data = buffer.subarray(dataStart, dataEnd);
 

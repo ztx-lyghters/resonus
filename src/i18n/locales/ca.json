@@ -437,5 +437,6 @@
   "Leave it empty to greet you by the time of day.": "Deixa-ho buit per saludar-te segons l'hora del dia.",
   "Greeting": "Salutació",
   "Sleep timer ({n} min left)": "Temporitzador (queden {n} min)",
-  "Looking for music…": "S'està cercant la música…"
+  "Looking for music…": "S'està cercant la música…",
+  "Loading covers…": "S'estan carregant les caràtules…"
 }

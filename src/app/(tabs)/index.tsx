@@ -333,6 +333,7 @@ function ExploreChips({ offline }: { offline: boolean }) {
 
 function ScanningPanel() {
   const t = useT();
+  const phase = useScanProgress((s) => s.phase);
   const count = useScanProgress((s) => s.count);
   const total = useScanProgress((s) => s.total);
   const fraction = total > 0 ? Math.min(count / total, 1) : 0;
@@ -343,13 +344,17 @@ function ScanningPanel() {
   // barra no alcanzaba nunca la verdad — al acabar se quedaba por la mitad.
   // Tampoco ahorraba renders: este panel ya se repinta en cada tic por el texto.
   const width = `${fraction * 100}%` as const;
-  // Sin total todavía se está buscando, no analizando: decirlo evita que el
-  // número suba bajo un título que promete otra cosa.
+  // Cada fase dice lo suyo: el número sube igual, pero bajo un título que
+  // promete lo que de verdad está pasando.
+  const title =
+    phase === 'finding'
+      ? t('Looking for music…')
+      : phase === 'covers'
+        ? t('Loading covers…')
+        : t('Scanning your music…');
   return (
     <View style={styles.scanPanel}>
-      <Text style={styles.scanTitle}>
-        {total > 0 ? t('Scanning your music…') : t('Looking for music…')}
-      </Text>
+      <Text style={styles.scanTitle}>{title}</Text>
       {total > 0 ? (
         <View style={styles.scanBarTrack}>
           <View style={[styles.scanBarFill, { width, backgroundColor: colors.accent }]} />
@@ -381,7 +386,7 @@ const HOME_ALBUM_CONFIG: Record<
 export default function HomeScreen() {
   const auth = useAuthStore((s) => s.auth);
   const offline = useAuthStore((s) => s.offline);
-  const scanning = useScanProgress((s) => s.scanning);
+  const scanning = useScanProgress((s) => s.phase !== 'idle');
   const queryClient = useQueryClient();
   const t = useT();
   const [refreshing, setRefreshing] = useState(false);

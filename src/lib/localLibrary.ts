@@ -114,11 +114,25 @@ function progressBumper(total: number): () => void {
 // ── Lectura de ID3 desde archivo ───────────────────────────────────────────
 
 /**
- * Lee el buffer del tag ID3v2: primero la cabecera (10 B) y, si hay tag, el
- * resto. Solo lecturas de bytes, sin `stat` (que es un salto nativo caro y solo
- * hace falta para el fallback ID3v1, que resolvemos aparte y de forma perezosa).
+ * Tope de lectura de un tag. Un tag más gordo que esto es casi siempre una
+ * carátula desmedida; nos quedamos con lo que quepa.
  */
-async function readTagBuffer(uri: string): Promise<Uint8Array | null> {
+const TAG_CAP = 2_500_000;
+
+/**
+ * Cuánto tag se lee cuando solo se busca el texto. Los frames de texto
+ * (título, artista, álbum, año…) van al principio y ocupan unos pocos KB;
+ * 16 KB dan margen de sobra sin arrastrar la carátula.
+ */
+const TEXT_TAG_BYTES = 16_384;
+
+/**
+ * Lee el buffer del tag ID3v2: primero la cabecera (10 B) y, si hay tag, hasta
+ * `maxBytes` del resto. Solo lecturas de bytes, sin `stat` (que es un salto
+ * nativo caro y solo hace falta para el fallback ID3v1, que resolvemos aparte y
+ * de forma perezosa).
+ */
+async function readTagBuffer(uri: string, maxBytes: number): Promise<Uint8Array | null> {
   try {
     const headB64 = await FileSystem.readAsStringAsync(uri, {
       encoding: FileSystem.EncodingType.Base64,
@@ -130,28 +144,44 @@ async function readTagBuffer(uri: string): Promise<Uint8Array | null> {
       return head;
     }
     const tagSize = ((head[6] & 0x7f) << 21) | ((head[7] & 0x7f) << 14) | ((head[8] & 0x7f) << 7) | (head[9] & 0x7f);
-    const total = 10 + tagSize;
+    const want = Math.min(10 + tagSize, maxBytes);
     // Pedimos con margen (×4/3 + colchón): en SAF la lectura parcial puede
     // quedarse corta y cortar la carátula embebida (APIC), que suele ir al
     // final del tag. Leer de más es inofensivo y luego recortamos al decodificar.
-    const cap = 2_500_000;
-    const limit = Math.min(Math.ceil(total * (4 / 3)) + 4096, cap);
+    const limit = Math.ceil(want * (4 / 3)) + 4096;
     const fullB64 = await FileSystem.readAsStringAsync(uri, {
       encoding: FileSystem.EncodingType.Base64,
       length: limit,
       position: 0,
     });
-    return base64ToUint8(fullB64, Math.min(total, cap));
+    return base64ToUint8(fullB64, want);
   } catch {
     return null;
   }
 }
 
-/** Lee tags ID3v2; si no hay título, intenta ID3v1 al final (leyendo tamaño ahí). */
-export async function readTags(uri: string): Promise<ID3Tags | null> {
-  const buf = await readTagBuffer(uri);
+/**
+ * Lee los tags ID3 de un fichero. `maxBytes` acota cuánto tag se trae: con
+ * `TEXT_TAG_BYTES` se queda en el texto y deja fuera la carátula, que es lo que
+ * quiere la primera pasada del escaneo; por defecto lee el tag entero.
+ *
+ * Cuando el tag se corta, hay dos casos. Si lo que quedó fuera es la carátula
+ * (APIC va casi siempre al final) y el texto llegó entero, la lectura vale tal
+ * cual: es justo lo que se buscaba. Si se cortó por otro frame, o por la
+ * carátula pero yendo esta delante del texto —raro, pero legal— y nos hemos
+ * quedado sin título, se relee el tag completo: antes pagar la lectura que dar
+ * la canción por anónima.
+ *
+ * Si aun así no hay título, intenta ID3v1 al final (leyendo el tamaño ahí).
+ */
+export async function readTags(uri: string, maxBytes = TAG_CAP): Promise<ID3Tags | null> {
+  const buf = await readTagBuffer(uri, maxBytes);
   if (!buf) return null;
-  const tags = parseID3(buf);
+  let tags = parseID3(buf);
+  if (maxBytes < TAG_CAP && tags.cutFrame && (tags.cutFrame !== 'APIC' || !tags.title)) {
+    const full = await readTagBuffer(uri, TAG_CAP);
+    if (full) tags = parseID3(full);
+  }
   // Solo si ID3v2 no dio título vamos al final por un tag ID3v1. Es raro, así
   // que el `stat` (para saber el tamaño y leer los últimos 128 B) se paga aquí
   // y no en cada fichero.
@@ -331,7 +361,49 @@ function groupByArtist(albums: LocalAlbum[]): LocalArtist[] {
   }));
 }
 
+/**
+ * Segunda pasada del escaneo: trae la carátula de cada álbum leyendo el tag
+ * entero de una sola de sus canciones.
+ *
+ * La primera pasada lee solo texto (ver `readTags`), así que las carátulas se
+ * quedan fuera salvo las que caben en `TEXT_TAG_BYTES`. Aquí se recuperan, pero
+ * pagando una lectura grande por álbum en vez de una por canción: de todas
+ * formas `groupByAlbum` se queda con una sola portada por álbum y tira el resto,
+ * así que leerlas todas era tiempo y megas para nada.
+ */
+async function loadAlbumCovers(songs: Song[]): Promise<void> {
+  const covered = new Set<string>();
+  const candidates = new Map<string, Song>();
+  for (const song of songs) {
+    const key = albumKeyOf(song);
+    if (song.coverBase64) {
+      // Portada pequeña, ya vino en la primera pasada: este álbum no debe nada.
+      covered.add(key);
+      candidates.delete(key);
+    } else if (song.hasCover && !covered.has(key) && !candidates.has(key)) {
+      candidates.set(key, song);
+    }
+  }
+  const pending = Array.from(candidates.values());
+  if (!pending.length) return;
+  useScanProgress.getState().startCovers(pending.length);
+  const bump = progressBumper(pending.length);
+  await mapPool(pending, SCAN_CONCURRENCY, async (song) => {
+    try {
+      const tags = await readTags(song.localUri!);
+      if (tags?.coverBase64) {
+        song.coverBase64 = tags.coverBase64;
+        song.coverMime = tags.coverMime;
+      }
+    } catch {
+      // Un álbum sin portada no rompe nada; el resto del catálogo sigue.
+    }
+    bump();
+  });
+}
+
 async function buildCatalog(songs: Song[]): Promise<LocalCatalog> {
+  await loadAlbumCovers(songs);
   const albums = groupByAlbum(songs);
   // Las carátulas embebidas se vuelcan a ficheros y se referencian por URI
   // `file://`: así el catálogo/coverIndex no retienen megas de base64 en RAM,
@@ -349,6 +421,7 @@ async function buildCatalog(songs: Song[]): Promise<LocalCatalog> {
   for (const s of songs) {
     delete s.coverBase64;
     delete s.coverMime;
+    delete s.hasCover;
   }
   return { songs, albums, artists };
 }
@@ -364,6 +437,11 @@ function applyTags(base: Record<string, unknown>, fallbackTitle: string, tags: I
   if (tags?.coverBase64) {
     base.coverBase64 = tags.coverBase64;
     base.coverMime = tags.coverMime;
+  } else if (tags?.cutFrame === 'APIC') {
+    // Tiene carátula, pero la lectura se paró justo antes de traerla. Lo
+    // anotamos para que `loadAlbumCovers` sepa a qué canción volver si su
+    // álbum se queda sin portada.
+    base.hasCover = true;
   }
   if (tags?.year) base.year = tags.year;
   // IDs derivados (componen las claves del catálogo) para poder navegar al
@@ -415,6 +493,7 @@ export async function loadDeviceSongs(): Promise<Song[]> {
   useScanProgress.getState().begin();
   const rawSongs: { id: string; filename: string; duration: number; uri: string; mtime: number }[] = [];
   let songs: Song[];
+  let catalog: LocalCatalog;
   try {
     let after: string | undefined;
     let hasNext = true;
@@ -447,7 +526,7 @@ export async function loadDeviceSongs(): Promise<Song[]> {
     songs = await mapPool(rawSongs, SCAN_CONCURRENCY, async (raw) => {
       let tags = null;
       try {
-        tags = await readTags(raw.uri);
+        tags = await readTags(raw.uri, TEXT_TAG_BYTES);
       } catch {
         // Si falla la lectura ID3, seguimos con el nombre de fichero.
       }
@@ -461,12 +540,14 @@ export async function loadDeviceSongs(): Promise<Song[]> {
       bump();
       return base as Song;
     });
+    songs.sort((a, b) => a.title.localeCompare(b.title));
+    // Dentro del `try`: construir el catálogo aún lee las carátulas (una por
+    // álbum) y eso tarda, así que el indicador tiene que seguir encendido.
+    catalog = await buildCatalog(songs);
   } finally {
     useScanProgress.getState().done();
   }
-  songs.sort((a, b) => a.title.localeCompare(b.title));
 
-  const catalog = await buildCatalog(songs);
   catalogCache.set(key, catalog);
   void saveCatalogToDisk('device', undefined, catalog);
   return songs;
@@ -517,6 +598,7 @@ export async function loadFolderSongs(treeUri: string): Promise<Song[]> {
   // el indicador ya, para que recorrer el árbol no parezca un cuelgue.
   useScanProgress.getState().begin();
   let songs: Song[];
+  let catalog: LocalCatalog;
   try {
     await walk(treeUri, 0);
 
@@ -527,7 +609,7 @@ export async function loadFolderSongs(treeUri: string): Promise<Song[]> {
       let mtime = 0;
       try {
         // SAF no da mtime en readDirectoryAsync; se lee en paralelo con los tags.
-        [tags, mtime] = await Promise.all([readTags(raw.uri), readMtime(raw.uri)]);
+        [tags, mtime] = await Promise.all([readTags(raw.uri, TEXT_TAG_BYTES), readMtime(raw.uri)]);
       } catch {
         // Si falla la lectura ID3, seguimos con el nombre de fichero.
       }
@@ -541,12 +623,14 @@ export async function loadFolderSongs(treeUri: string): Promise<Song[]> {
       bump();
       return base as Song;
     });
+    songs.sort((a, b) => a.title.localeCompare(b.title));
+    // Dentro del `try`: construir el catálogo aún lee las carátulas (una por
+    // álbum) y eso tarda, así que el indicador tiene que seguir encendido.
+    catalog = await buildCatalog(songs);
   } finally {
     useScanProgress.getState().done();
   }
-  songs.sort((a, b) => a.title.localeCompare(b.title));
 
-  const catalog = await buildCatalog(songs);
   catalogCache.set(key, catalog);
   void saveCatalogToDisk('folder', treeUri, catalog);
   return songs;

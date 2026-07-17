@@ -615,6 +615,21 @@ useSettings.subscribe((s) => {
 let fadeTimer: ReturnType<typeof setInterval> | null = null;
 /** Player saliente mientras hay un fundido en marcha. */
 let fadingOut: AudioPlayer | null = null;
+/**
+ * Datos del crossfade en curso (null si no hay). El progreso se calcula por
+ * reloj de pared (`t0`), así que da igual quién dé el paso: el `setInterval`
+ * fluido de primer plano o el latido de `onStatus`. Esto último es lo que
+ * arregla el crossfade en segundo plano: Android congela los setInterval al
+ * minimizar, pero el `playbackStatusUpdate` nativo sigue latiendo, así que la
+ * rampa de volumen avanza igual y la entrante no se queda muda a volumen 0.
+ */
+let fadeState: {
+  incoming: AudioPlayer;
+  t0: number;
+  fadeSec: number;
+  outGain: number;
+  inGain: number;
+} | null = null;
 
 /**
  * Aborta el fundido en curso, si lo hay: silencia y para el saliente y deja
@@ -627,6 +642,7 @@ function cutCrossfade() {
     clearInterval(fadeTimer);
     fadeTimer = null;
   }
+  fadeState = null;
   if (pauseFadeTimer) {
     clearInterval(pauseFadeTimer);
     pauseFadeTimer = null;
@@ -707,40 +723,58 @@ function startCrossfade(index: number, fadeSec: number) {
   runFade(out, p, fadeSec, gainFactor(outgoingSong), gainFactor(song));
 }
 
-/** Cruza los volúmenes durante `fadeSec` y al acabar apaga el saliente. */
+/**
+ * Da un paso del crossfade según el tiempo transcurrido: cruza los volúmenes
+ * (curva de igual potencia, la suma se percibe constante) y, al llegar al final,
+ * apaga el saliente y cierra el fundido. Es idempotente y sin estado propio, así
+ * que lo pueden llamar sin pisarse tanto el `setInterval` de primer plano como
+ * el respaldo de `onStatus`.
+ */
+function tickFade() {
+  if (!fadeState) return;
+  const { incoming, t0, fadeSec, outGain, inGain } = fadeState;
+  const x = Math.min(1, (Date.now() - t0) / (fadeSec * 1000));
+  const volume = usePlayerStore.getState().volume;
+  const out = fadingOut;
+  try {
+    if (out) out.volume = volume * outGain * Math.cos((x * Math.PI) / 2);
+    incoming.volume = volume * inGain * Math.sin((x * Math.PI) / 2);
+  } catch {
+    // ignore
+  }
+  if (x >= 1) {
+    if (fadeTimer) {
+      clearInterval(fadeTimer);
+      fadeTimer = null;
+    }
+    if (out) {
+      try {
+        out.pause();
+        out.volume = volume;
+      } catch {
+        // ignore
+      }
+    }
+    if (fadingOut === out) fadingOut = null;
+    fadeState = null;
+  }
+}
+
+/**
+ * Arranca el fundido: `fadingOut` ya lo fijó `startCrossfade`. El `setInterval`
+ * de 200 ms mueve la rampa fina en primer plano; en segundo plano se congela y
+ * toma el relevo el latido de `onStatus` (ver `fadeState`).
+ */
 function runFade(
-  out: AudioPlayer | null,
+  _out: AudioPlayer | null,
   incoming: AudioPlayer,
   fadeSec: number,
   outGain: number,
   inGain: number,
 ) {
   if (fadeTimer) clearInterval(fadeTimer);
-  const t0 = Date.now();
-  fadeTimer = setInterval(() => {
-    const x = Math.min(1, (Date.now() - t0) / (fadeSec * 1000));
-    // Curva de igual potencia: la suma de ambos se percibe constante.
-    const volume = usePlayerStore.getState().volume;
-    try {
-      if (out) out.volume = volume * outGain * Math.cos((x * Math.PI) / 2);
-      incoming.volume = volume * inGain * Math.sin((x * Math.PI) / 2);
-    } catch {
-      // ignore
-    }
-    if (x >= 1) {
-      if (fadeTimer) clearInterval(fadeTimer);
-      fadeTimer = null;
-      if (out) {
-        try {
-          out.pause();
-          out.volume = volume;
-        } catch {
-          // ignore
-        }
-      }
-      if (fadingOut === out) fadingOut = null;
-    }
-  }, 200);
+  fadeState = { incoming, t0: Date.now(), fadeSec, outGain, inGain };
+  fadeTimer = setInterval(tickFade, 200);
 }
 
 // ── Fundido corto al pausar/reanudar (solo controles dentro de la app) ───────
@@ -799,6 +833,10 @@ function onStatus(status: AudioStatus) {
     const left = endsAt - Date.now();
     if (left <= SLEEP_FADE_MS) startSleepFade(left);
   }
+  // Respaldo del crossfade: su setInterval se congela en segundo plano, pero
+  // este latido nativo sigue vivo, así que la rampa de volumen avanza igual y
+  // la canción entrante deja de quedarse muda a volumen 0 al minimizar.
+  if (fadeState) tickFade();
   const prev = usePlayerStore.getState();
   // Bufferea si queremos reproducir pero el audio aún no fluye (carga inicial,
   // rebuffer en streaming, seek…). Si está en pausa, no es buffering.

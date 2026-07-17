@@ -57,9 +57,11 @@ const CARD = (Dimensions.get('window').width - spacing.lg * 2 - GAP * (COLUMNS -
  */
 type ArtistSort = 'alpha' | 'recent' | 'frequent' | 'random';
 
+// Mismo orden que los chips de Álbumes (sin 'Artist', que aquí no pinta nada):
+// son pantallas hermanas y verlas ordenadas distinto chirriaba.
 const SORTS: { key: ArtistSort; label: string }[] = [
-  { key: 'alpha', label: 'A-Z' },
   { key: 'recent', label: 'Recent' },
+  { key: 'alpha', label: 'A-Z' },
   { key: 'frequent', label: 'Most played' },
   { key: 'random', label: 'Shuffle' },
 ];
@@ -75,7 +77,7 @@ export default function BrowseArtistsScreen() {
   const t = useT();
   const canFetch = useAuthStore((s) => !!s.auth || s.offline);
   const [query, setQuery] = useState('');
-  const [sort, setSort] = useState<ArtistSort>('alpha');
+  const [sort, setSort] = useState<ArtistSort>('recent');
   const layout = useSettings((s) => s.browseArtistsLayout);
   const setLayout = useSettings((s) => s.setBrowseArtistsLayout);
   const grid = layout === 'grid';

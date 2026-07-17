@@ -57,10 +57,13 @@ const SEARCH_COUNT = 50;
 /** Espera antes de preguntar al servidor: sin esto sería una petición por tecla. */
 const DEBOUNCE_MS = 300;
 
+// Mismos chips y mismo orden que en Artistas: son pantallas hermanas y verlas
+// ordenadas distinto chirriaba. 'alphabeticalByArtist' se cayó por eso, por
+// simetría: no tiene equivalente en Artistas, donde ordenar por artista es
+// justo lo que ya hace A-Z.
 const SORTS: { key: AlbumListType; label: string }[] = [
   { key: 'newest', label: 'Recent' },
   { key: 'alphabeticalByName', label: 'A-Z' },
-  { key: 'alphabeticalByArtist', label: 'Artist' },
   { key: 'frequent', label: 'Most played' },
   { key: 'random', label: 'Shuffle' },
 ];

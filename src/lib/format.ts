@@ -30,3 +30,10 @@ export function formatTotalDuration(totalSeconds: number | undefined): string {
   if (minutes > 0 || parts.length === 0) parts.push(`${minutes} min`);
   return parts.join(' ');
 }
+
+/** Bytes en la unidad que toque ("1,2 GB", "340 MB"). */
+export function formatBytes(n: number): string {
+  if (n >= 1024 ** 3) return `${(n / 1024 ** 3).toFixed(1)} GB`;
+  if (n >= 1024 ** 2) return `${Math.round(n / 1024 ** 2)} MB`;
+  return `${Math.round(n / 1024)} KB`;
+}

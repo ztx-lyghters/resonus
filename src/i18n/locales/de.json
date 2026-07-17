@@ -429,5 +429,7 @@
   "The mix won’t grow any further": "Der Mix wird nicht weiter verlängert",
   "Keep playing similar songs when your queue ends. A mix you start yourself always does, even with this off.": "Spiele ähnliche Titel weiter, wenn deine Warteschlange endet. Ein selbst gestarteter Mix tut das immer, auch wenn dies aus ist.",
   "Find an album": "Album finden",
-  "Downloaded": "Heruntergeladen"
+  "Downloaded": "Heruntergeladen",
+  "{songs} will be saved to this device (about {size}).": "{songs} werden auf diesem Gerät gespeichert (etwa {size}).",
+  "{songs} need about {size}, but only {free} is free. The download may stop partway.": "{songs} brauchen etwa {size}, aber es sind nur {free} frei. Der Download bleibt womöglich stecken."
 }

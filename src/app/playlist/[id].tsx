@@ -18,6 +18,7 @@ import { PlaylistReorder } from '@/components/PlaylistReorder';
 import { SheetModal } from '@/components/SheetModal';
 import { TrackListSkeleton } from '@/components/TrackListSkeleton';
 import { TrackListView } from '@/components/TrackListView';
+import { useDownloadMessage } from '@/hooks/useDownloadMessage';
 import { usePlaylistCover } from '@/hooks/usePlaylistCover';
 import { useSongSort } from '@/hooks/useSongSort';
 import { songsLabel, useT } from '@/i18n';
@@ -69,6 +70,7 @@ export default function PlaylistScreen() {
   });
 
   const songIds = (data?.songs ?? []).map((s) => s.id);
+  const downloadMsg = useDownloadMessage(data?.songs ?? []);
   const download = useDownloads(
     useShallow((s) => groupDownloadState(s, `playlist:${id}`, songIds)),
   );
@@ -393,9 +395,7 @@ export default function PlaylistScreen() {
       <Dialog
         visible={confirmDownload}
         title={t('Download “{name}”?', { name: data.playlist.name })}
-        message={t('{songs} will be saved to this device.', {
-          songs: songsLabel(data.songs.length, lang),
-        })}
+        message={downloadMsg.message}
         confirmLabel={t('Download')}
         onCancel={() => setConfirmDownload(false)}
         onConfirm={() => {

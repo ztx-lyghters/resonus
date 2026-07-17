@@ -14,6 +14,7 @@ import { MoreFromArtist } from '@/components/MoreFromArtist';
 import { PlaylistPickerSheet } from '@/components/PlaylistPickerSheet';
 import { TrackListSkeleton } from '@/components/TrackListSkeleton';
 import { TrackListView } from '@/components/TrackListView';
+import { useDownloadMessage } from '@/hooks/useDownloadMessage';
 import { useFavoriteIds } from '@/hooks/useFavoriteIds';
 import { songsLabel, useT } from '@/i18n';
 import { formatTotalDuration } from '@/lib/format';
@@ -53,6 +54,7 @@ export default function AlbumScreen() {
   });
 
   const songIds = data?.songs.map((s) => s.id) ?? [];
+  const downloadMsg = useDownloadMessage(data?.songs ?? []);
   const download = useDownloads(useShallow((s) => groupDownloadState(s, `album:${id}`, songIds)));
   const downloadAlbum = useDownloads((s) => s.downloadAlbum);
   const cancelDownload = useDownloads((s) => s.cancelDownload);
@@ -162,9 +164,7 @@ export default function AlbumScreen() {
       <Dialog
         visible={confirmDownload}
         title={t('Download “{name}”?', { name: data.album.name })}
-        message={t('{songs} will be saved to this device.', {
-          songs: songsLabel(data.songs.length, lang),
-        })}
+        message={downloadMsg.message}
         confirmLabel={t('Download')}
         onCancel={() => setConfirmDownload(false)}
         onConfirm={() => {

@@ -27,6 +27,7 @@ import {
   getArtistInfo,
   getTopSongs,
 } from '@/api/data';
+import { type Song } from '@/api/subsonic';
 import { AlbumCard } from '@/components/AlbumCard';
 import { Cover } from '@/components/Cover';
 import { Dialog } from '@/components/Dialog';
@@ -34,8 +35,9 @@ import { FavoriteButton } from '@/components/FavoriteButton';
 import { Message } from '@/components/Message';
 import { TrackRow } from '@/components/TrackRow';
 import { useDominantColor } from '@/hooks/useDominantColor';
+import { useDownloadMessage } from '@/hooks/useDownloadMessage';
 import { useFavoriteIds } from '@/hooks/useFavoriteIds';
-import { songsLabel, useT } from '@/i18n';
+import { useT } from '@/i18n';
 import { useAuthStore } from '@/store/auth';
 import { groupDownloadState, useDownloads } from '@/store/downloads';
 import { currentSong, usePlayerStore } from '@/store/player';
@@ -74,9 +76,11 @@ export default function ArtistScreen() {
   const [confirmStop, setConfirmStop] = useState(false);
   /** Mientras se piden las canciones de cada álbum, antes de bajar nada. */
   const [gathering, setGathering] = useState(false);
+  /** Canciones ya recogidas, a la espera de que se confirme el diálogo. */
+  const [pending, setPending] = useState<Song[] | null>(null);
+  const downloadMsg = useDownloadMessage(pending ?? []);
   const queryClient = useQueryClient();
   const toast = useToast((s) => s.show);
-  const lang = useSettings((s) => s.language);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const barContentOpacity = scrollY.interpolate({
@@ -165,15 +169,14 @@ export default function ArtistScreen() {
     if (!usePlayerStore.getState().shuffle) toggleShuffle();
   }
 
-  // Solo su discografía, no "Aparece en": esos álbumes son de otro artista, y
-  // bajar el disco entero de un tercero porque este cante en un tema no es lo
-  // que se ha pedido. `songCount` viene en cada álbum, así que el total se sabe
-  // sin pedir nada.
-  const totalSongs = albums.reduce((n, a) => n + (a.songCount ?? 0), 0);
-
-  /** Pide las canciones de cada álbum. `gathering` cubre SOLO esta fase: si se
-   *  estirara hasta cubrir la descarga, el botón quedaría sordo mientras baja y
-   *  no se podría parar. */
+  /**
+   * Pide las canciones de cada álbum de su discografía. No las de "Aparece en":
+   * esos álbumes son de otro artista, y bajar el disco entero de un tercero
+   * porque este cante en un tema no es lo que se ha pedido.
+   *
+   * `gathering` cubre SOLO esta fase: si se estirara hasta cubrir la descarga,
+   * el botón quedaría sordo mientras baja y no se podría parar.
+   */
   async function gatherSongs() {
     setGathering(true);
     try {
@@ -194,22 +197,31 @@ export default function ArtistScreen() {
   }
 
   async function startDownload() {
-    const songs = await gatherSongs();
-    if (!songs || songs.length === 0) return;
-    await downloadArtist(id, songs, albums);
+    if (!pending) return;
+    await downloadArtist(id, pending, albums);
     // Sin este aviso la descarga acaba muda: el botón vuelve a su icono de
     // siempre (aquí no hay estado "descargado" que lo delate) y, si ya estaba
     // todo bajado, `downloadGroup` se sale sin hacer absolutamente nada. Si
     // quedan canciones es que se paró, y de eso ya avisa el store.
     const files = useDownloads.getState().files;
-    const left = songs.filter((s) => !files[s.id] && !s.url && !s.localUri);
+    const left = pending.filter((s) => !files[s.id] && !s.url && !s.localUri);
     if (left.length === 0) toast(t('Downloaded'));
   }
 
-  function onDownloadPress() {
+  // Se recogen las canciones ANTES de preguntar, no después: así el diálogo
+  // cuenta canciones de verdad y puede estimar el tamaño, como el de álbum y
+  // listas. Contar por `songCount` habría dejado esta pantalla —la de las
+  // descargas más gordas— como la única que pregunta a ciegas.
+  async function onDownloadPress() {
     if (gathering) return;
-    if (download.status === 'active') setConfirmStop(true);
-    else setConfirmDownload(true);
+    if (download.status === 'active') {
+      setConfirmStop(true);
+      return;
+    }
+    const songs = await gatherSongs();
+    if (!songs || songs.length === 0) return;
+    setPending(songs);
+    setConfirmDownload(true);
   }
 
   return (
@@ -422,9 +434,7 @@ export default function ArtistScreen() {
       <Dialog
         visible={confirmDownload}
         title={t('Download “{name}”?', { name: data.artist.name })}
-        message={t('{songs} will be saved to this device.', {
-          songs: songsLabel(totalSongs, lang),
-        })}
+        message={downloadMsg.message}
         confirmLabel={t('Download')}
         onCancel={() => setConfirmDownload(false)}
         onConfirm={() => {

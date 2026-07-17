@@ -12,6 +12,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { Message } from '@/components/Message';
 import { PlaylistPickerSheet } from '@/components/PlaylistPickerSheet';
 import { TrackListView } from '@/components/TrackListView';
+import { useDownloadMessage } from '@/hooks/useDownloadMessage';
 import { useSongSort } from '@/hooks/useSongSort';
 import { songsLabel, useT } from '@/i18n';
 import { formatTotalDuration } from '@/lib/format';
@@ -68,6 +69,9 @@ export default function FavoritesScreen() {
   }, [download.status]);
 
   const { songs: displaySongs, openSort, sortSheet } = useSongSort(data?.songs ?? [], 'favorites');
+  // Sobre `displaySongs`: es lo que `downloadFavorites` baja, y con un filtro
+  // puesto no es lo mismo que `data.songs`.
+  const downloadMsg = useDownloadMessage(displaySongs);
 
   /** Desmarca varias favoritas con borrado diferido y deshacer. */
   function removeMany(sel: Song[]) {
@@ -171,9 +175,7 @@ export default function FavoritesScreen() {
       <Dialog
         visible={confirmDownload}
         title={t('Download “{name}”?', { name: t('Favorites') })}
-        message={t('{songs} will be saved to this device.', {
-          songs: songsLabel(displaySongs.length, lang),
-        })}
+        message={downloadMsg.message}
         confirmLabel={t('Download')}
         onCancel={() => setConfirmDownload(false)}
         onConfirm={() => {

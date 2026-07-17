@@ -18,17 +18,12 @@ import {
   SwitchList,
 } from '@/components/SettingsUI';
 import { songsLabel, useT } from '@/i18n';
+import { formatBytes } from '@/lib/format';
 import { useAuthStore } from '@/store/auth';
 import { useDownloads } from '@/store/downloads';
 import { BITRATE_OPTIONS, useSettings } from '@/store/settings';
 import { useToast } from '@/store/toast';
 import { colors, fontSize, spacing } from '@/theme';
-
-function formatBytes(n: number): string {
-  if (n >= 1024 ** 3) return `${(n / 1024 ** 3).toFixed(1)} GB`;
-  if (n >= 1024 ** 2) return `${Math.round(n / 1024 ** 2)} MB`;
-  return `${Math.round(n / 1024)} KB`;
-}
 
 /** Espacio del disco (total y libre), o null si el sistema no lo expone. */
 function diskSpace(): { total: number; free: number } | null {

@@ -438,5 +438,6 @@
   "Greeting": "Begrüßung",
   "Sleep timer ({n} min left)": "Sleep-Timer (noch {n} Min.)",
   "Looking for music…": "Musik wird gesucht…",
-  "Loading covers…": "Cover werden geladen…"
+  "Loading covers…": "Cover werden geladen…",
+  "Unknown album": "Unbekanntes Album"
 }

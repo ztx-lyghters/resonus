@@ -1,7 +1,7 @@
 /** Detalle de un álbum con sus canciones. */
 import { useQuery } from '@tanstack/react-query';
-import { useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -28,6 +28,7 @@ import { colors, fontSize, spacing } from '@/theme';
 
 export default function AlbumScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const canFetch = useAuthStore((s) => !!s.auth || s.offline);
   const offline = useAuthStore((s) => s.offline);
   const t = useT();
@@ -47,11 +48,32 @@ export default function AlbumScreen() {
   // `data.album.starred` del detalle se queda obsoleto tras marcar/desmarcar.
   const favAlbumIds = useFavoriteIds(canFetch, 'album');
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data: fresh, isLoading, isError, refetch } = useQuery({
     queryKey: ['album', id],
     queryFn: () => getAlbum(id),
     enabled: canFetch && !!id,
   });
+
+  // El álbum ha dejado de existir mientras lo mirabas: en modo local los álbumes
+  // se derivan de sus canciones, así que quitar la última descarga borra el
+  // álbum entero. Sin esto la pantalla se quedaba con una cabecera inventada, 0
+  // canciones y un botón de play que no reproducía nada. Salir es lo que ya hace
+  // la pantalla de playlist cuando la borras desde dentro, y aquí tampoco se
+  // siente aleatorio: acabas de destruirlo tú.
+  // Solo en local: con servidor, quitar una descarga no borra nada.
+  const vanished = offline && !!fresh && fresh.songs.length === 0;
+  useEffect(() => {
+    if (vanished && router.canGoBack()) router.back();
+  }, [vanished, router]);
+
+  // Mientras se va, seguimos pintando lo último bueno. `router.back()` no es
+  // instantáneo (anima ~300 ms) y el efecto corre después de pintar, así que la
+  // pantalla sigue montada un rato con el álbum ya borrado: sin esto asomaba el
+  // "Álbum desconocido" y 0 canciones antes de irse. Congelándolo, la pantalla
+  // simplemente se desliza fuera tal y como estaba.
+  const lastGood = useRef(fresh);
+  if (fresh && fresh.songs.length > 0) lastGood.current = fresh;
+  const data = vanished ? (lastGood.current ?? fresh) : fresh;
 
   const songIds = data?.songs.map((s) => s.id) ?? [];
   const downloadMsg = useDownloadMessage(data?.songs ?? []);

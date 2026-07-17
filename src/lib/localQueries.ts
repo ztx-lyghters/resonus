@@ -4,6 +4,7 @@
  */
 import * as FileSystem from 'expo-file-system/legacy';
 
+import { tg } from '@/i18n';
 import { useAuthStore } from '@/store/auth';
 import { usePlayCounts } from '@/store/playCounts';
 import { usePlayHistory } from '@/store/playHistory';
@@ -282,7 +283,18 @@ export async function getAlbum(albumId: string): Promise<{ album: Album; songs: 
     });
   const album = c?.albums.find((a) => a.id === albumId);
   return {
-    album: album ? toAlbum(album) : { id: albumId, name: albumId, songCount: songs.length },
+    // Sin entrada en el catálogo tiramos del tag de sus canciones; el id JAMÁS
+    // vale como nombre — en las descargas es el id opaco del servidor y se veía
+    // un churro en la cabecera. Con 0 canciones el álbum ya no existe (los
+    // álbumes locales se derivan de ellas) y la pantalla se sale sola, así que
+    // este nombre es un cinturón para cualquier otro camino, no lo normal.
+    album: album
+      ? toAlbum(album)
+      : {
+          id: albumId,
+          name: songs[0]?.album || tg('Unknown album'),
+          songCount: songs.length,
+        },
     songs,
   };
 }
@@ -300,7 +312,14 @@ export async function getArtist(artistId: string): Promise<{ artist: Artist; alb
   );
   const artist = c?.artists.find((a) => a.id === artistId);
   return {
-    artist: artist ? toArtist(artist) : { id: artistId, name: artistId, albumCount: albums.length },
+    // Aquí el id SÍ sirve de último recurso, al revés que en getAlbum: en modo
+    // local el id de un artista es su propio nombre normalizado, así que lo peor
+    // que pasa es verlo en minúsculas. Mejor eso que un "desconocido" que tira
+    // el nombre a la basura. Aun así preferimos el de sus álbumes, que conserva
+    // las mayúsculas.
+    artist: artist
+      ? toArtist(artist)
+      : { id: artistId, name: albums[0]?.artist || artistId, albumCount: albums.length },
     albums: albums.map(toAlbum),
   };
 }

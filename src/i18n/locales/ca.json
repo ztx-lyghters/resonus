@@ -438,5 +438,6 @@
   "Greeting": "Salutació",
   "Sleep timer ({n} min left)": "Temporitzador (queden {n} min)",
   "Looking for music…": "S'està cercant la música…",
-  "Loading covers…": "S'estan carregant les caràtules…"
+  "Loading covers…": "S'estan carregant les caràtules…",
+  "Unknown album": "Àlbum desconegut"
 }

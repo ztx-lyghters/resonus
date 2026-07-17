@@ -436,5 +436,6 @@
   "Custom greeting": "Saludo personalizado",
   "Leave it empty to greet you by the time of day.": "Déjalo vacío para saludarte según la hora del día.",
   "Greeting": "Saludo",
-  "Sleep timer ({n} min left)": "Temporizador (quedan {n} min)"
+  "Sleep timer ({n} min left)": "Temporizador (quedan {n} min)",
+  "Looking for music…": "Buscando tu música…"
 }

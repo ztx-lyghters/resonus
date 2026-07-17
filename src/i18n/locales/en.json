@@ -436,5 +436,6 @@
   "Custom greeting": "Custom greeting",
   "Leave it empty to greet you by the time of day.": "Leave it empty to greet you by the time of day.",
   "Greeting": "Greeting",
-  "Sleep timer ({n} min left)": "Sleep timer ({n} min left)"
+  "Sleep timer ({n} min left)": "Sleep timer ({n} min left)",
+  "Looking for music…": "Looking for music…"
 }

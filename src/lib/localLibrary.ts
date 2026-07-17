@@ -89,16 +89,22 @@ async function mapPool<T, R>(
 
 /**
  * Devuelve una función para llamar tras procesar cada fichero. Agrupa las
- * actualizaciones del progreso (cada ~20 canciones) para no re-renderizar el
- * indicador una vez por fichero durante el escaneo.
+ * actualizaciones del progreso para no re-renderizar el indicador una vez por
+ * fichero durante el escaneo.
+ *
+ * El grupo es ~1% del total, no un número fijo: 20 ficheros son un salto del
+ * 10% en una carpeta de 200 canciones (la barra iba a tirones) y del 0,4% en
+ * una de 5000 (re-renders de sobra para lo que se nota). Con ~100 tics la barra
+ * fluye igual de bien en las dos.
  */
 function progressBumper(total: number): () => void {
+  const every = Math.max(1, Math.round(total / 100));
   let done = 0;
   let pending = 0;
   return () => {
     done++;
     pending++;
-    if (pending >= 20 || done === total) {
+    if (pending >= every || done === total) {
       useScanProgress.getState().tick(pending);
       pending = 0;
     }
@@ -404,34 +410,40 @@ export async function loadDeviceSongs(): Promise<Song[]> {
     return disk.songs;
   }
 
+  // Buscar y analizar son dos fases, y las dos pueden tardar: `begin()` enciende
+  // el indicador ya, para que recorrer miles de ficheros no parezca un cuelgue.
+  useScanProgress.getState().begin();
   const rawSongs: { id: string; filename: string; duration: number; uri: string; mtime: number }[] = [];
-  let after: string | undefined;
-  let hasNext = true;
-  while (hasNext && rawSongs.length < 5000) {
-    const page = await MediaLibrary.getAssetsAsync({
-      mediaType: MediaLibrary.MediaType.audio,
-      first: 200,
-      after,
-    });
-    for (const a of page.assets) {
-      // Salta carpetas que no son de música (mensajería, grabaciones, tonos…).
-      if (!isLikelyMusic(a.uri)) continue;
-      rawSongs.push({
-        id: `local:${a.id}`,
-        filename: a.filename,
-        duration: a.duration,
-        uri: a.uri,
-        mtime: a.modificationTime || 0,
-      });
-    }
-    after = page.endCursor;
-    hasNext = page.hasNextPage;
-  }
-
-  useScanProgress.getState().start(rawSongs.length);
-  const bump = progressBumper(rawSongs.length);
   let songs: Song[];
   try {
+    let after: string | undefined;
+    let hasNext = true;
+    while (hasNext && rawSongs.length < 5000) {
+      const page = await MediaLibrary.getAssetsAsync({
+        mediaType: MediaLibrary.MediaType.audio,
+        first: 200,
+        after,
+      });
+      const before = rawSongs.length;
+      for (const a of page.assets) {
+        // Salta carpetas que no son de música (mensajería, grabaciones, tonos…).
+        if (!isLikelyMusic(a.uri)) continue;
+        rawSongs.push({
+          id: `local:${a.id}`,
+          filename: a.filename,
+          duration: a.duration,
+          uri: a.uri,
+          mtime: a.modificationTime || 0,
+        });
+      }
+      // Una vez por página, no por fichero: ya vienen de 200 en 200.
+      useScanProgress.getState().tick(rawSongs.length - before);
+      after = page.endCursor;
+      hasNext = page.hasNextPage;
+    }
+
+    useScanProgress.getState().start(rawSongs.length);
+    const bump = progressBumper(rawSongs.length);
     songs = await mapPool(rawSongs, SCAN_CONCURRENCY, async (raw) => {
       let tags = null;
       try {
@@ -487,6 +499,7 @@ export async function loadFolderSongs(treeUri: string): Promise<Song[]> {
     } catch {
       return;
     }
+    const before = rawSongs.length;
     for (const entryUri of entries) {
       const decoded = decodeURIComponent(entryUri);
       if (AUDIO_EXT.test(decoded)) {
@@ -495,14 +508,20 @@ export async function loadFolderSongs(treeUri: string): Promise<Song[]> {
         await walk(entryUri, depth + 1);
       }
     }
+    // Una vez por carpeta: recorrer un árbol grande por SAF no es instantáneo,
+    // y sin esto la pantalla se queda muerta hasta que empieza a analizar.
+    if (rawSongs.length > before) useScanProgress.getState().tick(rawSongs.length - before);
   }
 
-  await walk(treeUri, 0);
-
-  useScanProgress.getState().start(rawSongs.length);
-  const bump = progressBumper(rawSongs.length);
+  // Buscar y analizar son dos fases, y las dos pueden tardar: `begin()` enciende
+  // el indicador ya, para que recorrer el árbol no parezca un cuelgue.
+  useScanProgress.getState().begin();
   let songs: Song[];
   try {
+    await walk(treeUri, 0);
+
+    useScanProgress.getState().start(rawSongs.length);
+    const bump = progressBumper(rawSongs.length);
     songs = await mapPool(rawSongs, SCAN_CONCURRENCY, async (raw) => {
       let tags = null;
       let mtime = 0;

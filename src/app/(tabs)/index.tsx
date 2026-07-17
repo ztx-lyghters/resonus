@@ -348,9 +348,13 @@ function ScanningPanel() {
     }).start();
   }, [fraction, anim]);
   const width = anim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
+  // Sin total todavía se está buscando, no analizando: decirlo evita que el
+  // número suba bajo un título que promete otra cosa.
   return (
     <View style={styles.scanPanel}>
-      <Text style={styles.scanTitle}>{t('Scanning your music…')}</Text>
+      <Text style={styles.scanTitle}>
+        {total > 0 ? t('Scanning your music…') : t('Looking for music…')}
+      </Text>
       {total > 0 ? (
         <View style={styles.scanBarTrack}>
           <Animated.View style={[styles.scanBarFill, { width, backgroundColor: colors.accent }]} />
@@ -359,7 +363,9 @@ function ScanningPanel() {
         <ActivityIndicator color={colors.accent} />
       )}
       <Text style={styles.scanSub}>
-        {total > 0 ? `${count} / ${total} · ${Math.round(fraction * 100)}%` : `${count}`}
+        {total > 0
+          ? `${count} / ${total} · ${Math.round(fraction * 100)}%`
+          : t('{n} songs', { n: count })}
       </Text>
     </View>
   );

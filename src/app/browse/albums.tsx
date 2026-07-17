@@ -358,7 +358,9 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, color: colors.text, fontSize: fontSize.md, paddingVertical: 0 },
   searchCancel: { color: colors.text, fontSize: fontSize.sm, fontWeight: '600' },
-  chipsRow: { flexGrow: 0 },
+  // `flexShrink: 0` porque la barra de búsqueda añade un hijo a la columna: sin
+  // él el flex encoge esta fila y corta el texto de las píldoras.
+  chipsRow: { flexGrow: 0, flexShrink: 0 },
   chips: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
   chip: {
     // Padding asimétrico a propósito: aun sin includeFontPadding, los glifos

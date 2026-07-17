@@ -372,10 +372,10 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, color: colors.text, fontSize: fontSize.md, paddingVertical: 0 },
   searchCancel: { color: colors.text, fontSize: fontSize.sm, fontWeight: '600' },
-  // Mismos chips que explorar álbumes, ajustes finos incluidos. El `flexShrink`
-  // sí es de aquí: esta pantalla tiene un hijo más en la columna (el buscador)
-  // y sin él el flex encogía la fila hasta cortar el texto de las píldoras.
   headerAction: { width: 26, alignItems: 'flex-end' },
+  // Mismos chips que explorar álbumes, ajustes finos incluidos. `flexShrink: 0`
+  // porque la barra de búsqueda añade un hijo a la columna: sin él el flex
+  // encoge esta fila y corta el texto de las píldoras.
   chipsRow: { flexGrow: 0, flexShrink: 0 },
   chips: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
   chip: {

@@ -32,6 +32,14 @@ Releases before 0.2.1 are only listed on the
   start downloading almost immediately instead of after a long scan.
 - Browsing artists now shows a grid of artist cards with sorting by name,
   recently played, most played or random.
+- Grid or list when browsing albums and artists, from a button in the header.
+  Each screen remembers its own.
+- Search when browsing albums: pull down at the top of the list to find an album
+  anywhere in your library.
+- Download an artist's whole discography from their page, with progress and the
+  option to stop it.
+- The Home greeting can be hidden, or replaced with your own text, under
+  Appearance › Home › Greeting.
 - More accent colors in the palette.
 
 ### Changed
@@ -48,6 +56,12 @@ Releases before 0.2.1 are only listed on the
   local mode.
 - The artist's Popular songs line up with the rest of the lists instead of
   running edge to edge.
+- The filter when browsing artists now stays out of the way until you pull down
+  at the top of the list, the same gesture playlists and favorites use.
+- The sleep timer fades the music out over its last seconds instead of cutting
+  it dead.
+- Download confirmations now estimate how much space they need, and say so when
+  the device may not have enough.
 
 ### Fixed
 

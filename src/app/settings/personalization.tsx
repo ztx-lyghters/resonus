@@ -132,11 +132,10 @@ export default function AppearanceSettings() {
         <SettingRow
           label={t('Greeting')}
           description={t('“Good morning”, “Good evening”… at the top of Home.')}
-          // Estado a la derecha, como Idioma o Fuente: se ve de un vistazo sin
-          // tener que entrar.
-          right={
-            !showGreeting ? t('Off') : customGreeting.trim() || t('Automatic')
-          }
+          // A la derecha, solo si hay algo que contar: apagado, o el texto
+          // propio. Con el saludo automático no se pone nada — es lo que hay
+          // por defecto, así que nombrarlo no informa, solo ocupa.
+          right={!showGreeting ? t('Off') : customGreeting.trim() || undefined}
           chevron
           onPress={() => router.push('/settings/greeting')}
         />

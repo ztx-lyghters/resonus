@@ -780,7 +780,7 @@ function startCrossfade(index: number, fadeSec: number) {
   onTrackChanged(song);
   // Cada extremo del fundido apunta al volumen efectivo de SU canción
   // (ReplayGain por pista); el volumen de usuario se lee vivo en cada tick.
-  runFade(out, p, fadeSec, gainFactor(outgoingSong), gainFactor(song));
+  runFade(p, fadeSec, gainFactor(outgoingSong), gainFactor(song));
 }
 
 /**
@@ -826,7 +826,6 @@ function tickFade() {
  * toma el relevo el latido de `onStatus` (ver `fadeState`).
  */
 function runFade(
-  _out: AudioPlayer | null,
   incoming: AudioPlayer,
   fadeSec: number,
   outGain: number,

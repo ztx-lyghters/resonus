@@ -41,6 +41,9 @@ Releases before 0.2.1 are only listed on the
 - The Home greeting can be hidden, or replaced with your own text, under
   Appearance › Home › Greeting.
 - More accent colors in the palette.
+- Pressing the Search tab when you are already on Search brings up the keyboard,
+  so you can start typing without reaching for the box. Arriving from another
+  tab it takes two presses, which leaves Browse all in peace on the first one.
 
 ### Changed
 
@@ -62,6 +65,16 @@ Releases before 0.2.1 are only listed on the
   it dead.
 - Download confirmations now estimate how much space they need, and say so when
   the device may not have enough.
+- The sleep timer says how long is left rather than the length you picked, and
+  starts counting down from the first second.
+- Scanning your device or folder for music is faster: it no longer reads the
+  embedded cover of every single song only to keep one per album.
+- The local scan's progress bar moves steadily instead of in jumps, counts
+  files while it is still finding them, and stays up until the covers are ready
+  rather than leaving you on a full bar with nothing happening.
+- Browsing albums and browsing artists now offer the same sort chips in the
+  same order, and both open on Recent. Sorting albums by artist is gone; browse
+  by artist from Artists instead.
 
 ### Fixed
 
@@ -84,6 +97,15 @@ Releases before 0.2.1 are only listed on the
 - Bigger tap target on the song row's ⋯ button.
 - German and Catalan translations for the newest screens.
 - The Autoplay setting no longer claims something a mix contradicts.
+- Home and the other screens show a local scan's new music and covers as soon
+  as it finishes, instead of waiting for you to pull down and refresh.
+- A failed download is no longer saved as if it were the song. Servers report
+  some failures with a success code, so the error text was being written to
+  disk as the track — and as the album art — marked as downloaded and never
+  retried. You would only have found out with no signal, which is when it
+  matters most.
+- Removing the last downloaded song of an album now leaves that album's screen
+  instead of stranding you on an empty page with an internal id for a title.
 
 ## [0.3.1] - 2026-07-12
 

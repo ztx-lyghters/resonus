@@ -31,6 +31,8 @@ export default function PlaybackSettings() {
   const setAutoplaySimilar = useSettings((s) => s.setAutoplaySimilar);
   const crossfadeSec = useSettings((s) => s.crossfadeSec);
   const setCrossfadeSec = useSettings((s) => s.setCrossfadeSec);
+  const preloadUpcoming = useSettings((s) => s.preloadUpcoming);
+  const setPreloadUpcoming = useSettings((s) => s.setPreloadUpcoming);
   const replayGain = useSettings((s) => s.replayGain);
   const setReplayGain = useSettings((s) => s.setReplayGain);
   const lyricsOnlineFallback = useSettings((s) => s.lyricsOnlineFallback);
@@ -95,6 +97,12 @@ export default function PlaybackSettings() {
                 description: t('Keep playing similar songs when your queue ends. A mix you start yourself always does, even with this off.'),
                 value: autoplaySimilar,
                 onChange: setAutoplaySimilar,
+              },
+              {
+                label: t('Preload upcoming tracks'),
+                description: t('Request the next few tracks ahead of time so they start instantly. Helps with proxy servers like Octo-Fiesta or slow sources that fetch tracks on demand.'),
+                value: preloadUpcoming,
+                onChange: setPreloadUpcoming,
               },
             ]}
           />

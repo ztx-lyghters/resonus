@@ -294,6 +294,14 @@ interface SettingsState {
   autoplaySimilar: boolean;
   /** Segundos de fundido cruzado entre canciones (0 = desactivado). */
   crossfadeSec: number;
+  /**
+   * Calentar por adelantado el stream de las próximas pistas de la cola. Pensado
+   * para proxys tipo Octo Fiesta u orígenes lentos que bajan la pista al vuelo:
+   * pide su URL con antelación para que el servidor la tenga lista al llegar.
+   * Apagado por defecto: en un servidor normal no aporta y solo daría trabajo de
+   * más (transcodes, estadísticas) sin que el usuario lo pida.
+   */
+  preloadUpcoming: boolean;
   /** Normalización de volumen (ReplayGain): apagada, por canción o por álbum. */
   replayGain: ReplayGainMode;
   /** Mantener la pantalla encendida mientras la app está en primer plano. */
@@ -376,6 +384,7 @@ interface SettingsState {
   setShowSongDuration: (value: boolean) => void;
   setAutoplaySimilar: (value: boolean) => void;
   setCrossfadeSec: (value: number) => void;
+  setPreloadUpcoming: (value: boolean) => void;
   setReplayGain: (value: ReplayGainMode) => void;
   setKeepScreenAwake: (value: boolean) => void;
   setHapticsEnabled: (value: boolean) => void;
@@ -435,6 +444,7 @@ function snapshot(get: () => SettingsState) {
     showSongDuration: s.showSongDuration,
     autoplaySimilar: s.autoplaySimilar,
     crossfadeSec: s.crossfadeSec,
+    preloadUpcoming: s.preloadUpcoming,
     replayGain: s.replayGain,
     keepScreenAwake: s.keepScreenAwake,
     hapticsEnabled: s.hapticsEnabled,
@@ -482,6 +492,7 @@ const DEFAULTS = {
   showSongDuration: false,
   autoplaySimilar: true,
   crossfadeSec: 0,
+  preloadUpcoming: false,
   replayGain: 'off' as ReplayGainMode,
   keepScreenAwake: false,
   hapticsEnabled: false,
@@ -577,6 +588,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
 
   setCrossfadeSec: (crossfadeSec) => {
     set({ crossfadeSec });
+    persist(snapshot(get));
+  },
+
+  setPreloadUpcoming: (preloadUpcoming) => {
+    set({ preloadUpcoming });
     persist(snapshot(get));
   },
 
@@ -773,6 +789,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
           showSongDuration: boolean;
           autoplaySimilar: boolean;
           crossfadeSec: number;
+          preloadUpcoming: boolean;
           replayGain: ReplayGainMode;
           keepScreenAwake: boolean;
           hapticsEnabled: boolean;
@@ -857,6 +874,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
         }
         if (typeof parsed.crossfadeSec === 'number' && parsed.crossfadeSec >= 0) {
           set({ crossfadeSec: parsed.crossfadeSec });
+        }
+        if (typeof parsed.preloadUpcoming === 'boolean') {
+          set({ preloadUpcoming: parsed.preloadUpcoming });
         }
         if (
           parsed.replayGain === 'off' ||

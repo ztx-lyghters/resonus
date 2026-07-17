@@ -485,7 +485,67 @@ function onTrackChanged(song: Song) {
   const { queue, index } = usePlayerStore.getState();
   if (queue.length > 1) prefetchLyrics(queue[(index + 1) % queue.length]);
   scheduleSync();
+  warmUpcoming();
   void maybeQueueAutoplay();
+}
+
+// ── Precarga de próximas pistas (calienta el stream por adelantado) ──────────
+// Para proxys tipo Octo Fiesta u orígenes lentos que bajan la pista al vuelo:
+// al cambiar de pista se pide con antelación la URL de stream de las próximas,
+// para que el servidor ya la tenga cacheada al llegar (o al saltar varias). Solo
+// hace falta que la petición ALCANCE al servidor —él arranca su fetch del origen
+// aunque nosotros no leamos la respuesta—, así que es best-effort y sobrevive al
+// segundo plano: se dispara desde onTrackChanged, que late por el evento nativo.
+// Apagado por defecto (ver ajuste preloadUpcoming); en un servidor normal no
+// aporta y solo daría transcodes/estadísticas de más.
+const PRELOAD_AHEAD = 5;
+/** Ids ya calentados: al deslizarse la ventana solo se calienta la que entra
+ *  nueva (~1 petición por avance), no las cinco cada vez. Se limpia al cambiar
+ *  de cola (playQueue). */
+const warmedIds = new Set<string>();
+
+function resetWarmed() {
+  warmedIds.clear();
+}
+
+function warmUpcoming() {
+  if (!useSettings.getState().preloadUpcoming) return;
+  const auth = useAuthStore.getState().auth;
+  if (!auth || useAuthStore.getState().offline) return;
+  const { queue, index, repeat } = usePlayerStore.getState();
+  if (queue.length <= 1) return;
+  const max = effectiveMaxBitRate();
+  for (let i = 1; i <= PRELOAD_AHEAD; i++) {
+    // 'one' no cambia de pista; con 'all' la cola da la vuelta, si no se corta.
+    const ni = repeat === 'all' ? (index + i) % queue.length : index + i;
+    if (repeat !== 'all' && ni >= queue.length) break;
+    const song = queue[ni];
+    // Descargadas/locales/radio no pasan por el servidor: nada que calentar.
+    if (!song || song.url || song.localUri || downloadedUri(song)) continue;
+    if (warmedIds.has(song.id)) continue;
+    warmedIds.add(song.id);
+    void warmStream(streamUrl(auth, song.id, max));
+  }
+}
+
+/**
+ * Punto único del calentado. Pide solo el primer byte (`Range`) para no gastar
+ * datos del móvil: al proxy le basta esa petición para bajar y cachear la pista
+ * entera en su lado. El AbortController acota el peor caso —un servidor que
+ * ignore `Range` y mande el archivo completo— a unos segundos, de sobra para
+ * haber disparado el fetch del origen. Si en pruebas contra un Octo Fiesta real
+ * no bastara, aquí se sube el Range o se pasa a leer/descartar toda la respuesta.
+ */
+async function warmStream(url: string) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 4000);
+  try {
+    await fetch(url, { headers: { Range: 'bytes=0-1' }, signal: ctrl.signal });
+  } catch {
+    // Best-effort: sin conexión, abortado o error del servidor dan igual.
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // ── Autoplay: al acercarse el final de la cola, encolar canciones parecidas ──
@@ -1175,6 +1235,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (songs.length === 0) return;
     attachAppState();
     autoplayFetchedFor = null;
+    resetWarmed();
     // Antes de saltar a otra lista/álbum, guarda la canción actual en el
     // historial "atrás" para poder volver a ella (estilo Spotify).
     pushHistory();

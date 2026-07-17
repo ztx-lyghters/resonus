@@ -19,7 +19,7 @@ index 72a6e9e990bdc9bab549536981fc2e08eeb4837e..cbc7c04fee051fb1caa9ac1bee6214fe
          runOnMain {
            player.ref.playbackState == Player.STATE_BUFFERING
 diff --git a/android/src/main/java/expo/modules/audio/AudioPlayer.kt b/android/src/main/java/expo/modules/audio/AudioPlayer.kt
-index f7c43641fc12b627c70759fb49bbe65e746c4c1d..ba58ad275b26e762070be2c07c193ae91890df51 100644
+index f7c43641fc12b627c70759fb49bbe65e746c4c1d..cd4f2b99e3fca0938d93299cdb479cd3c70b9089 100644
 --- a/android/src/main/java/expo/modules/audio/AudioPlayer.kt
 +++ b/android/src/main/java/expo/modules/audio/AudioPlayer.kt
 @@ -37,6 +37,8 @@ import java.util.UUID
@@ -31,7 +31,20 @@ index f7c43641fc12b627c70759fb49bbe65e746c4c1d..ba58ad275b26e762070be2c07c193ae9
  private const val SEEK_JUMP_INTERVAL_MS: Long = 10_000
  
  @UnstableApi
-@@ -114,6 +116,9 @@ class AudioPlayer(
+@@ -50,6 +52,12 @@ class AudioPlayer(
+   ExoPlayer.Builder(context)
+     .setLooper(context.mainLooper)
+     .setAudioAttributes(AudioAttributes.DEFAULT, false)
++    // Pause when the audio output becomes noisy (wired headphones unplugged or a
++    // Bluetooth device disconnects), instead of blasting through the speaker.
++    // expo-audio only handles audio-focus loss, which fires for calls/other apps
++    // but not for a headphone unplug and only inconsistently for Bluetooth — so
++    // without this the app kept playing (or paused only sometimes) on disconnect.
++    .setHandleAudioBecomingNoisy(true)
+     .setSeekForwardIncrementMs(SEEK_JUMP_INTERVAL_MS)
+     .setSeekBackIncrementMs(SEEK_JUMP_INTERVAL_MS)
+     .apply {
+@@ -114,6 +122,9 @@ class AudioPlayer(
      startUpdating()
    }
  

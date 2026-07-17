@@ -171,8 +171,10 @@ export default function ArtistScreen() {
   // sin pedir nada.
   const totalSongs = albums.reduce((n, a) => n + (a.songCount ?? 0), 0);
 
-  /** Pide las canciones de cada álbum y arranca la descarga del grupo. */
-  async function startDownload() {
+  /** Pide las canciones de cada álbum. `gathering` cubre SOLO esta fase: si se
+   *  estirara hasta cubrir la descarga, el botón quedaría sordo mientras baja y
+   *  no se podría parar. */
+  async function gatherSongs() {
     setGathering(true);
     try {
       const parts = await Promise.all(
@@ -182,21 +184,26 @@ export default function ArtistScreen() {
           queryClient.fetchQuery({ queryKey: ['album', a.id], queryFn: () => getAlbum(a.id) }),
         ),
       );
-      const songs = parts.flatMap((p) => p.songs);
-      if (songs.length === 0) return;
-      await downloadArtist(id, songs, albums);
-      // Sin este aviso la descarga acaba muda: el botón vuelve a su icono de
-      // siempre (aquí no hay estado "descargado" que lo delate) y, si ya
-      // estaba todo bajado, `downloadGroup` se sale sin hacer absolutamente
-      // nada. Si quedan canciones es que se paró, y de eso ya avisa el store.
-      const files = useDownloads.getState().files;
-      const left = songs.filter((s) => !files[s.id] && !s.url && !s.localUri);
-      if (left.length === 0) toast(t('Downloaded'));
+      return parts.flatMap((p) => p.songs);
     } catch {
       toast(t("Couldn't load albums."));
+      return null;
     } finally {
       setGathering(false);
     }
+  }
+
+  async function startDownload() {
+    const songs = await gatherSongs();
+    if (!songs || songs.length === 0) return;
+    await downloadArtist(id, songs, albums);
+    // Sin este aviso la descarga acaba muda: el botón vuelve a su icono de
+    // siempre (aquí no hay estado "descargado" que lo delate) y, si ya estaba
+    // todo bajado, `downloadGroup` se sale sin hacer absolutamente nada. Si
+    // quedan canciones es que se paró, y de eso ya avisa el store.
+    const files = useDownloads.getState().files;
+    const left = songs.filter((s) => !files[s.id] && !s.url && !s.localUri);
+    if (left.length === 0) toast(t('Downloaded'));
   }
 
   function onDownloadPress() {

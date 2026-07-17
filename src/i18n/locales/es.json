@@ -435,5 +435,6 @@
   "Show greeting": "Mostrar saludo",
   "“Good morning”, “Good evening”… at the top of Home.": "«Buenos días», «Buenas noches»… arriba en Inicio.",
   "Custom greeting": "Saludo personalizado",
-  "Leave it empty to greet you by the time of day.": "Déjalo vacío para saludarte según la hora del día."
+  "Leave it empty to greet you by the time of day.": "Déjalo vacío para saludarte según la hora del día.",
+  "Greeting": "Saludo"
 }

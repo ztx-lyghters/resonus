@@ -435,5 +435,6 @@
   "Show greeting": "Begrüßung anzeigen",
   "“Good morning”, “Good evening”… at the top of Home.": "„Guten Morgen“, „Guten Abend“… oben auf der Startseite.",
   "Custom greeting": "Eigene Begrüßung",
-  "Leave it empty to greet you by the time of day.": "Leer lassen, um nach Tageszeit begrüßt zu werden."
+  "Leave it empty to greet you by the time of day.": "Leer lassen, um nach Tageszeit begrüßt zu werden.",
+  "Greeting": "Begrüßung"
 }

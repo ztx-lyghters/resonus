@@ -435,5 +435,6 @@
   "Show greeting": "Mostra la salutació",
   "“Good morning”, “Good evening”… at the top of Home.": "«Bon dia», «Bona nit»… a la part superior d'Inici.",
   "Custom greeting": "Salutació personalitzada",
-  "Leave it empty to greet you by the time of day.": "Deixa-ho buit per saludar-te segons l'hora del dia."
+  "Leave it empty to greet you by the time of day.": "Deixa-ho buit per saludar-te segons l'hora del dia.",
+  "Greeting": "Salutació"
 }

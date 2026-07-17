@@ -7,7 +7,9 @@
  * Ojo: esconder una acción no la desactiva en el resto de la app. «Añadir a la
  * cola» y «Favoritos», por ejemplo, siguen estando en el gesto de deslizar.
  */
-import { SettingsPage, SwitchList } from '@/components/SettingsUI';
+import { ScrollView } from 'react-native';
+
+import { SettingsPage, settingsStyles, SwitchList } from '@/components/SettingsUI';
 import { useT } from '@/i18n';
 import { useAuthStore } from '@/store/auth';
 import { useSettings, type SongMenuActionKey } from '@/store/settings';
@@ -52,13 +54,18 @@ export default function SongMenuSettings() {
 
   return (
     <SettingsPage title={t('Song menu')}>
-      <SwitchList
-        options={order.map((key) => ({
-          label: t(LABEL[key]),
-          value: songMenuActions[key],
-          onChange: (v: boolean) => setSongMenuAction(key, v),
-        }))}
-      />
+      {/* `SettingsPage` pinta a sus hijos tal cual: el margen lo pone este
+          ScrollView, como el resto de Ajustes. Y con diez interruptores hace
+          falta poder scrollear en pantallas más cortas o con la letra grande. */}
+      <ScrollView contentContainerStyle={settingsStyles.content}>
+        <SwitchList
+          options={order.map((key) => ({
+            label: t(LABEL[key]),
+            value: songMenuActions[key],
+            onChange: (v: boolean) => setSongMenuAction(key, v),
+          }))}
+        />
+      </ScrollView>
     </SettingsPage>
   );
 }

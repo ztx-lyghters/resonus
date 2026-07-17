@@ -204,6 +204,22 @@ export function setRating(id: string, rating: number): Promise<void> {
   return Subsonic.setRating(auth(), id, rating);
 }
 
+/**
+ * Búsqueda solo de álbumes (para filtrar al explorar). Va al servidor porque
+ * la lista de álbumes está paginada: filtrar en cliente solo miraría las
+ * páginas ya cargadas.
+ */
+export function searchAlbums(query: string, count?: number): Promise<Subsonic.Album[]> {
+  if (isOffline()) return Local.searchAlbums(query, count);
+  const a = auth();
+  const ids = enabledFolderIds(a);
+  if (!ids) return Subsonic.searchAlbums(a, query, count);
+  if (ids.length === 1) return Subsonic.searchAlbums(a, query, count, ids[0]);
+  return Promise.all(ids.map((id) => Subsonic.searchAlbums(a, query, count, id))).then((parts) =>
+    dedupeById(parts.flat()),
+  );
+}
+
 export function search(query: string): Promise<Subsonic.SearchResult> {
   if (isOffline()) return Local.search(query);
   const a = auth();

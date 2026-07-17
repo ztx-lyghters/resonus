@@ -560,4 +560,23 @@ export async function search(query: string): Promise<SearchResult> {
   return { artists, albums: albums.slice(0, 20), songs: songs.slice(0, 20) };
 }
 
+/**
+ * Búsqueda solo de álbumes, la gemela local de `Subsonic.searchAlbums`. Mira
+ * el nombre y el artista del álbum, no las canciones: quien filtra álbumes
+ * busca el álbum, y `search` ya cubre encontrarlo por una canción suya.
+ */
+export async function searchAlbums(query: string, count = 50): Promise<Album[]> {
+  const c = await ensureCatalog();
+  if (!c) return [];
+  const q = query.toLowerCase();
+  return c.albums
+    .filter(
+      (a) =>
+        (a.name?.toLowerCase() ?? '').includes(q) ||
+        (a.artist?.toLowerCase() ?? '').includes(q),
+    )
+    .slice(0, count)
+    .map(toAlbum);
+}
+
 export { localCoverUrl as coverUrl } from './localLibrary';

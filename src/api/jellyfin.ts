@@ -492,6 +492,23 @@ export async function getSimilarSongs(
   return (res.Items ?? []).filter((it) => it.Id !== id).slice(0, count).map(toSong);
 }
 
+/** Búsqueda solo de álbumes: una petición, no las tres de `search`. */
+export async function searchAlbums(
+  auth: SubsonicAuth,
+  query: string,
+  count = 50,
+  _musicFolderId?: string,
+): Promise<Album[]> {
+  const res = await request<JfItems>(auth, `/Users/${auth.jfUserId}/Items`, {
+    SearchTerm: query,
+    IncludeItemTypes: 'MusicAlbum',
+    Recursive: true,
+    Limit: count,
+    Fields: ALBUM_FIELDS,
+  });
+  return (res.Items ?? []).map(toAlbum);
+}
+
 export async function search(
   auth: SubsonicAuth,
   query: string,

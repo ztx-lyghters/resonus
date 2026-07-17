@@ -138,6 +138,13 @@ export const getRandomSongs = (
 export const search = (auth: SubsonicAuth, query: string, musicFolderId?: string) =>
   api(auth).search(auth, query, musicFolderId);
 
+export const searchAlbums = (
+  auth: SubsonicAuth,
+  query: string,
+  count?: number,
+  musicFolderId?: string,
+) => api(auth).searchAlbums(auth, query, count, musicFolderId);
+
 export const getStarred = (auth: SubsonicAuth, musicFolderId?: string) =>
   api(auth).getStarred(auth, musicFolderId);
 

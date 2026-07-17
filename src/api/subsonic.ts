@@ -560,6 +560,27 @@ export async function search(
   };
 }
 
+/**
+ * Búsqueda solo de álbumes. Aparte de `search` a propósito: aquella pide
+ * artistas y canciones que quien filtra álbumes tira, y está capada a 20.
+ */
+export async function searchAlbums(
+  auth: SubsonicAuth,
+  query: string,
+  count = 50,
+  musicFolderId?: string,
+): Promise<Album[]> {
+  const res = await request<{ searchResult3?: { album?: Album[] } }>(auth, 'search3.view', {
+    query,
+    albumCount: count,
+    // A 0 para que el servidor no busque ni mande lo que no se pinta.
+    songCount: 0,
+    artistCount: 0,
+    ...(musicFolderId ? { musicFolderId } : {}),
+  });
+  return res.searchResult3?.album ?? [];
+}
+
 export async function getArtists(auth: SubsonicAuth, musicFolderId?: string): Promise<Artist[]> {
   const res = await request<{
     artists?: { index?: { artist?: Artist[] }[] };

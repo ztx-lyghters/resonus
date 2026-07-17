@@ -26,6 +26,7 @@ import {
   getStarred,
   type Playlist,
 } from '@/api/data';
+import { AlbumRow } from '@/components/AlbumRow';
 import { ArtistRow } from '@/components/ArtistRow';
 import { Cover } from '@/components/Cover';
 import { useHistoryTimes } from '@/hooks/useHistoryTimes';
@@ -430,27 +431,7 @@ function AlbumsTab() {
             onLongPress={() => { haptic('light'); openMenu({ kind: 'album', album: item }); }}
           />
         ) : (
-          <Link href={`/album/${item.id}`} asChild>
-            <Pressable
-              style={styles.row}
-              onLongPress={() => { haptic('light'); openMenu({ kind: 'album', album: item }); }}
-            >
-              <Cover uri={coverArtUrl(item.coverArt ?? item.id, 100)} size={56} />
-              <View style={styles.rowInfo}>
-                <Text style={styles.rowTitle} numberOfLines={1}>{item.name}</Text>
-                {item.artist || pins[`album:${item.id}`] ? (
-                  <View style={styles.rowSubLine}>
-                    {pins[`album:${item.id}`] ? (
-                      <MaterialCommunityIcons name="pin" size={13} color={colors.accent} style={styles.pinIcon} />
-                    ) : null}
-                    {item.artist ? (
-                      <Text style={styles.rowSub} numberOfLines={1}>{item.artist}</Text>
-                    ) : null}
-                  </View>
-                ) : null}
-              </View>
-            </Pressable>
-          </Link>
+          <AlbumRow album={item} pinned={!!pins[`album:${item.id}`]} />
         )
       }
       ListEmptyComponent={

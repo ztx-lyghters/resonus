@@ -347,6 +347,8 @@ interface SettingsState {
    * recolocara la otra sin avisar.
    */
   browseArtistsLayout: ListLayout;
+  /** Lista o cuadrícula al explorar álbumes. Aparte por lo mismo que la anterior. */
+  browseAlbumsLayout: ListLayout;
   /** Color de acento (hex). */
   accentColor: string;
   /** Fuente de la interfaz (familia del sistema; `system` = por defecto). */
@@ -392,6 +394,7 @@ interface SettingsState {
   setLibrarySort: (value: LibrarySort) => void;
   setLibraryLayout: (value: ListLayout) => void;
   setBrowseArtistsLayout: (value: ListLayout) => void;
+  setBrowseAlbumsLayout: (value: ListLayout) => void;
   setAccentColor: (value: string) => void;
   setAppFont: (value: AppFont) => void;
   /** Vuelve a los valores de fábrica (el idioma se conserva). */
@@ -443,6 +446,7 @@ function snapshot(get: () => SettingsState) {
     librarySort: s.librarySort,
     libraryLayout: s.libraryLayout,
     browseArtistsLayout: s.browseArtistsLayout,
+    browseAlbumsLayout: s.browseAlbumsLayout,
     accentColor: s.accentColor,
     appFont: s.appFont,
   };
@@ -492,6 +496,9 @@ const DEFAULTS = {
   // Cuadrícula por defecto: a un artista se le reconoce por la cara, y es como
   // se pinta ya la pantalla. La lista es para quien prefiera escanear nombres.
   browseArtistsLayout: 'grid' as ListLayout,
+  // Cuadrícula por defecto: la portada es lo que identifica un álbum, y es
+  // como se pinta ya la pantalla.
+  browseAlbumsLayout: 'grid' as ListLayout,
   accentColor: DEFAULT_ACCENT,
   appFont: 'system' as AppFont,
 };
@@ -693,6 +700,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
     persist(snapshot(get));
   },
 
+  setBrowseAlbumsLayout: (browseAlbumsLayout) => {
+    set({ browseAlbumsLayout });
+    persist(snapshot(get));
+  },
+
   setAccentColor: (accentColor) => {
     applyAccent(accentColor);
     set({ accentColor });
@@ -761,6 +773,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
           librarySort: LibrarySort;
           libraryLayout: ListLayout;
           browseArtistsLayout: ListLayout;
+          browseAlbumsLayout: ListLayout;
           accentColor: string;
           appFont: AppFont;
         }>;
@@ -920,6 +933,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
         }
         if (parsed.browseArtistsLayout === 'list' || parsed.browseArtistsLayout === 'grid') {
           set({ browseArtistsLayout: parsed.browseArtistsLayout });
+        }
+        if (parsed.browseAlbumsLayout === 'list' || parsed.browseAlbumsLayout === 'grid') {
+          set({ browseAlbumsLayout: parsed.browseAlbumsLayout });
         }
         if (typeof parsed.accentColor === 'string' && /^#[0-9a-f]{6}$/i.test(parsed.accentColor)) {
           set({ accentColor: parsed.accentColor });

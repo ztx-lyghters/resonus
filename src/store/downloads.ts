@@ -279,11 +279,17 @@ async function downloadCover(auth: SubsonicAuth, dir: string, album: Album): Pro
 interface DownloadsState {
   /** id de canción (de servidor) → uri del fichero descargado. */
   files: Record<string, string>;
-  /** Progreso por grupo en curso: `album:<id>` / `playlist:<id>`. */
+  /** Progreso por grupo en curso: `album:<id>` / `playlist:<id>` / `artist:<id>`. */
   active: Record<string, GroupProgress>;
   hydrate: () => Promise<void>;
   downloadAlbum: (album: Album, songs: Song[]) => Promise<void>;
   downloadPlaylist: (playlist: Playlist, songs: Song[]) => Promise<void>;
+  /**
+   * Descarga la discografía de un artista (grupo `artist:<id>`). Recibe ya las
+   * canciones y los álbumes: la pantalla de artista solo tiene la lista de
+   * álbumes, así que quien llama es el que los ha pedido.
+   */
+  downloadArtist: (artistId: string, songs: Song[], albums: Album[]) => Promise<void>;
   /** Descarga todas las canciones favoritas (grupo 'favorites'). */
   downloadFavorites: (songs: Song[]) => Promise<void>;
   downloadSong: (song: Song) => Promise<void>;
@@ -456,6 +462,10 @@ export const useDownloads = create<DownloadsState>((set, get) => {
 
     downloadAlbum: async (album, songs) => {
       await downloadGroup(`album:${album.id}`, songs, [album]);
+    },
+
+    downloadArtist: async (artistId, songs, albums) => {
+      await downloadGroup(`artist:${artistId}`, songs, albums);
     },
 
     downloadSong: async (song) => {

@@ -1,9 +1,10 @@
 /** Detalle de artista estilo Spotify: cabecera grande, acciones, secciones. */
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import {
   ActivityIndicator,
   Animated,
@@ -20,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   coverArtUrl,
+  getAlbum,
   getAppearsOn,
   getArtist,
   getArtistInfo,
@@ -27,15 +29,18 @@ import {
 } from '@/api/data';
 import { AlbumCard } from '@/components/AlbumCard';
 import { Cover } from '@/components/Cover';
+import { Dialog } from '@/components/Dialog';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { Message } from '@/components/Message';
 import { TrackRow } from '@/components/TrackRow';
 import { useDominantColor } from '@/hooks/useDominantColor';
 import { useFavoriteIds } from '@/hooks/useFavoriteIds';
-import { useT } from '@/i18n';
+import { songsLabel, useT } from '@/i18n';
 import { useAuthStore } from '@/store/auth';
+import { groupDownloadState, useDownloads } from '@/store/downloads';
 import { currentSong, usePlayerStore } from '@/store/player';
 import { useSettings } from '@/store/settings';
+import { useToast } from '@/store/toast';
 import { colors, fontSize, spacing, SCREEN_BOTTOM_PADDING } from '@/theme';
 
 const WIDTH = Dimensions.get('window').width;
@@ -55,6 +60,23 @@ export default function ArtistScreen() {
   const [bioExpanded, setBioExpanded] = useState(false);
   const [songsExpanded, setSongsExpanded] = useState(false);
   const dominant = useDominantColor(canFetch ? coverArtUrl(id, 400) : undefined);
+
+  // ── Descargar la discografía ────────────────────────────────────────────
+  // Con `songIds` vacío a propósito: `groupDownloadState` solo puede decir
+  // "descargado" comparando ids contra el disco, y esta pantalla no tiene las
+  // canciones — solo los álbumes. Así que aquí el estado es de dos valores
+  // ('none' / 'active'), y las canciones se piden al pulsar.
+  const offline = useAuthStore((s) => s.offline);
+  const download = useDownloads(useShallow((s) => groupDownloadState(s, `artist:${id}`, [])));
+  const downloadArtist = useDownloads((s) => s.downloadArtist);
+  const cancelDownload = useDownloads((s) => s.cancelDownload);
+  const [confirmDownload, setConfirmDownload] = useState(false);
+  const [confirmStop, setConfirmStop] = useState(false);
+  /** Mientras se piden las canciones de cada álbum, antes de bajar nada. */
+  const [gathering, setGathering] = useState(false);
+  const queryClient = useQueryClient();
+  const toast = useToast((s) => s.show);
+  const lang = useSettings((s) => s.language);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const barContentOpacity = scrollY.interpolate({
@@ -143,6 +165,46 @@ export default function ArtistScreen() {
     if (!usePlayerStore.getState().shuffle) toggleShuffle();
   }
 
+  // Solo su discografía, no "Aparece en": esos álbumes son de otro artista, y
+  // bajar el disco entero de un tercero porque este cante en un tema no es lo
+  // que se ha pedido. `songCount` viene en cada álbum, así que el total se sabe
+  // sin pedir nada.
+  const totalSongs = albums.reduce((n, a) => n + (a.songCount ?? 0), 0);
+
+  /** Pide las canciones de cada álbum y arranca la descarga del grupo. */
+  async function startDownload() {
+    setGathering(true);
+    try {
+      const parts = await Promise.all(
+        albums.map((a) =>
+          // Misma clave que la pantalla de álbum: si ya has entrado en alguno,
+          // sale de la caché en vez de volver a pedirlo.
+          queryClient.fetchQuery({ queryKey: ['album', a.id], queryFn: () => getAlbum(a.id) }),
+        ),
+      );
+      const songs = parts.flatMap((p) => p.songs);
+      if (songs.length === 0) return;
+      await downloadArtist(id, songs, albums);
+      // Sin este aviso la descarga acaba muda: el botón vuelve a su icono de
+      // siempre (aquí no hay estado "descargado" que lo delate) y, si ya
+      // estaba todo bajado, `downloadGroup` se sale sin hacer absolutamente
+      // nada. Si quedan canciones es que se paró, y de eso ya avisa el store.
+      const files = useDownloads.getState().files;
+      const left = songs.filter((s) => !files[s.id] && !s.url && !s.localUri);
+      if (left.length === 0) toast(t('Downloaded'));
+    } catch {
+      toast(t("Couldn't load albums."));
+    } finally {
+      setGathering(false);
+    }
+  }
+
+  function onDownloadPress() {
+    if (gathering) return;
+    if (download.status === 'active') setConfirmStop(true);
+    else setConfirmDownload(true);
+  }
+
   return (
     <View style={styles.root}>
       <ScrollView
@@ -182,6 +244,32 @@ export default function ArtistScreen() {
           >
             <Ionicons name="shuffle" size={28} color={colors.text} />
           </Pressable>
+          {/* En local no: lo de aquí ya está en el aparato. Mismo criterio (y
+              mismo aspecto) que la cabecera de álbum y playlist. */}
+          {!offline && albums.length > 0 ? (
+            <Pressable
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={t('Download')}
+              onPress={onDownloadPress}
+              style={styles.downloadWrap}
+            >
+              {gathering || download.status === 'active' ? (
+                <>
+                  <ActivityIndicator size="small" color={colors.accent} />
+                  {/* Reuniendo las canciones aún no hay porcentaje que dar: el
+                      progreso solo existe cuando el grupo ya está bajando. */}
+                  {download.status === 'active' ? (
+                    <Text style={[styles.downloadProgress, { color: colors.accent }]}>
+                      {Math.round(download.progress * 100)}%
+                    </Text>
+                  ) : null}
+                </>
+              ) : (
+                <Ionicons name="arrow-down-circle-outline" size={26} color={colors.textSecondary} />
+              )}
+            </Pressable>
+          ) : null}
           <View style={{ flex: 1 }} />
           <Pressable
             style={[styles.playButton, { backgroundColor: colors.accent }]}
@@ -323,6 +411,32 @@ export default function ArtistScreen() {
           {data.artist.name}
         </Animated.Text>
       </View>
+
+      <Dialog
+        visible={confirmDownload}
+        title={t('Download “{name}”?', { name: data.artist.name })}
+        message={t('{songs} will be saved to this device.', {
+          songs: songsLabel(totalSongs, lang),
+        })}
+        confirmLabel={t('Download')}
+        onCancel={() => setConfirmDownload(false)}
+        onConfirm={() => {
+          setConfirmDownload(false);
+          void startDownload();
+        }}
+      />
+      <Dialog
+        visible={confirmStop}
+        title={t('Stop download?')}
+        message={t('Songs already downloaded will be kept.')}
+        confirmLabel={t('Stop')}
+        destructive
+        onCancel={() => setConfirmStop(false)}
+        onConfirm={() => {
+          setConfirmStop(false);
+          cancelDownload(`artist:${id}`);
+        }}
+      />
     </View>
   );
 }
@@ -345,6 +459,16 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
+  },
+  // Mismos que la cabecera de álbum/playlist, para que el botón sea el mismo.
+  downloadWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  downloadProgress: {
+    fontSize: fontSize.xs,
+    fontWeight: '600',
   },
   playButton: {
     backgroundColor: colors.accent,

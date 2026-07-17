@@ -431,5 +431,9 @@
   "Find an album": "Cerca un àlbum",
   "Downloaded": "Descarregat",
   "{songs} will be saved to this device (about {size}).": "{songs} es guardaran en aquest dispositiu (uns {size}).",
-  "{songs} need about {size}, but only {free} is free. The download may stop partway.": "{songs} necessiten uns {size}, però només hi ha {free} lliures. La descàrrega es pot quedar a mitges."
+  "{songs} need about {size}, but only {free} is free. The download may stop partway.": "{songs} necessiten uns {size}, però només hi ha {free} lliures. La descàrrega es pot quedar a mitges.",
+  "Show greeting": "Mostra la salutació",
+  "“Good morning”, “Good evening”… at the top of Home.": "«Bon dia», «Bona nit»… a la part superior d'Inici.",
+  "Custom greeting": "Salutació personalitzada",
+  "Leave it empty to greet you by the time of day.": "Deixa-ho buit per saludar-te segons l'hora del dia."
 }

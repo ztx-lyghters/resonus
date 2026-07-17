@@ -387,6 +387,8 @@ export default function HomeScreen() {
   const showHistoryButton = useSettings((s) => s.showHistoryButton);
   const showProfileButton = useSettings((s) => s.showProfileButton);
   const showQuickGrid = useSettings((s) => s.showQuickGrid);
+  const showGreeting = useSettings((s) => s.showGreeting);
+  const customGreeting = useSettings((s) => s.customGreeting);
   const homeSections = useSettings((s) => s.homeSections);
   // El anillo del avatar lee el acento del store (no la constante global), así
   // se recolorea siempre al cambiarlo o al hidratar; Home es la pantalla
@@ -398,12 +400,15 @@ export default function HomeScreen() {
   // Saludo según la hora (estilo Spotify). Tramos a la española: mañana hasta
   // las 13, tarde hasta las 21, noche el resto (incluida la madrugada).
   const hour = new Date().getHours();
-  const greeting =
+  const byHour =
     hour >= 6 && hour < 13
       ? t('Good morning')
       : hour >= 13 && hour < 21
         ? t('Good afternoon')
         : t('Good evening');
+  // El personalizado manda; en blanco vuelve el de la hora, así que borrarlo es
+  // la forma de deshacerlo (no hace falta un botón de "restablecer").
+  const greeting = customGreeting.trim() || byHour;
 
   // Detecta si el servidor no responde (comparte caché con la sección "newest").
   // Solo online: en local no hay servidor y la key la usa también QuickGrid.
@@ -432,8 +437,16 @@ export default function HomeScreen() {
         }
       >
         <View style={styles.header}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <Text style={styles.greeting}>{greeting}</Text>
+          {/* `flexShrink` y `numberOfLines`: el saludo se puede personalizar, y
+              aunque el ajuste lo limite a GREETING_MAX, esos caracteres miden
+              distinto según la fuente elegida. Encogiendo y recortando, no hay
+              texto capaz de empujar los botones fuera de la pantalla. */}
+          <View style={styles.headerLeft}>
+            {showGreeting ? (
+              <Text style={styles.greeting} numberOfLines={1}>
+                {greeting}
+              </Text>
+            ) : null}
             {offline ? (
               <Ionicons
                 name="phone-portrait-outline"
@@ -511,7 +524,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.lg,
   },
-  greeting: { color: colors.text, fontSize: fontSize.xxl, fontWeight: '800' },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexShrink: 1 },
+  greeting: { color: colors.text, fontSize: fontSize.xxl, fontWeight: '800', flexShrink: 1 },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',

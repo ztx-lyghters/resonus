@@ -431,5 +431,9 @@
   "Find an album": "Album finden",
   "Downloaded": "Heruntergeladen",
   "{songs} will be saved to this device (about {size}).": "{songs} werden auf diesem Gerät gespeichert (etwa {size}).",
-  "{songs} need about {size}, but only {free} is free. The download may stop partway.": "{songs} brauchen etwa {size}, aber es sind nur {free} frei. Der Download bleibt womöglich stecken."
+  "{songs} need about {size}, but only {free} is free. The download may stop partway.": "{songs} brauchen etwa {size}, aber es sind nur {free} frei. Der Download bleibt womöglich stecken.",
+  "Show greeting": "Begrüßung anzeigen",
+  "“Good morning”, “Good evening”… at the top of Home.": "„Guten Morgen“, „Guten Abend“… oben auf der Startseite.",
+  "Custom greeting": "Eigene Begrüßung",
+  "Leave it empty to greet you by the time of day.": "Leer lassen, um nach Tageszeit begrüßt zu werden."
 }

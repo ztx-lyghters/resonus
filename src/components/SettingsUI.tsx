@@ -8,7 +8,16 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import Slider from '@react-native-community/slider';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView, useSafeAreaFrame, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSettings } from '@/store/settings';
@@ -381,6 +390,54 @@ export function SwitchList({
 }
 
 /** Pareja etiqueta/valor para datos de solo lectura. */
+/**
+ * Fila con un campo de texto editable. El contador de caracteres solo aparece
+ * cerca del tope: mientras sobra sitio no es información, es ruido.
+ */
+export function TextRow({
+  label,
+  description,
+  value,
+  placeholder,
+  maxLength,
+  onChange,
+}: {
+  label: string;
+  description?: string;
+  value: string;
+  placeholder?: string;
+  maxLength: number;
+  onChange: (v: string) => void;
+}) {
+  const accent = useAccent();
+  const near = value.length >= maxLength - 3;
+  return (
+    <View style={[settingsStyles.cardBox, settingsStyles.textRow]}>
+      <View style={settingsStyles.textRowTop}>
+        <View style={settingsStyles.rowLabelBox}>
+          <Text style={settingsStyles.rowLabel}>{label}</Text>
+          {description ? <Text style={settingsStyles.rowDescription}>{description}</Text> : null}
+        </View>
+        {near ? (
+          <Text style={[settingsStyles.rowValue, { color: accent }]}>
+            {value.length}/{maxLength}
+          </Text>
+        ) : null}
+      </View>
+      <TextInput
+        style={settingsStyles.textInput}
+        value={value}
+        onChangeText={onChange}
+        placeholder={placeholder}
+        placeholderTextColor={colors.textMuted}
+        maxLength={maxLength}
+        autoCorrect={false}
+        returnKeyType="done"
+      />
+    </View>
+  );
+}
+
 export function Field({ label, value }: { label: string; value: string }) {
   return (
     <View style={[settingsStyles.cardBox, settingsStyles.field]}>
@@ -430,6 +487,16 @@ export const settingsStyles = StyleSheet.create({
   rowLabelBox: { flex: 1 },
   rowDescription: { color: colors.textMuted, fontSize: fontSize.xs, marginTop: 2 },
   rowValue: { color: colors.textSecondary, fontSize: fontSize.sm },
+  textRow: { paddingVertical: spacing.md, paddingHorizontal: spacing.lg, gap: spacing.sm },
+  textRowTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  textInput: {
+    color: colors.text,
+    fontSize: fontSize.md,
+    backgroundColor: colors.surfaceHighlight,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
   slider: {
     marginHorizontal: spacing.md,
     marginTop: spacing.xs,

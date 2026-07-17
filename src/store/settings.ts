@@ -48,6 +48,14 @@ export type LibrarySort = 'recent' | 'added' | 'alpha';
 export type ListLayout = 'list' | 'grid';
 
 /**
+ * Tope del saludo personalizado de Inicio. Cabe de sobra en una línea junto a
+ * los botones de la derecha; pasado eso los empujaría fuera. Es un tope de
+ * cordura, no la garantía: la fuente la elige el usuario y "WWWW" ocupa mucho
+ * más que "iiii", así que el saludo además se recorta solo (ver Inicio).
+ */
+export const GREETING_MAX = 15;
+
+/**
  * Normalización de volumen con las etiquetas ReplayGain de los ficheros.
  * `auto` = estilo Spotify: por álbum al escuchar un álbum entero (conserva su
  * dinámica interna) y por canción en playlists/shuffle.
@@ -326,6 +334,10 @@ interface SettingsState {
   homeSections: HomeSection[];
   /** Cuadrícula de acceso rápido (Favoritos + recientes) arriba en Inicio. */
   showQuickGrid: boolean;
+  /** Mostrar el saludo ("Buenos días"…) en Inicio. */
+  showGreeting: boolean;
+  /** Saludo propio; vacío = el automático según la hora. */
+  customGreeting: string;
   /** Chips de explorar de Inicio, en orden (cada uno con su estado). Sin
    *  ninguno activo, la fila desaparece: eso sustituye al viejo interruptor. */
   exploreChips: ExploreChip[];
@@ -384,6 +396,9 @@ interface SettingsState {
   /** Reemplaza la lista completa (para reordenar). */
   setHomeSections: (sections: HomeSection[]) => void;
   setShowQuickGrid: (value: boolean) => void;
+  setShowGreeting: (value: boolean) => void;
+  /** Recorta a GREETING_MAX por su cuenta: el tope no depende de quien llame. */
+  setCustomGreeting: (value: string) => void;
   setExploreChip: (key: ExploreChipKey, value: boolean) => void;
   /** Reemplaza la lista completa (para reordenar). */
   setExploreChips: (chips: ExploreChip[]) => void;
@@ -438,6 +453,8 @@ function snapshot(get: () => SettingsState) {
     swipeLeftAction: s.swipeLeftAction,
     homeSections: s.homeSections,
     showQuickGrid: s.showQuickGrid,
+    showGreeting: s.showGreeting,
+    customGreeting: s.customGreeting,
     exploreChips: s.exploreChips,
     songMenuActions: s.songMenuActions,
     showFolderBrowser: s.showFolderBrowser,
@@ -486,6 +503,8 @@ const DEFAULTS = {
   swipeLeftAction: 'off' as SwipeAction,
   homeSections: DEFAULT_HOME_SECTIONS.map((s) => ({ ...s })),
   showQuickGrid: true,
+  showGreeting: true,
+  customGreeting: '',
   exploreChips: DEFAULT_EXPLORE_CHIPS.map((c) => ({ ...c })),
   songMenuActions: { ...DEFAULT_SONG_MENU_ACTIONS },
   showFolderBrowser: false,
@@ -653,6 +672,16 @@ export const useSettings = create<SettingsState>((set, get) => ({
     persist(snapshot(get));
   },
 
+  setShowGreeting: (showGreeting) => {
+    set({ showGreeting });
+    persist(snapshot(get));
+  },
+
+  setCustomGreeting: (customGreeting) => {
+    set({ customGreeting: customGreeting.slice(0, GREETING_MAX) });
+    persist(snapshot(get));
+  },
+
   setShowQuickGrid: (showQuickGrid) => {
     set({ showQuickGrid });
     persist(snapshot(get));
@@ -764,6 +793,8 @@ export const useSettings = create<SettingsState>((set, get) => ({
           /** Ajuste antiguo (booleano); se migra a swipeAction. */
           swipeToQueue: boolean;
           showQuickGrid: boolean;
+          showGreeting: boolean;
+          customGreeting: string;
           showExploreChips: boolean;
           exploreChips: unknown;
           songMenuActions: unknown;
@@ -904,6 +935,14 @@ export const useSettings = create<SettingsState>((set, get) => ({
         }
         if (typeof parsed.showQuickGrid === 'boolean') {
           set({ showQuickGrid: parsed.showQuickGrid });
+        }
+        if (typeof parsed.showGreeting === 'boolean') {
+          set({ showGreeting: parsed.showGreeting });
+        }
+        // Se recorta al hidratar: un ajuste guardado por una versión con otro
+        // tope no debe colarse más largo de lo que cabe.
+        if (typeof parsed.customGreeting === 'string') {
+          set({ customGreeting: parsed.customGreeting.slice(0, GREETING_MAX) });
         }
         if (parsed.songMenuActions) {
           set({ songMenuActions: normalizeSongMenuActions(parsed.songMenuActions) });

@@ -8,12 +8,14 @@ import {
   SettingsPage,
   settingsStyles,
   SwitchList,
+  TextRow,
 } from '@/components/SettingsUI';
 import { useT } from '@/i18n';
 import { haptic } from '@/lib/haptics';
 import { useAuthStore } from '@/store/auth';
 import {
   APP_FONT_LABELS,
+  GREETING_MAX,
   LANGUAGE_NAMES,
   useSettings,
   type SwipeAction,
@@ -44,6 +46,10 @@ export default function AppearanceSettings() {
   const setSwipeLeftAction = useSettings((s) => s.setSwipeLeftAction);
   const showQuickGrid = useSettings((s) => s.showQuickGrid);
   const setShowQuickGrid = useSettings((s) => s.setShowQuickGrid);
+  const showGreeting = useSettings((s) => s.showGreeting);
+  const setShowGreeting = useSettings((s) => s.setShowGreeting);
+  const customGreeting = useSettings((s) => s.customGreeting);
+  const setCustomGreeting = useSettings((s) => s.setCustomGreeting);
   const showFolderBrowser = useSettings((s) => s.showFolderBrowser);
   const setShowFolderBrowser = useSettings((s) => s.setShowFolderBrowser);
   const hapticsEnabled = useSettings((s) => s.hapticsEnabled);
@@ -93,6 +99,12 @@ export default function AppearanceSettings() {
         <SwitchList
           options={[
             {
+              label: t('Show greeting'),
+              description: t('“Good morning”, “Good evening”… at the top of Home.'),
+              value: showGreeting,
+              onChange: setShowGreeting,
+            },
+            {
               label: t('Show quick grid'),
               description: t('The shortcut cards at the top of Home.'),
               value: showQuickGrid,
@@ -112,6 +124,19 @@ export default function AppearanceSettings() {
             },
           ]}
         />
+
+        {/* Solo con el saludo visible: un campo para un texto que no se pinta
+            en ningún sitio sería una promesa falsa. */}
+        {showGreeting ? (
+          <TextRow
+            label={t('Custom greeting')}
+            description={t('Leave it empty to greet you by the time of day.')}
+            value={customGreeting}
+            placeholder={t('Good evening')}
+            maxLength={GREETING_MAX}
+            onChange={setCustomGreeting}
+          />
+        ) : null}
 
         <SettingRow
           label={t('Explore chips')}

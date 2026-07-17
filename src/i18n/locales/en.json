@@ -431,5 +431,9 @@
   "Find an album": "Find an album",
   "Downloaded": "Downloaded",
   "{songs} will be saved to this device (about {size}).": "{songs} will be saved to this device (about {size}).",
-  "{songs} need about {size}, but only {free} is free. The download may stop partway.": "{songs} need about {size}, but only {free} is free. The download may stop partway."
+  "{songs} need about {size}, but only {free} is free. The download may stop partway.": "{songs} need about {size}, but only {free} is free. The download may stop partway.",
+  "Show greeting": "Show greeting",
+  "“Good morning”, “Good evening”… at the top of Home.": "“Good morning”, “Good evening”… at the top of Home.",
+  "Custom greeting": "Custom greeting",
+  "Leave it empty to greet you by the time of day.": "Leave it empty to greet you by the time of day."
 }

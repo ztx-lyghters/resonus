@@ -3,6 +3,13 @@ description: Something isn't working
 title: "[Bug]: "
 labels: ["bug"]
 body:
+  - type: checkboxes
+    id: latest
+    attributes:
+      label: Before reporting
+      options:
+        - label: I'm on the latest [release](https://github.com/juananzzz/resonus/releases). You can check your version under Settings › About.
+          required: true
   - type: textarea
     id: what
     attributes:
@@ -18,13 +25,6 @@ body:
         1. Go to…
         2. Tap…
         3. See…
-    validations:
-      required: false
-  - type: input
-    id: version
-    attributes:
-      label: App version
-      description: Settings, at the bottom (e.g. 0.2.0).
     validations:
       required: false
   - type: dropdown

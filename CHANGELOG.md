@@ -24,7 +24,8 @@ Releases before 0.2.1 are only listed on the
 - Choose which actions appear in a song's ⋯ menu (Appearance).
 - Configurable swipe actions on song rows, in both directions: add to queue,
   play next, add to favorites or open the options menu.
-- Network settings: several server addresses with automatic switching.
+- Network settings (experimental): several server addresses with automatic
+  switching.
 - Choose what tapping the player cover does, including showing the lyrics in
   place.
 - Lyrics entry in the player's ⋯ menu.
@@ -44,6 +45,10 @@ Releases before 0.2.1 are only listed on the
 - Pressing the Search tab when you are already on Search brings up the keyboard,
   so you can start typing without reaching for the box. Arriving from another
   tab it takes two presses, which leaves Browse all in peace on the first one.
+- Preload upcoming tracks (Quality & playback, off by default): the next few
+  tracks are requested ahead of time so they start instantly, even when you skip
+  several ahead. Aimed at proxy servers like Octo-Fiesta, or slow sources that
+  only fetch a track the first time you play it.
 
 ### Changed
 
@@ -106,6 +111,13 @@ Releases before 0.2.1 are only listed on the
   matters most.
 - Removing the last downloaded song of an album now leaves that album's screen
   instead of stranding you on an empty page with an internal id for a title.
+- Crossfade no longer goes silent in the background. The incoming track's volume
+  ramp ran on a timer that Android freezes while the app is backgrounded, so the
+  next song came up muted until you reopened the app; it now keeps fading
+  correctly with the screen off.
+- Playback now pauses when you unplug headphones or a Bluetooth device
+  disconnects, instead of suddenly blaring out of the speaker. It used to pause
+  only sometimes, on some Bluetooth disconnects, and never on a wired unplug.
 
 ## [0.3.1] - 2026-07-12
 

@@ -44,8 +44,8 @@ export const LANGUAGE_NAMES: Record<Language, string> = { es: 'Español', en: 'E
 /** Orden de la Biblioteca, estilo Spotify. */
 export type LibrarySort = 'recent' | 'added' | 'alpha';
 
-/** Disposición de la Biblioteca: lista (filas) o cuadrícula (tarjetas). */
-export type LibraryLayout = 'list' | 'grid';
+/** Disposición de una colección: lista (filas) o cuadrícula (tarjetas). */
+export type ListLayout = 'list' | 'grid';
 
 /**
  * Normalización de volumen con las etiquetas ReplayGain de los ficheros.
@@ -339,7 +339,14 @@ interface SettingsState {
   /** Orden elegido en la Biblioteca (recientes/añadido/alfabético). */
   librarySort: LibrarySort;
   /** Lista o cuadrícula en la Biblioteca. */
-  libraryLayout: LibraryLayout;
+  libraryLayout: ListLayout;
+  /**
+   * Lista o cuadrícula al explorar artistas. Aparte de `libraryLayout` a
+   * propósito: son colecciones distintas (aquí están TODOS los artistas, allí
+   * solo los favoritos), y compartirla haría que tocar el botón de una pantalla
+   * recolocara la otra sin avisar.
+   */
+  browseArtistsLayout: ListLayout;
   /** Color de acento (hex). */
   accentColor: string;
   /** Fuente de la interfaz (familia del sistema; `system` = por defecto). */
@@ -383,7 +390,8 @@ interface SettingsState {
   setShowHistoryButton: (value: boolean) => void;
   setShowProfileButton: (value: boolean) => void;
   setLibrarySort: (value: LibrarySort) => void;
-  setLibraryLayout: (value: LibraryLayout) => void;
+  setLibraryLayout: (value: ListLayout) => void;
+  setBrowseArtistsLayout: (value: ListLayout) => void;
   setAccentColor: (value: string) => void;
   setAppFont: (value: AppFont) => void;
   /** Vuelve a los valores de fábrica (el idioma se conserva). */
@@ -434,6 +442,7 @@ function snapshot(get: () => SettingsState) {
     showProfileButton: s.showProfileButton,
     librarySort: s.librarySort,
     libraryLayout: s.libraryLayout,
+    browseArtistsLayout: s.browseArtistsLayout,
     accentColor: s.accentColor,
     appFont: s.appFont,
   };
@@ -479,7 +488,10 @@ const DEFAULTS = {
   showHistoryButton: true,
   showProfileButton: true,
   librarySort: 'recent' as LibrarySort,
-  libraryLayout: 'list' as LibraryLayout,
+  libraryLayout: 'list' as ListLayout,
+  // Cuadrícula por defecto: a un artista se le reconoce por la cara, y es como
+  // se pinta ya la pantalla. La lista es para quien prefiera escanear nombres.
+  browseArtistsLayout: 'grid' as ListLayout,
   accentColor: DEFAULT_ACCENT,
   appFont: 'system' as AppFont,
 };
@@ -676,6 +688,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
     persist(snapshot(get));
   },
 
+  setBrowseArtistsLayout: (browseArtistsLayout) => {
+    set({ browseArtistsLayout });
+    persist(snapshot(get));
+  },
+
   setAccentColor: (accentColor) => {
     applyAccent(accentColor);
     set({ accentColor });
@@ -742,7 +759,8 @@ export const useSettings = create<SettingsState>((set, get) => ({
           showHistoryButton: boolean;
           showProfileButton: boolean;
           librarySort: LibrarySort;
-          libraryLayout: LibraryLayout;
+          libraryLayout: ListLayout;
+          browseArtistsLayout: ListLayout;
           accentColor: string;
           appFont: AppFont;
         }>;
@@ -899,6 +917,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
         }
         if (parsed.libraryLayout === 'list' || parsed.libraryLayout === 'grid') {
           set({ libraryLayout: parsed.libraryLayout });
+        }
+        if (parsed.browseArtistsLayout === 'list' || parsed.browseArtistsLayout === 'grid') {
+          set({ browseArtistsLayout: parsed.browseArtistsLayout });
         }
         if (typeof parsed.accentColor === 'string' && /^#[0-9a-f]{6}$/i.test(parsed.accentColor)) {
           set({ accentColor: parsed.accentColor });

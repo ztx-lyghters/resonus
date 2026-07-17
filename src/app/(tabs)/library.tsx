@@ -26,6 +26,7 @@ import {
   getStarred,
   type Playlist,
 } from '@/api/data';
+import { ArtistRow } from '@/components/ArtistRow';
 import { Cover } from '@/components/Cover';
 import { useHistoryTimes } from '@/hooks/useHistoryTimes';
 import { Dialog } from '@/components/Dialog';
@@ -322,15 +323,7 @@ function ArtistsTab() {
             subtitle={albumsLabel(item.albumCount ?? 0, lang)}
           />
         ) : (
-          <Link href={`/artist/${item.id}`} asChild>
-            <Pressable style={styles.row}>
-              <Cover uri={coverArtUrl(item.coverArt ?? item.id, 100)} size={56} rounded />
-              <View style={styles.rowInfo}>
-                <Text style={styles.rowTitle} numberOfLines={1}>{item.name}</Text>
-                <Text style={[styles.rowSub, styles.rowSubGap]}>{albumsLabel(item.albumCount ?? 0, lang)}</Text>
-              </View>
-            </Pressable>
-          </Link>
+          <ArtistRow artist={item} />
         )
       }
       ListEmptyComponent={

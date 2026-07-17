@@ -2,28 +2,41 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
+  Animated,
   Dimensions,
-  FlatList,
+  Keyboard,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
+import {
+  FlatList as GHFlatList,
+  Gesture,
+  GestureDetector,
+  type GestureType,
+} from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getAlbumList, getArtists, type Artist } from '@/api/data';
 import { ArtistCard } from '@/components/ArtistCard';
 import { ArtistGridSkeleton } from '@/components/ArtistGridSkeleton';
+import { ArtistListSkeleton } from '@/components/ArtistListSkeleton';
+import { ArtistRow } from '@/components/ArtistRow';
 import { useHistoryTimes } from '@/hooks/useHistoryTimes';
 import { EmptyState } from '@/components/EmptyState';
 import { Message } from '@/components/Message';
 import { useT } from '@/i18n';
+import { haptic } from '@/lib/haptics';
 import { useAuthStore } from '@/store/auth';
 import { useLastPlayed } from '@/store/lastPlayed';
+import { useSettings } from '@/store/settings';
 import { colors, fontSize, radius, spacing, SCREEN_BOTTOM_PADDING } from '@/theme';
 import { listPerf } from '@/lib/listPerf';
 
@@ -54,12 +67,19 @@ const SORTS: { key: ArtistSort; label: string }[] = [
 /** Cuántos álbumes frecuentes se miran para deducir tus artistas. */
 const FREQUENT_POOL = 50;
 
+/** Alto de la barra desplegada: la caja (44) más su separación con los chips. */
+const SEARCH_H = 44 + spacing.md;
+
 export default function BrowseArtistsScreen() {
   const router = useRouter();
   const t = useT();
   const canFetch = useAuthStore((s) => !!s.auth || s.offline);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<ArtistSort>('alpha');
+  const layout = useSettings((s) => s.browseArtistsLayout);
+  const setLayout = useSettings((s) => s.setBrowseArtistsLayout);
+  const grid = layout === 'grid';
+
   // "Recientes" mezcla las dos fuentes: haber abierto su pantalla y haber
   // sonado dentro de cualquier cola. Ninguna sola cuenta la historia entera.
   const times = useLastPlayed((s) => s.times);
@@ -70,6 +90,55 @@ export default function BrowseArtistsScreen() {
     queryFn: () => getArtists(),
     enabled: canFetch,
   });
+
+  // ── Búsqueda al tirar hacia abajo ───────────────────────────────────────
+  // Mismo gesto que las listas de canciones (TrackListView): la barra se pinta
+  // plegada (alto 0) sobre los chips y tirar de la rejilla estando arriba la
+  // despliega. Aquí es hermana de la lista, no cabecera suya: los chips van en
+  // medio y deben quedarse fijos, así que la barra no puede vivir dentro del
+  // scroll. Crecer empuja chips y rejilla igual, que es el efecto buscado.
+  const listRef = useRef<GHFlatList<Artist>>(null);
+  const [searching, setSearching] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+  /** Último offset real del scroll (el gesto solo revela estando arriba). */
+  const lastOffsetY = useRef(0);
+  const searchH = useRef(new Animated.Value(0)).current;
+
+  function revealSearchBar() {
+    haptic('light');
+    setRevealed(true);
+    Animated.timing(searchH, { toValue: SEARCH_H, duration: 200, useNativeDriver: false }).start();
+  }
+
+  function collapseSearchBar() {
+    setRevealed(false);
+    Animated.timing(searchH, { toValue: 0, duration: 200, useNativeDriver: false }).start();
+  }
+
+  function cancelSearch() {
+    Keyboard.dismiss();
+    setQuery('');
+    setSearching(false);
+    collapseSearchBar();
+    listRef.current?.scrollToOffset({ offset: 0, animated: false });
+  }
+
+  // Pan simultáneo con el scroll: no roba el gesto, solo observa. Android no da
+  // eventos de overscroll (la lista clava el offset en 0), así que "tirar hacia
+  // abajo estando arriba" hay que detectarlo aparte.
+  const revealPanRef = useRef<GestureType | undefined>(undefined);
+  const revealPan = Gesture.Pan()
+    .withRef(revealPanRef)
+    .runOnJS(true)
+    // Solo arrastres hacia abajo: los hacia arriba (scroll normal) lo anulan.
+    .activeOffsetY(10)
+    .failOffsetY(-10)
+    .onChange((e) => {
+      // Sin artistas no hay nada que filtrar; con el foco puesto o ya desplegada
+      // no hay nada que revelar.
+      if (searching || revealed || (data?.length ?? 0) === 0) return;
+      if (lastOffsetY.current <= 1 && e.translationY > 60) revealSearchBar();
+    });
 
   /**
    * "Más escuchados" se deduce de tus álbumes más escuchados: Subsonic no
@@ -137,26 +206,60 @@ export default function BrowseArtistsScreen() {
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </Pressable>
         <Text style={styles.title}>{t('Artists')}</Text>
-        <View style={{ width: 26 }} />
+        {/* Ocupa lo mismo que el chevron de volver para que el título siga
+            centrado; antes había aquí un hueco vacío del mismo ancho. */}
+        <View style={styles.headerAction}>
+          <Pressable
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={grid ? t('List view') : t('Grid view')}
+            onPress={() => setLayout(grid ? 'list' : 'grid')}
+          >
+            <Ionicons
+              name={grid ? 'list' : 'grid-outline'}
+              size={20}
+              color={colors.textSecondary}
+            />
+          </Pressable>
+        </View>
       </View>
 
-      <View style={styles.searchBar}>
-        <Ionicons name="search" size={18} color={colors.textMuted} />
-        <TextInput
-          style={styles.input}
-          placeholder={t('Filter artists')}
-          placeholderTextColor={colors.textMuted}
-          autoCapitalize="none"
-          autoCorrect={false}
-          value={query}
-          onChangeText={setQuery}
-        />
-        {query.length > 0 ? (
-          <Pressable hitSlop={10} onPress={() => setQuery('')}>
-            <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-          </Pressable>
-        ) : null}
-      </View>
+      {/* Plegada = alto 0 (invisible). El recorte va en un contenedor sin
+          padding: cualquier padding impondría un alto mínimo y asomaría una
+          rendija con la barra cerrada. */}
+      <Animated.View style={[styles.searchClip, { height: searchH }]}>
+        <View style={styles.searchRow}>
+          <View style={styles.searchBar}>
+            <Ionicons name="search" size={18} color={colors.textMuted} />
+            <TextInput
+              style={styles.input}
+              placeholder={t('Filter artists')}
+              placeholderTextColor={colors.textMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              value={query}
+              onChangeText={setQuery}
+              onFocus={() => setSearching(true)}
+              returnKeyType="search"
+            />
+            {query.length > 0 ? (
+              <Pressable
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel={t('Clear')}
+                onPress={() => setQuery('')}
+              >
+                <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+              </Pressable>
+            ) : null}
+          </View>
+          {searching ? (
+            <Pressable hitSlop={8} accessibilityRole="button" onPress={cancelSearch}>
+              <Text style={styles.searchCancel}>{t('Cancel')}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      </Animated.View>
 
       <ScrollView
         horizontal
@@ -179,23 +282,41 @@ export default function BrowseArtistsScreen() {
       </ScrollView>
 
       {isLoading ? (
-        <ArtistGridSkeleton width={CARD} />
+        grid ? (
+          <ArtistGridSkeleton width={CARD} />
+        ) : (
+          <ArtistListSkeleton />
+        )
       ) : isError ? (
         <Message text={t("Couldn't load artists.")} onRetry={() => refetch()} />
       ) : (
-        <FlatList
+        <GestureDetector gesture={revealPan}>
+        <GHFlatList
         {...listPerf}
+          ref={listRef}
+          simultaneousHandlers={revealPanRef}
           data={artists}
-          // Remonta la lista al cambiar de orden: si no, FlatList reaprovecha
-          // las filas y la rejilla se queda con el orden viejo a medias.
-          key={sort}
+          // Remonta la lista al cambiar de orden o de disposición: si no,
+          // FlatList reaprovecha las filas y se queda a medias con las viejas
+          // (numColumns tampoco admite cambiar en caliente).
+          key={`${sort}-${layout}`}
           keyExtractor={(item) => item.id}
-          numColumns={COLUMNS}
-          columnWrapperStyle={{ gap: GAP }}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <ArtistCard artist={item} width={CARD} />
-          )}
+          {...(grid
+            ? { numColumns: COLUMNS, columnWrapperStyle: { gap: GAP }, contentContainerStyle: styles.list }
+            : { contentContainerStyle: styles.rowList })}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          scrollEventThrottle={16}
+          onScroll={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
+            const y = e.nativeEvent.contentOffset.y;
+            lastOffsetY.current = y;
+            // Scrollear hacia abajo con la barra fuera la vuelve a plegar; con
+            // el foco puesto no, o un filtro activo quedaría escondido.
+            if (revealed && !searching && y > 30) collapseSearchBar();
+          }}
+          renderItem={({ item }: { item: Artist }) =>
+            grid ? <ArtistCard artist={item} width={CARD} /> : <ArtistRow artist={item} />
+          }
           ListEmptyComponent={
             query.trim() ? (
               <EmptyState
@@ -212,6 +333,7 @@ export default function BrowseArtistsScreen() {
             )
           }
         />
+        </GestureDetector>
       )}
     </SafeAreaView>
   );
@@ -227,20 +349,33 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
   title: { color: colors.text, fontSize: fontSize.lg, fontWeight: '800' },
+  searchClip: { overflow: 'hidden' },
+  searchRow: {
+    height: SEARCH_H,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    // La separación con los chips va dentro del alto animado: así se pliega con
+    // la barra (un margen exterior quedaría siempre visible).
+    paddingBottom: spacing.md,
+  },
   searchBar: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    height: 44,
     backgroundColor: colors.surfaceHighlight,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
     paddingHorizontal: spacing.md,
     borderRadius: radius.md,
   },
-  input: { flex: 1, color: colors.text, fontSize: fontSize.md, paddingVertical: spacing.sm },
+  input: { flex: 1, color: colors.text, fontSize: fontSize.md, paddingVertical: 0 },
+  searchCancel: { color: colors.text, fontSize: fontSize.sm, fontWeight: '600' },
   // Mismos chips que explorar álbumes, ajustes finos incluidos. El `flexShrink`
   // sí es de aquí: esta pantalla tiene un hijo más en la columna (el buscador)
   // y sin él el flex encogía la fila hasta cortar el texto de las píldoras.
+  headerAction: { width: 26, alignItems: 'flex-end' },
   chipsRow: { flexGrow: 0, flexShrink: 0 },
   chips: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
   chip: {
@@ -267,5 +402,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: SCREEN_BOTTOM_PADDING,
     gap: GAP,
+  },
+  // En filas el hueco entre tarjetas se queda corto: las de la Biblioteca
+  // respiran con spacing.lg y estas son las mismas.
+  rowList: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: SCREEN_BOTTOM_PADDING,
+    gap: spacing.lg,
   },
 });

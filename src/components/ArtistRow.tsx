@@ -1,0 +1,37 @@
+/**
+ * Fila de artista para los listados: foto redonda pequeña, nombre y cuántos
+ * álbumes tiene. La hermana de `ArtistCard` para el modo lista; hasta ahora
+ * solo existía suelta dentro de la Biblioteca.
+ */
+import { Link } from 'expo-router';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { coverArtUrl, type Artist } from '@/api/data';
+import { albumsLabel } from '@/i18n';
+import { useSettings } from '@/store/settings';
+import { colors, fontSize, spacing } from '@/theme';
+import { Cover } from './Cover';
+
+export function ArtistRow({ artist }: { artist: Artist }) {
+  const lang = useSettings((s) => s.language);
+  return (
+    <Link href={`/artist/${artist.id}`} asChild>
+      <Pressable style={styles.row}>
+        <Cover uri={coverArtUrl(artist.coverArt ?? artist.id, 100)} size={56} rounded />
+        <View style={styles.info}>
+          <Text style={styles.name} numberOfLines={1}>
+            {artist.name}
+          </Text>
+          <Text style={styles.sub}>{albumsLabel(artist.albumCount ?? 0, lang)}</Text>
+        </View>
+      </Pressable>
+    </Link>
+  );
+}
+
+const styles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  info: { flex: 1 },
+  name: { color: colors.text, fontSize: fontSize.md, fontWeight: '600' },
+  sub: { color: colors.textSecondary, fontSize: fontSize.xs, marginTop: 2 },
+});

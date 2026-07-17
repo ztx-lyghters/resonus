@@ -78,14 +78,87 @@ let sleepTimeout: ReturnType<typeof setTimeout> | null = null;
 // mientras suena el player nativo— también comprueba la hora.
 let sleepDeadline: number | null = null;
 
+// ── Fundido final del temporizador de sueño ─────────────────────────────────
+// El único momento en que este temporizador existe es mientras te estás
+// durmiendo, y cortar la música en seco justo ahí puede despertarte — lo
+// contrario de lo que se le pidió. Así que los últimos segundos se van
+// bajando. El fundido ACABA en el vencimiento, no empieza ahí: "para en 30
+// minutos" significa que a los 30 minutos hay silencio.
+
+const SLEEP_FADE_MS = 30_000;
+
+let sleepFadeTimeout: ReturnType<typeof setTimeout> | null = null;
+let sleepFadeTimer: ReturnType<typeof setInterval> | null = null;
+
+/** Corta el fundido de sueño en curso, si lo hay. El volumen lo restaura quien
+ *  llama (`cutCrossfade`, que es por donde pasa toda intervención). */
+function clearSleepFade() {
+  if (sleepFadeTimeout) clearTimeout(sleepFadeTimeout);
+  sleepFadeTimeout = null;
+  if (sleepFadeTimer) clearInterval(sleepFadeTimer);
+  sleepFadeTimer = null;
+}
+
+/**
+ * Baja el volumen a cero en `ms`. No captura el player ni su volumen: los lee
+ * en cada tic y aplica el fundido como un factor sobre `effectiveVolume`. Así
+ * sigue valiendo si la pista cambia a mitad (el ReplayGain es por canción) y
+ * la nueva no arranca a todo volumen.
+ */
+function startSleepFade(ms: number) {
+  if (remoteKind()) return; // el volumen del aparato remoto no es nuestro
+  clearSleepFade();
+  const t0 = Date.now();
+  sleepFadeTimer = setInterval(() => {
+    const x = Math.min(1, (Date.now() - t0) / ms);
+    const p = activePlayer();
+    if (p) {
+      try {
+        p.volume = effectiveVolume(currentSong(usePlayerStore.getState())) * (1 - x);
+      } catch {
+        // ignore
+      }
+    }
+    if (x >= 1) clearSleepFade();
+  }, 100);
+}
+
+/** Programa el fundido para que termine justo en el vencimiento. */
+function armSleepFade(msLeft: number) {
+  clearSleepFade();
+  const fadeMs = Math.min(SLEEP_FADE_MS, msLeft);
+  const wait = msLeft - fadeMs;
+  if (wait <= 0) startSleepFade(fadeMs);
+  else sleepFadeTimeout = setTimeout(() => startSleepFade(fadeMs), wait);
+}
+
+/** Suelta el fundido y devuelve el volumen a su sitio: para cuando se cancela
+ *  el temporizador con la música ya a media bajada. */
+function abortSleepFade() {
+  if (!sleepFadeTimer && !sleepFadeTimeout) return;
+  clearSleepFade();
+  const p = activePlayer();
+  if (p) {
+    try {
+      p.volume = effectiveVolume(currentSong(usePlayerStore.getState()));
+    } catch {
+      // ignore
+    }
+  }
+}
+
 /** Pausa por temporizador de sueño cumplido (desde el timeout o onStatus). */
 function fireSleepTimer() {
   if (sleepTimeout) clearTimeout(sleepTimeout);
   sleepTimeout = null;
   sleepDeadline = null;
-  cutCrossfade();
+  // Pausar ANTES de restaurar el volumen: al revés, el fundido acaba de dejarlo
+  // a cero y `cutCrossfade` lo devolvería a tope unos milisegundos antes de la
+  // pausa — un golpe de sonido justo al dormirse, que es lo que evitamos.
+  clearSleepFade();
   if (remoteKind()) remotePause();
   else activePlayer()?.pause();
+  cutCrossfade();
   usePlayerStore.setState({ isPlaying: false, sleepTimerMinutes: null });
 }
 
@@ -550,6 +623,11 @@ function cutCrossfade() {
     clearInterval(pauseFadeTimer);
     pauseFadeTimer = null;
   }
+  // El fundido de sueño también es una rampa en marcha: si el usuario toca algo
+  // (pausa, seek, cambio de pista) hay que soltarla, o seguiría bajando el
+  // volumen de lo que sea que suene ahora. El vencimiento sigue en pie y
+  // `onStatus` lo rearma si aún queda dentro de la ventana.
+  clearSleepFade();
   const volume = usePlayerStore.getState().volume;
   if (fadingOut) {
     try {
@@ -572,6 +650,9 @@ function maybeStartCrossfade(status: AudioStatus) {
   // Mismos casos que excluye el avance normal, más los que no tienen final
   // predecible (radio) o donde el fundido no pinta nada (pistas muy cortas).
   if (st.repeat === 'one' || st.sleepAtSongEnd) return;
+  // Ni durante el fundido de sueño: son dos rampas sobre el mismo volumen, y
+  // el crossfade arrancaría la entrante a tope de camino al silencio.
+  if (sleepFadeTimer) return;
   const current = st.queue[st.index];
   const duration = st.durationSec;
   if (!current || current.url || duration < fadeSec + 5) return;
@@ -701,6 +782,13 @@ function onStatus(status: AudioStatus) {
   if (sleepDeadline && Date.now() >= sleepDeadline) {
     fireSleepTimer();
     return;
+  }
+  // Mismo respaldo para el fundido: si su timer quedó congelado, o si una
+  // intervención lo soltó y el vencimiento sigue dentro de la ventana, el
+  // latido del player lo rearma con lo que quede.
+  if (sleepDeadline && !sleepFadeTimer) {
+    const left = sleepDeadline - Date.now();
+    if (left <= SLEEP_FADE_MS) startSleepFade(left);
   }
   const prev = usePlayerStore.getState();
   // Bufferea si queremos reproducir pero el audio aún no fluye (carga inicial,
@@ -1434,6 +1522,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (sleepTimeout) clearTimeout(sleepTimeout);
     sleepDeadline = Date.now() + minutes * 60_000;
     sleepTimeout = setTimeout(fireSleepTimer, minutes * 60_000);
+    armSleepFade(minutes * 60_000);
     set({ sleepTimerMinutes: minutes, sleepAtSongEnd: false });
   },
 
@@ -1441,6 +1530,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (sleepTimeout) clearTimeout(sleepTimeout);
     sleepTimeout = null;
     sleepDeadline = null;
+    // Sin fundido: la canción acaba sola, y bajarle el final sería estropear
+    // justo lo que se ha pedido oír entero.
+    abortSleepFade();
     set({ sleepTimerMinutes: null, sleepAtSongEnd: true });
   },
 
@@ -1448,6 +1540,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (sleepTimeout) clearTimeout(sleepTimeout);
     sleepTimeout = null;
     sleepDeadline = null;
+    abortSleepFade();
     set({ sleepTimerMinutes: null, sleepAtSongEnd: false });
   },
 

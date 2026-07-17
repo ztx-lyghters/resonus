@@ -1,8 +1,10 @@
 /** Búsqueda de álbumes y canciones en el servidor. */
 import Ionicons from '@expo/vector-icons/Ionicons';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { ParamListBase } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'expo-router';
-import { useState } from 'react';
+import { Link, useNavigation } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -55,6 +57,26 @@ export default function SearchScreen() {
   const removeRecent = useRecentSearches((s) => s.remove);
   const clearRecent = useRecentSearches((s) => s.clear);
 
+  // Pulsar la pestaña de Buscar estando ya en Buscar levanta el teclado.
+  //
+  // Entrar aquí no enfoca a propósito: sin foco la pantalla ofrece "Explorar
+  // todo", y el teclado la taparía. Pero quien ya sabe lo que busca pagaba un
+  // toque de más en la caja, siempre. Así conviven las dos intenciones, cada
+  // una con su gesto.
+  //
+  // No es un doble toque con ventana de tiempo, que sería un número arbitrario
+  // (corto para unos, largo para otros): `tabPress` llega antes de que la
+  // pestaña se active, así que viniendo de otra el primer toque no enfoca y el
+  // segundo sí — se siente igual que un doble toque. Y si ya estás aquí, con
+  // uno basta.
+  const navigation = useNavigation<BottomTabNavigationProp<ParamListBase>>();
+  const inputRef = useRef<TextInput>(null);
+  useEffect(() => {
+    return navigation.addListener('tabPress', () => {
+      if (navigation.isFocused()) inputRef.current?.focus();
+    });
+  }, [navigation]);
+
   const { data, isFetching, isError, refetch } = useQuery({
     queryKey: ['search', debouncedQuery],
     queryFn: () => search(debouncedQuery),
@@ -100,6 +122,7 @@ export default function SearchScreen() {
       <View style={styles.searchBar}>
         <Ionicons name="search" size={20} color={colors.textMuted} />
         <TextInput
+          ref={inputRef}
           style={styles.input}
           placeholder={t('Songs, albums, artists')}
           placeholderTextColor={colors.textMuted}

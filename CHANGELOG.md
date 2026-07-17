@@ -7,6 +7,70 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Releases before 0.2.1 are only listed on the
 [GitHub releases page](https://github.com/juananzzz/resonus/releases).
 
+## [Unreleased]
+
+### Added
+
+- Built-in equalizer, with the device's presets, a slider per band and a reset
+  to flat (Quality & playback).
+- Home sections can now be shown, hidden and reordered, with three new rows off
+  by default: Discover (albums you played a while ago but not lately), Random
+  albums and Random artists.
+- The Home explore chips can now be shown, hidden and reordered too, and a new
+  Shuffle chip plays random songs from your library straight away.
+- Start mix on a song's ⋯ menu: the song plays at once and the queue keeps
+  filling with music like it. The queue header shows a button to stop it.
+- Shuffle button on the genre screen, to play a genre at random.
+- Choose which actions appear in a song's ⋯ menu (Appearance).
+- Configurable swipe actions on song rows, in both directions: add to queue,
+  play next, add to favorites or open the options menu.
+- Network settings: several server addresses with automatic switching.
+- Choose what tapping the player cover does, including showing the lyrics in
+  place.
+- Lyrics entry in the player's ⋯ menu.
+- Bulk downloads can be stopped, keeping whatever already finished, and they
+  start downloading almost immediately instead of after a long scan.
+- Browsing artists now shows a grid of artist cards with sorting by name,
+  recently played, most played or random.
+- More accent colors in the palette.
+
+### Changed
+
+- The "Show explore chips" switch is replaced by a switch per chip. If you had
+  the chips hidden they stay hidden after updating.
+- Online lyrics lookup is now on by default.
+- The cover-tap and skip-button settings are now dropdowns instead of long
+  lists of options.
+- Only favorited albums can be pinned.
+- Recently played now appears on Home in local mode, and an artist's Popular
+  songs are ordered by your play count there.
+- Settings screens no longer offer switches for things that don't exist in
+  local mode.
+- The artist's Popular songs line up with the rest of the lists instead of
+  running edge to edge.
+
+### Fixed
+
+- The accent color now repaints Settings immediately instead of waiting for you
+  to leave and come back, and the toast's Undo, the error screen's Retry button
+  and the login button no longer stay stuck on the default green.
+- Settings dropdowns now open flush against their row instead of floating above
+  it, and scroll when there isn't room.
+- The artist Shuffle button now really shuffles instead of starting with the
+  artist's top track every time.
+- A mix no longer runs out quietly: it falls back to the artist's tracks and
+  then to the genre, and it survives closing the app.
+- Clearing the queue now stops a running mix instead of leaving it on but
+  unable to grow.
+- The artists grid in random order no longer reshuffles itself while music
+  plays.
+- The favorite heart no longer sticks on album rows after unfavoriting.
+- Downloaded cover art now shows offline in server mode.
+- Long-pressing a song to enter multi-select now keeps that song selected.
+- Bigger tap target on the song row's ⋯ button.
+- German and Catalan translations for the newest screens.
+- The Autoplay setting no longer claims something a mix contradicts.
+
 ## [0.3.1] - 2026-07-12
 
 ### Added

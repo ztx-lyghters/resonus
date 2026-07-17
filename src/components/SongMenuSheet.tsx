@@ -50,11 +50,16 @@ const PLAYLISTS_MAX_H = Math.round(Dimensions.get('window').height * 0.6);
 /**
  * Minutos que faltan para el vencimiento, mínimo 1.
  *
- * Redondea hacia arriba y nunca baja de 1: en el último minuto, "0 min" leería
- * como que ya no hay temporizador justo cuando más queda por pasar.
+ * Hacia abajo, como cualquier cuenta atrás: con 14:50 por delante se marca 14,
+ * igual que un reloj. Redondeando hacia arriba daría 15 hasta que quedaran
+ * exactamente 14:00, así que el primer minuto entero repetiría el número que
+ * se eligió — justo lo que esta etiqueta viene a evitar.
+ *
+ * El mínimo de 1 es para el último minuto: "0 min" leería como que ya no hay
+ * temporizador, y todavía queda.
  */
 function minutesLeft(endsAt: number): number {
-  return Math.max(1, Math.ceil((endsAt - Date.now()) / 60_000));
+  return Math.max(1, Math.floor((endsAt - Date.now()) / 60_000));
 }
 
 

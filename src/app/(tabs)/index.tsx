@@ -2,12 +2,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Animated,
   Dimensions,
-  Easing,
   FlatList,
   Pressable,
   RefreshControl,
@@ -338,16 +336,13 @@ function ScanningPanel() {
   const count = useScanProgress((s) => s.count);
   const total = useScanProgress((s) => s.total);
   const fraction = total > 0 ? Math.min(count / total, 1) : 0;
-  const anim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(anim, {
-      toValue: fraction,
-      duration: 250,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: false,
-    }).start();
-  }, [fraction, anim]);
-  const width = anim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
+  // El ancho sale directo de la fracción, sin animar. Animarlo tenía sentido
+  // cuando el progreso llegaba a saltos del 10%, pero ahora viene en pasos del
+  // 1%: eso YA es la animación. Con tics tan seguidos, cada `timing` de 250 ms
+  // moría a medias y arrancaba otro desde donde se hubiera quedado, así que la
+  // barra no alcanzaba nunca la verdad — al acabar se quedaba por la mitad.
+  // Tampoco ahorraba renders: este panel ya se repinta en cada tic por el texto.
+  const width = `${fraction * 100}%` as const;
   // Sin total todavía se está buscando, no analizando: decirlo evita que el
   // número suba bajo un título que promete otra cosa.
   return (
@@ -357,7 +352,7 @@ function ScanningPanel() {
       </Text>
       {total > 0 ? (
         <View style={styles.scanBarTrack}>
-          <Animated.View style={[styles.scanBarFill, { width, backgroundColor: colors.accent }]} />
+          <View style={[styles.scanBarFill, { width, backgroundColor: colors.accent }]} />
         </View>
       ) : (
         <ActivityIndicator color={colors.accent} />

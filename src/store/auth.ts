@@ -212,6 +212,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!urls.includes(url)) return; // no es una URL candidata del perfil
     const auth: SubsonicAuth = { ...current, serverUrl: url };
     await persistActive(get, set, auth, (p) => ({ ...p, serverUrl: url }));
+    // Refresca la biblioteca contra la URL nueva. Es la misma cuenta, así que no
+    // vaciamos el caché como al cambiar de perfil (daría flicker); solo marcamos
+    // todo obsoleto para que lo visible se vuelva a pedir del servidor activo.
+    // Sin esto, lo que se hubiera cacheado (o fallado) contra la URL vieja se
+    // quedaba en pantalla hasta refrescar a mano. Cubre el switch manual y el
+    // automático por red, que ambos pasan por aquí.
+    void queryClient.invalidateQueries();
     // La pista en curso apuntaba a la URL vieja (ya sin respuesta): la
     // recargamos contra la nueva. La cola se conserva.
     // eslint-disable-next-line @typescript-eslint/no-require-imports

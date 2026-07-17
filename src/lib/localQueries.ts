@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/auth';
 import { usePlayCounts } from '@/store/playCounts';
 import { usePlayHistory } from '@/store/playHistory';
 import { type Album, type Artist, type ArtistInfo, type Playlist, type SearchResult, type Song, type StarType, type Starred } from '@/api/subsonic';
+import { queryClient } from '@/lib/query';
 import { getItem, setItem } from '@/lib/storage';
 import { getDownloadsCatalog } from '@/store/downloads';
 import {
@@ -126,6 +127,11 @@ async function ensureScanCatalog() {
       } finally {
         loadingPromise = null;
       }
+      // Acaba de aparecer un catálogo donde no había ninguno, así que lo que
+      // las pantallas tengan cacheado es de antes de existir la música: sin
+      // esto, Inicio se queda vacío hasta que lo refrescas a mano. Es lo mismo
+      // que hacen las descargas y las bibliotecas al cambiar su catálogo.
+      void queryClient.invalidateQueries();
     })();
   }
   await loadingPromise;

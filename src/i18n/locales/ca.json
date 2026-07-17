@@ -390,7 +390,7 @@
   "Couldn't reach this address with your account.": "No s'ha pogut connectar a aquesta adreça amb el teu compte.",
   "Current server address": "Adreça actual del servidor",
   "Network": "Xarxa",
-  "Add your remote address (a domain or Tailscale) next to the local one to reach the server away from home.": "Afegeix la teva adreça remota (un domini o Tailscale) al costat de la local per accedir al servidor fora de casa.",
+  "Add the address you use from outside next to the one you use at home, so the server works wherever you are.": "Afegeix l'adreça que fas servir des de fora al costat de la de casa, perquè el servidor funcioni siguis on siguis.",
   "Primary": "Principal",
   "Remote": "Remota",
   "Server addresses": "Adreces del servidor",
@@ -439,5 +439,6 @@
   "Sleep timer ({n} min left)": "Temporitzador (queden {n} min)",
   "Looking for music…": "S'està cercant la música…",
   "Loading covers…": "S'estan carregant les caràtules…",
-  "Unknown album": "Àlbum desconegut"
+  "Unknown album": "Àlbum desconegut",
+  "Network (experimental)": "Xarxa (experimental)"
 }

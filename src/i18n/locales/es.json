@@ -390,7 +390,7 @@
   "Couldn't reach this address with your account.": "No se pudo conectar a esta dirección con tu cuenta.",
   "Current server address": "Dirección actual del servidor",
   "Network": "Red",
-  "Add your remote address (a domain or Tailscale) next to the local one to reach the server away from home.": "Añade tu dirección remota (un dominio o Tailscale) junto a la local para acceder al servidor fuera de casa.",
+  "Add the address you use from outside next to the one you use at home, so the server works wherever you are.": "Añade la dirección que usas desde fuera junto a la que usas en casa, para que el servidor funcione estés donde estés.",
   "Primary": "Principal",
   "Remote": "Remota",
   "Server addresses": "Direcciones del servidor",
@@ -439,5 +439,6 @@
   "Sleep timer ({n} min left)": "Temporizador (quedan {n} min)",
   "Looking for music…": "Buscando tu música…",
   "Loading covers…": "Cargando carátulas…",
-  "Unknown album": "Álbum desconocido"
+  "Unknown album": "Álbum desconocido",
+  "Network (experimental)": "Red (experimental)"
 }

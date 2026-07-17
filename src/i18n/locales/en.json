@@ -390,7 +390,7 @@
   "Couldn't reach this address with your account.": "Couldn't reach this address with your account.",
   "Current server address": "Current server address",
   "Network": "Network",
-  "Add your remote address (a domain or Tailscale) next to the local one to reach the server away from home.": "Add your remote address (a domain or Tailscale) next to the local one to reach the server away from home.",
+  "Add the address you use from outside next to the one you use at home, so the server works wherever you are.": "Add the address you use from outside next to the one you use at home, so the server works wherever you are.",
   "Primary": "Primary",
   "Remote": "Remote",
   "Server addresses": "Server addresses",
@@ -439,5 +439,6 @@
   "Sleep timer ({n} min left)": "Sleep timer ({n} min left)",
   "Looking for music…": "Looking for music…",
   "Loading covers…": "Loading covers…",
-  "Unknown album": "Unknown album"
+  "Unknown album": "Unknown album",
+  "Network (experimental)": "Network (experimental)"
 }

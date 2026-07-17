@@ -56,7 +56,7 @@ export default function NetworkSettings() {
   }, [auth, activeUrl]);
 
   if (!auth) {
-    return <SettingsPage title={t('Network')}>{null}</SettingsPage>;
+    return <SettingsPage title={t('Network (experimental)')}>{null}</SettingsPage>;
   }
 
   const urls = auth.urls ?? [activeUrl];
@@ -71,7 +71,7 @@ export default function NetworkSettings() {
   }
 
   return (
-    <SettingsPage title={t('Network')}>
+    <SettingsPage title={t('Network (experimental)')}>
       <ScrollView contentContainerStyle={settingsStyles.content}>
         <Text style={[settingsStyles.sectionTitle, { marginTop: 0 }]}>
           {t('Current server address')}
@@ -108,7 +108,7 @@ export default function NetworkSettings() {
         <Text style={settingsStyles.sectionTitle}>{t('Server addresses')}</Text>
         <Text style={settingsStyles.sectionDescription}>
           {t(
-            'Add your remote address (a domain or Tailscale) next to the local one to reach the server away from home.',
+            'Add the address you use from outside next to the one you use at home, so the server works wherever you are.',
           )}
         </Text>
         <View style={settingsStyles.cardBox}>

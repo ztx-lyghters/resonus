@@ -72,11 +72,20 @@ export const SOURCE_FAVORITES = '@@favorites';
 export const SOURCE_HISTORY = '@@history';
 
 let sleepTimeout: ReturnType<typeof setTimeout> | null = null;
-// Vencimiento del temporizador de sueño. Respaldo del setTimeout: Android
-// congela/retrasa los timers JS en segundo plano con la pantalla apagada
-// (el caso típico del sleep timer), así que onStatus —que sigue latiendo
-// mientras suena el player nativo— también comprueba la hora.
-let sleepDeadline: number | null = null;
+
+/**
+ * Vencimiento del temporizador de sueño (`sleepEndsAt` del store), o null.
+ *
+ * Vive en el store y no aquí porque la interfaz también lo necesita: es lo que
+ * deja decir cuánto QUEDA en vez de repetir los minutos que se eligieron, que
+ * es un número que envejece mal. Y sirve de respaldo del setTimeout: Android
+ * congela/retrasa los timers JS en segundo plano con la pantalla apagada (el
+ * caso típico del sleep timer), así que onStatus —que sigue latiendo mientras
+ * suena el player nativo— también comprueba la hora.
+ */
+function sleepDeadline(): number | null {
+  return usePlayerStore.getState().sleepEndsAt;
+}
 
 // ── Fundido final del temporizador de sueño ─────────────────────────────────
 // El único momento en que este temporizador existe es mientras te estás
@@ -151,7 +160,6 @@ function abortSleepFade() {
 function fireSleepTimer() {
   if (sleepTimeout) clearTimeout(sleepTimeout);
   sleepTimeout = null;
-  sleepDeadline = null;
   // Pausar ANTES de restaurar el volumen: al revés, el fundido acaba de dejarlo
   // a cero y `cutCrossfade` lo devolvería a tope unos milisegundos antes de la
   // pausa — un golpe de sonido justo al dormirse, que es lo que evitamos.
@@ -159,7 +167,7 @@ function fireSleepTimer() {
   if (remoteKind()) remotePause();
   else activePlayer()?.pause();
   cutCrossfade();
-  usePlayerStore.setState({ isPlaying: false, sleepTimerMinutes: null });
+  usePlayerStore.setState({ isPlaying: false, sleepEndsAt: null });
 }
 
 // ── Motor de audio (expo-audio) ─────────────────────────────────────────────
@@ -779,15 +787,16 @@ function onStatus(status: AudioStatus) {
   if (remoteKind()) return;
   // Respaldo del sleep timer: si el setTimeout quedó congelado en segundo
   // plano, el latido del player nativo lo dispara aquí.
-  if (sleepDeadline && Date.now() >= sleepDeadline) {
+  const endsAt = sleepDeadline();
+  if (endsAt && Date.now() >= endsAt) {
     fireSleepTimer();
     return;
   }
   // Mismo respaldo para el fundido: si su timer quedó congelado, o si una
   // intervención lo soltó y el vencimiento sigue dentro de la ventana, el
   // latido del player lo rearma con lo que quede.
-  if (sleepDeadline && !sleepFadeTimer) {
-    const left = sleepDeadline - Date.now();
+  if (endsAt && !sleepFadeTimer) {
+    const left = endsAt - Date.now();
     if (left <= SLEEP_FADE_MS) startSleepFade(left);
   }
   const prev = usePlayerStore.getState();
@@ -1032,7 +1041,8 @@ interface PlayerState {
   shuffle: boolean;
   repeat: RepeatMode;
   originalQueue: Song[] | null;
-  sleepTimerMinutes: number | null;
+  /** Cuándo vence el temporizador de sueño (ms epoch), o null si no hay. */
+  sleepEndsAt: number | null;
   /** Pausar al terminar la pista actual (temporizador "fin de la canción"). */
   sleepAtSongEnd: boolean;
   /** De dónde salió la cola actual (álbum, lista, artista…), si se conoce. */
@@ -1117,7 +1127,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   shuffle: false,
   repeat: 'off',
   originalQueue: null,
-  sleepTimerMinutes: null,
+  sleepEndsAt: null,
   sleepAtSongEnd: false,
   source: null,
   sourceHref: null,
@@ -1520,28 +1530,25 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   setSleepTimer: (minutes) => {
     if (sleepTimeout) clearTimeout(sleepTimeout);
-    sleepDeadline = Date.now() + minutes * 60_000;
     sleepTimeout = setTimeout(fireSleepTimer, minutes * 60_000);
     armSleepFade(minutes * 60_000);
-    set({ sleepTimerMinutes: minutes, sleepAtSongEnd: false });
+    set({ sleepEndsAt: Date.now() + minutes * 60_000, sleepAtSongEnd: false });
   },
 
   setSleepAtSongEnd: () => {
     if (sleepTimeout) clearTimeout(sleepTimeout);
     sleepTimeout = null;
-    sleepDeadline = null;
     // Sin fundido: la canción acaba sola, y bajarle el final sería estropear
     // justo lo que se ha pedido oír entero.
     abortSleepFade();
-    set({ sleepTimerMinutes: null, sleepAtSongEnd: true });
+    set({ sleepEndsAt: null, sleepAtSongEnd: true });
   },
 
   cancelSleepTimer: () => {
     if (sleepTimeout) clearTimeout(sleepTimeout);
     sleepTimeout = null;
-    sleepDeadline = null;
     abortSleepFade();
-    set({ sleepTimerMinutes: null, sleepAtSongEnd: false });
+    set({ sleepEndsAt: null, sleepAtSongEnd: false });
   },
 
   restoreFromServer: async () => {

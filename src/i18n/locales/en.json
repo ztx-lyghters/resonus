@@ -293,7 +293,6 @@
   "Skip buttons": "Skip buttons",
   "Sleep timer": "Sleep timer",
   "Sleep timer (end of song)": "Sleep timer (end of song)",
-  "Sleep timer ({n} min)": "Sleep timer ({n} min)",
   "Sleep timer off": "Sleep timer off",
   "Some of these songs are already in “{name}”.": "Some of these songs are already in “{name}”.",
   "Something went wrong": "Something went wrong",
@@ -436,5 +435,6 @@
   "“Good morning”, “Good evening”… at the top of Home.": "“Good morning”, “Good evening”… at the top of Home.",
   "Custom greeting": "Custom greeting",
   "Leave it empty to greet you by the time of day.": "Leave it empty to greet you by the time of day.",
-  "Greeting": "Greeting"
+  "Greeting": "Greeting",
+  "Sleep timer ({n} min left)": "Sleep timer ({n} min left)"
 }

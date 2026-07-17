@@ -293,7 +293,6 @@
   "Skip buttons": "Botons de salt",
   "Sleep timer": "Temporitzador",
   "Sleep timer (end of song)": "Temporitzador (final de la cançó)",
-  "Sleep timer ({n} min)": "Temporitzador ({n} min)",
   "Sleep timer off": "Temporitzador desactivat",
   "Some of these songs are already in “{name}”.": "Algunes d’aquestes cançons ja són a «{name}».",
   "Something went wrong": "Alguna cosa ha anat malament",
@@ -436,5 +435,6 @@
   "“Good morning”, “Good evening”… at the top of Home.": "«Bon dia», «Bona nit»… a la part superior d'Inici.",
   "Custom greeting": "Salutació personalitzada",
   "Leave it empty to greet you by the time of day.": "Deixa-ho buit per saludar-te segons l'hora del dia.",
-  "Greeting": "Salutació"
+  "Greeting": "Salutació",
+  "Sleep timer ({n} min left)": "Temporitzador (queden {n} min)"
 }

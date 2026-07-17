@@ -47,6 +47,16 @@ import { Dialog } from './Dialog';
  *  no quede compacta en móviles grandes (antes era un fijo de 360). */
 const PLAYLISTS_MAX_H = Math.round(Dimensions.get('window').height * 0.6);
 
+/**
+ * Minutos que faltan para el vencimiento, mínimo 1.
+ *
+ * Redondea hacia arriba y nunca baja de 1: en el último minuto, "0 min" leería
+ * como que ya no hay temporizador justo cuando más queda por pasar.
+ */
+function minutesLeft(endsAt: number): number {
+  return Math.max(1, Math.ceil((endsAt - Date.now()) / 60_000));
+}
+
 
 function Action({
   icon,
@@ -91,7 +101,7 @@ export function SongMenuSheet() {
   const setSleepTimer = usePlayerStore((s) => s.setSleepTimer);
   const setSleepAtSongEnd = usePlayerStore((s) => s.setSleepAtSongEnd);
   const cancelSleepTimer = usePlayerStore((s) => s.cancelSleepTimer);
-  const sleepTimerMinutes = usePlayerStore((s) => s.sleepTimerMinutes);
+  const sleepEndsAt = usePlayerStore((s) => s.sleepEndsAt);
   const sleepAtSongEnd = usePlayerStore((s) => s.sleepAtSongEnd);
   const toast = useToast((s) => s.show);
   const t = useT();
@@ -291,7 +301,7 @@ export function SongMenuSheet() {
               <Ionicons name="musical-note-outline" size={24} color={colors.text} />
               <Text style={styles.actionText}>{t('When the song ends')}</Text>
             </Pressable>
-            {sleepTimerMinutes || sleepAtSongEnd ? (
+            {sleepEndsAt || sleepAtSongEnd ? (
               <Pressable
                 style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
                 onPress={() => {
@@ -441,8 +451,8 @@ export function SongMenuSheet() {
               <Action
                 icon="moon-outline"
                 label={
-                  sleepTimerMinutes
-                    ? t('Sleep timer ({n} min)', { n: sleepTimerMinutes })
+                  sleepEndsAt
+                    ? t('Sleep timer ({n} min left)', { n: minutesLeft(sleepEndsAt) })
                     : sleepAtSongEnd
                       ? t('Sleep timer (end of song)')
                       : t('Sleep timer')

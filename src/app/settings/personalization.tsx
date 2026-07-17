@@ -44,8 +44,6 @@ export default function AppearanceSettings() {
   const setSwipeLeftAction = useSettings((s) => s.setSwipeLeftAction);
   const showQuickGrid = useSettings((s) => s.showQuickGrid);
   const setShowQuickGrid = useSettings((s) => s.setShowQuickGrid);
-  const showGreeting = useSettings((s) => s.showGreeting);
-  const customGreeting = useSettings((s) => s.customGreeting);
   const showFolderBrowser = useSettings((s) => s.showFolderBrowser);
   const setShowFolderBrowser = useSettings((s) => s.setShowFolderBrowser);
   const hapticsEnabled = useSettings((s) => s.hapticsEnabled);
@@ -132,10 +130,6 @@ export default function AppearanceSettings() {
         <SettingRow
           label={t('Greeting')}
           description={t('“Good morning”, “Good evening”… at the top of Home.')}
-          // A la derecha, solo si hay algo que contar: apagado, o el texto
-          // propio. Con el saludo automático no se pone nada — es lo que hay
-          // por defecto, así que nombrarlo no informa, solo ocupa.
-          right={!showGreeting ? t('Off') : customGreeting.trim() || undefined}
           chevron
           onPress={() => router.push('/settings/greeting')}
         />

@@ -54,6 +54,16 @@ import {
   upnpSetVolume,
   type RemoteEvents,
 } from './upnp';
+import {
+  initJukebox,
+  isJukeboxActive,
+  jukeboxDisconnect,
+  jukeboxLoad,
+  jukeboxPause,
+  jukeboxPlay,
+  jukeboxSeek,
+  jukeboxSetVolume,
+} from './jukebox';
 import { useDownloads } from './downloads';
 import { useNetworkType } from './networkType';
 import { usePlayCounts } from './playCounts';
@@ -330,24 +340,30 @@ function clearLockScreen() {
 // ── Salida remota (renderer UPnP/DLNA) ─────────────────────────────────────
 
 /** Salida remota activa, si la hay. */
-function remoteKind(): 'upnp' | null {
-  return isUpnpConnected() ? 'upnp' : null;
+function remoteKind(): 'upnp' | 'jukebox' | null {
+  if (isUpnpConnected()) return 'upnp';
+  if (isJukeboxActive()) return 'jukebox';
+  return null;
 }
 
 function remotePlay() {
-  void upnpPlay();
+  if (isJukeboxActive()) void jukeboxPlay();
+  else void upnpPlay();
 }
 
 function remotePause() {
-  void upnpPause();
+  if (isJukeboxActive()) void jukeboxPause();
+  else void upnpPause();
 }
 
 function remoteSeek(sec: number) {
-  void upnpSeek(sec);
+  if (isJukeboxActive()) void jukeboxSeek(sec);
+  else void upnpSeek(sec);
 }
 
 function remoteSetVolume(volume: number) {
-  upnpSetVolume(volume);
+  if (isJukeboxActive()) jukeboxSetVolume(volume);
+  else upnpSetVolume(volume);
 }
 
 /** Carga la pista en `index` en la salida remota y sincroniza el estado. */
@@ -355,7 +371,9 @@ async function remoteLoadIndex(index: number, autoplay: boolean, startSec = 0) {
   const song = usePlayerStore.getState().queue[index];
   if (!song) return;
   scrobbledThisTrack = false;
-  const ok = await upnpLoad(song, autoplay, startSec);
+  const ok = isJukeboxActive()
+    ? await jukeboxLoad(song, autoplay, startSec)
+    : await upnpLoad(song, autoplay, startSec);
   if (!ok) {
     useToast.getState().show(tg("This song can't be cast"));
     usePlayerStore.setState({ index, isPlaying: false, isBuffering: false });
@@ -1255,6 +1273,7 @@ export function initRemoteIntegration() {
     },
   };
   initUpnp(events);
+  initJukebox(events);
 }
 
 interface PlayerState {
@@ -1903,6 +1922,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     // Al resetear (cambio de perfil/salir) se corta la salida remota sin
     // reanudar en local: la cola va a desaparecer igualmente.
     if (remoteKind() === 'upnp') void upnpDisconnect(true);
+    else if (remoteKind() === 'jukebox') void jukeboxDisconnect(true);
     cutCrossfade();
     try {
       activePlayer()?.pause();

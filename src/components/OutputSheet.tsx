@@ -14,6 +14,12 @@ import { useBottomSheetAnim } from '@/hooks/useBottomSheetAnim';
 import { useT } from '@/i18n';
 import { useToast } from '@/store/toast';
 import {
+  jukeboxConnect,
+  jukeboxDisconnect,
+  refreshJukeboxAvailability,
+  useJukebox,
+} from '@/store/jukebox';
+import {
   upnpAvailable,
   upnpConnect,
   upnpDisconnect,
@@ -30,24 +36,40 @@ export function OutputSheet({ visible, onClose }: { visible: boolean; onClose: (
   const upnpId = useUpnp((s) => (s.connected ? s.deviceId : null));
   const devices = useUpnp((s) => s.devices);
   const scanning = useUpnp((s) => s.scanning);
-  const phoneActive = !upnpId;
+  const jukeboxActive = useJukebox((s) => s.active);
+  const jukeboxAvailable = useJukebox((s) => s.available);
+  const phoneActive = !upnpId && !jukeboxActive;
   const { dismiss, backdropStyle, sheetStyle, onSheetLayout } = useBottomSheetAnim(visible);
   // Cierre animado: la hoja baja y después avisa al padre (que oculta el Modal).
   const close = () => dismiss(onClose);
 
   useEffect(() => {
-    if (visible) void upnpSearch();
+    if (visible) {
+      void upnpSearch();
+      void refreshJukeboxAvailability();
+    }
   }, [visible]);
 
   async function pickPhone() {
     close();
     if (upnpId) await upnpDisconnect();
+    else if (jukeboxActive) await jukeboxDisconnect();
   }
 
   async function pickDevice(device: UpnpDevice) {
     close();
     if (device.id === upnpId) return;
+    // Traspaso silencioso entre salidas remotas (no reanuda en local por medio).
+    if (jukeboxActive) await jukeboxDisconnect(true);
     const ok = await upnpConnect(device);
+    if (!ok) toast(t("Couldn't complete the action"));
+  }
+
+  async function pickJukebox() {
+    close();
+    if (jukeboxActive) return;
+    if (upnpId) await upnpDisconnect(true);
+    const ok = await jukeboxConnect();
     if (!ok) toast(t("Couldn't complete the action"));
   }
 
@@ -102,6 +124,21 @@ export function OutputSheet({ visible, onClose }: { visible: boolean; onClose: (
           active={phoneActive}
           onPress={phoneActive ? undefined : pickPhone}
         />
+
+        {jukeboxAvailable ? (
+          <Row
+            icon={
+              <Ionicons
+                name="server-outline"
+                size={22}
+                color={jukeboxActive ? colors.accent : colors.text}
+              />
+            }
+            label={t('Server speakers (Jukebox)')}
+            active={jukeboxActive}
+            onPress={jukeboxActive ? undefined : pickJukebox}
+          />
+        ) : null}
 
         {upnpAvailable
           ? devices.map((d) => {

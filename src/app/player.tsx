@@ -50,6 +50,7 @@ import { currentSong, SOURCE_FAVORITES, SOURCE_HISTORY, usePlayerStore } from '@
 import { useSettings } from '@/store/settings';
 import { useSongMenu } from '@/store/songMenu';
 import { useToast } from '@/store/toast';
+import { useJukebox } from '@/store/jukebox';
 import { useUpnp } from '@/store/upnp';
 import { useT } from '@/i18n';
 import { colors, fontSize, spacing } from '@/theme';
@@ -139,7 +140,9 @@ export default function PlayerScreen() {
   const seekButtonsSec = useSettings((s) => s.seekButtonsSec);
   const offline = useAuthStore((s) => s.offline);
   const serverType = useAuthStore((s) => s.auth?.serverType);
-  const remoteDevice = useUpnp((s) => (s.connected ? s.deviceName : null));
+  const upnpDevice = useUpnp((s) => (s.connected ? s.deviceName : null));
+  const jukeboxActive = useJukebox((s) => s.active);
+  const remoteDevice = upnpDevice ?? (jukeboxActive ? t('Server speakers (Jukebox)') : null);
   const [outputOpen, setOutputOpen] = useState(false);
   // Con letra local (.lrc/USLT/LRCLIB) el modo offline también tiene lyrics;
   // solo la radio (url directa) queda fuera. Ocultar la tarjeta (ajuste) no

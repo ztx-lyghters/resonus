@@ -1011,3 +1011,73 @@ export async function getOpenSubsonicExtensions(auth: SubsonicAuth): Promise<str
   );
   return (res.openSubsonicExtensions ?? []).map((e) => e.name);
 }
+
+// ── Jukebox ──────────────────────────────────────────────────────────────────
+// API estándar Subsonic `jukeboxControl`: el servidor reproduce por su propio
+// hardware de audio (altavoces/DAC) y la app hace de mando a distancia; no se
+// stremea nada al teléfono. Solo servidores Subsonic con el rol jukebox
+// habilitado por el admin (ver store/jukebox.ts para la integración).
+
+export interface JukeboxStatus {
+  /** Índice de la pista actual dentro de la lista del servidor. */
+  currentIndex: number;
+  playing: boolean;
+  /** Ganancia 0..1. */
+  gain: number;
+  /** Posición en segundos dentro de la pista actual. */
+  position: number;
+}
+
+function parseJukeboxStatus(raw: unknown): JukeboxStatus {
+  const s = (raw ?? {}) as Record<string, unknown>;
+  const num = (v: unknown, def: number) => (typeof v === 'number' ? v : def);
+  return {
+    currentIndex: num(s.currentIndex, 0),
+    playing: s.playing === true,
+    gain: num(s.gain, 1),
+    position: num(s.position, 0),
+  };
+}
+
+/** `jukeboxControl.view`: devuelve el estado tras aplicar la acción. */
+async function jukeboxControl(
+  auth: SubsonicAuth,
+  action: string,
+  extra: Record<string, string | number | undefined> = {},
+): Promise<JukeboxStatus> {
+  const res = await request<{ jukeboxStatus?: unknown; jukeboxPlaylist?: unknown }>(
+    auth,
+    'jukeboxControl.view',
+    { action, ...extra },
+  );
+  // `get`/`set` responden con jukeboxPlaylist; el resto con jukeboxStatus.
+  return parseJukeboxStatus(res.jukeboxStatus ?? res.jukeboxPlaylist);
+}
+
+export const jukeboxStatus = (auth: SubsonicAuth) => jukeboxControl(auth, 'status');
+/** Reemplaza la lista del servidor por una sola pista (id de la biblioteca). */
+export const jukeboxSet = (auth: SubsonicAuth, id: string) => jukeboxControl(auth, 'set', { id });
+export const jukeboxStart = (auth: SubsonicAuth) => jukeboxControl(auth, 'start');
+export const jukeboxStop = (auth: SubsonicAuth) => jukeboxControl(auth, 'stop');
+export const jukeboxClear = (auth: SubsonicAuth) => jukeboxControl(auth, 'clear');
+/** Salta al índice dado (con offset opcional en segundos dentro de la pista). */
+export const jukeboxSkip = (auth: SubsonicAuth, index: number, offsetSec = 0) =>
+  jukeboxControl(auth, 'skip', { index, offset: offsetSec > 0 ? Math.floor(offsetSec) : undefined });
+export const jukeboxSetGain = (auth: SubsonicAuth, gain: number) =>
+  jukeboxControl(auth, 'setGain', { gain: Math.max(0, Math.min(1, gain)) });
+
+/**
+ * ¿El servidor permite el modo jukebox para este usuario? Se deduce del
+ * `jukeboxRole` que devuelve `getUser`. Cualquier fallo (endpoint ausente,
+ * servidor que no es Subsonic, sin permiso) cuenta como "no disponible".
+ */
+export async function hasJukeboxRole(auth: SubsonicAuth): Promise<boolean> {
+  try {
+    const res = await request<{ user?: { jukeboxRole?: boolean } }>(auth, 'getUser.view', {
+      username: auth.username,
+    });
+    return res.user?.jukeboxRole === true;
+  } catch {
+    return false;
+  }
+}

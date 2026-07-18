@@ -2,7 +2,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -14,6 +14,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
@@ -32,6 +33,7 @@ import { FavoritesArt } from '@/components/FavoritesArt';
 import { Message } from '@/components/Message';
 import { useT } from '@/i18n';
 import { useAuthStore } from '@/store/auth';
+import { checkAutoUrlNow } from '@/store/autoUrl';
 import { useLastPlayed } from '@/store/lastPlayed';
 import { useScanProgress } from '@/store/scanProgress';
 import { useSettings, type ExploreChipKey, type HomeSectionKey } from '@/store/settings';
@@ -341,6 +343,55 @@ function ExploreChips({ offline }: { offline: boolean }) {
   );
 }
 
+/**
+ * Aviso calmado cuando una cuenta de servidor está sin conexión (auto o manual):
+ * explica por qué se ve solo lo descargado y ofrece reintentar. En un perfil
+ * local (sin `auth`) no se muestra: ahí "offline" es el estado normal. */
+function OfflineBanner() {
+  const t = useT();
+  const offline = useAuthStore((s) => s.offline);
+  const hasAccount = useAuthStore((s) => !!s.auth);
+  const autoOffline = useAuthStore((s) => s.autoOffline);
+  const goOnline = useAuthStore((s) => s.goOnline);
+  const [retrying, setRetrying] = useState(false);
+  if (!offline || !hasAccount) return null;
+  function retry() {
+    if (retrying) return;
+    setRetrying(true);
+    checkAutoUrlNow();
+    // El sondeo va con debounce (~1.5 s) + red; damos feedback un momento. Si
+    // reconecta, el banner se desmonta antes y da igual.
+    setTimeout(() => setRetrying(false), 2500);
+  }
+  return (
+    <Animated.View
+      entering={FadeIn.duration(250)}
+      exiting={FadeOut.duration(200)}
+      style={styles.offlineBanner}
+    >
+      <Ionicons name="cloud-offline-outline" size={20} color={colors.accent} />
+      <Text style={styles.offlineBannerText} numberOfLines={1}>
+        {t('Offline · playing your downloads')}
+      </Text>
+      {autoOffline ? (
+        // Caída automática: reintentar sondea y reconecta si el servidor volvió.
+        <Pressable hitSlop={8} onPress={retry} disabled={retrying}>
+          {retrying ? (
+            <ActivityIndicator size="small" color={colors.textSecondary} />
+          ) : (
+            <Text style={styles.offlineBannerRetry}>{t('Retry')}</Text>
+          )}
+        </Pressable>
+      ) : (
+        // Offline manual: se vuelve directo (no hay nada que sondear).
+        <Pressable hitSlop={8} onPress={() => void goOnline()}>
+          <Text style={styles.offlineBannerRetry}>{t('Back online')}</Text>
+        </Pressable>
+      )}
+    </Animated.View>
+  );
+}
+
 function ScanningPanel() {
   const t = useT();
   const phase = useScanProgress((s) => s.phase);
@@ -414,7 +465,9 @@ export default function HomeScreen() {
   // inicial y se pinta antes de aplicarse el acento guardado.
   const accentColor = useSettings((s) => s.accentColor);
   useSettings((s) => s.appFont); // re-render al cambiar la fuente
-  const initial = offline ? 'O' : (auth?.username ?? '?').charAt(0).toUpperCase();
+  // 'O' solo en perfil local (sin cuenta); una cuenta de servidor offline sigue
+  // mostrando su inicial.
+  const initial = offline && !auth ? 'O' : (auth?.username ?? '?').charAt(0).toUpperCase();
 
   // Saludo según la hora (estilo Spotify). Tramos a la española: mañana hasta
   // las 13, tarde hasta las 21, noche el resto (incluida la madrugada).
@@ -436,6 +489,13 @@ export default function HomeScreen() {
     queryFn: () => getAlbumList('newest'),
     enabled: !!auth && !offline,
   });
+
+  // El servidor no responde con la red arriba (no solo cuando cae la red):
+  // dispara un sondeo. Si de verdad no llega y hay descargas, el motor cae a
+  // offline solo (ver store/autoUrl.ts).
+  useEffect(() => {
+    if (serverUnreachable) checkAutoUrlNow();
+  }, [serverUnreachable]);
 
   async function onRefresh() {
     setRefreshing(true);
@@ -467,7 +527,7 @@ export default function HomeScreen() {
                 {greeting}
               </Text>
             ) : null}
-            {offline ? (
+            {offline && !auth ? (
               <Ionicons
                 name="phone-portrait-outline"
                 size={28}
@@ -498,6 +558,8 @@ export default function HomeScreen() {
         </View>
 
         {offline && scanning ? <ScanningPanel /> : null}
+
+        <OfflineBanner />
 
         <ExploreChips offline={offline} />
 
@@ -544,6 +606,19 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
+  offlineBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+  },
+  offlineBannerText: { flex: 1, color: colors.textSecondary, fontSize: fontSize.sm },
+  offlineBannerRetry: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700' },
   content: { paddingVertical: spacing.md, paddingBottom: SCREEN_BOTTOM_PADDING },
   header: {
     flexDirection: 'row',

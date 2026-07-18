@@ -487,15 +487,18 @@ function maybeScrobbleThreshold(positionSec: number) {
   if (positionSec < threshold) return;
   scrobbledThisTrack = true;
   const { auth, offline } = useAuthStore.getState();
-  if (auth) scrobble(auth, song.id, true);
-  else if (offline) usePlayCounts.getState().bump(song.id);
+  // Offline (incluida una cuenta de servidor sin conexión): cuenta local, no
+  // scrobble al servidor — al que no llegaríamos igualmente.
+  if (offline) usePlayCounts.getState().bump(song.id);
+  else if (auth) scrobble(auth, song.id, true);
 }
 
 /** Now playing / historial + sincroniza la cola al cambiar de pista. */
 function onTrackChanged(song: Song) {
-  const auth = useAuthStore.getState().auth;
+  const { auth, offline } = useAuthStore.getState();
   // Solo "estoy escuchando esto"; la reproducción cuenta al cruzar el umbral.
-  if (auth) scrobble(auth, song.id, false);
+  // Offline no se manda (cuenta de servidor sin conexión: no hay a quién).
+  if (auth && !offline) scrobble(auth, song.id, false);
   usePlayHistory.getState().record(song);
   // Calienta la letra ya (y la de la siguiente, para que deslizar en el
   // player también enseñe su tarjeta al instante).
@@ -1807,8 +1810,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   restoreFromServer: async () => {
-    const auth = useAuthStore.getState().auth;
-    if (!auth || get().queue.length > 0) return;
+    const { auth, offline } = useAuthStore.getState();
+    if (!auth || offline || get().queue.length > 0) return;
     let saved;
     try {
       saved = await getPlayQueue(auth);

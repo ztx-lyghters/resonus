@@ -161,8 +161,9 @@ function deriveArtists(albums: DlAlbum[]): (Artist & { coverUri?: string })[] {
 }
 
 /**
- * Catálogo de descargas de todas las cuentas, listo para fusionar con el
- * escaneo local. Registra las carátulas en el índice global al construirse.
+ * Catálogo de descargas de todas las cuentas. Es la biblioteca del modo "cuenta
+ * de servidor sin conexión" (el perfil local solo muestra la música del móvil).
+ * Registra las carátulas en el índice global al construirse.
  */
 export async function getDownloadsCatalog(): Promise<DownloadsCatalog> {
   if (!mergedCache) {
@@ -181,6 +182,11 @@ export async function getDownloadsCatalog(): Promise<DownloadsCatalog> {
   for (const a of mergedCache.albums) registerCover(a.id, a.coverUri);
   for (const a of mergedCache.artists) registerCover(a.id, a.coverUri);
   return mergedCache;
+}
+
+/** ¿Hay alguna descarga (de cualquier cuenta)? Barato: usa el catálogo cacheado. */
+export async function hasDownloads(): Promise<boolean> {
+  return (await getDownloadsCatalog()).songs.length > 0;
 }
 
 function invalidate() {

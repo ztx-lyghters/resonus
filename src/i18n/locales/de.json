@@ -447,5 +447,8 @@
   "What the previous button does partway through a song.": "Was die Zurück-Taste mitten in einem Titel tut.",
   "Restart, then previous track": "Neu starten, dann vorheriger Titel",
   "Always previous track": "Immer vorheriger Titel",
-  "Server speakers (Jukebox)": "Server-Lautsprecher (Jukebox)"
+  "Server speakers (Jukebox)": "Server-Lautsprecher (Jukebox)",
+  "Back online": "Wieder online",
+  "Offline · your downloads": "Offline · deine Downloads",
+  "Offline · playing your downloads": "Offline · deine Downloads werden abgespielt"
 }

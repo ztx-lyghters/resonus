@@ -18,6 +18,7 @@ import { deleteItem, getItem, setItem } from '@/lib/storage';
 const ACTIVE_KEY = 'resonus.auth';
 const PROFILES_KEY = 'resonus.profiles';
 const OFFLINE_KEY = 'resonus.offline';
+const OFFLINE_AUTO_KEY = 'resonus.offlineAuto';
 const OFFLINE_SOURCE_KEY = 'resonus.offlineSource';
 
 /** De dónde saca la música el modo sin conexión. */
@@ -83,6 +84,13 @@ interface AuthState {
   profiles: Profile[];
   /** Sesión sin conexión: reproduce ficheros locales sin servidor. */
   offline: boolean;
+  /**
+   * El modo offline lo activó la app sola porque el servidor no respondía (no
+   * el usuario). Solo con una cuenta de servidor: al volver a ser alcanzable se
+   * reconecta automáticamente. Un offline manual deja esto en false y no se
+   * revierte solo. Ver store/autoUrl.ts.
+   */
+  autoOffline: boolean;
   /** Origen elegido para la música local (null = aún sin elegir). */
   offlineSource: OfflineSource | null;
   /** true mientras se rehidrata la sesión guardada al arrancar. */
@@ -111,6 +119,13 @@ interface AuthState {
    */
   saveNativePassword: (password: string) => Promise<void>;
   enterOffline: () => Promise<void>;
+  /**
+   * Pasa la cuenta de servidor a modo offline (mostrar/reproducir descargas)
+   * conservando la sesión. `auto` = lo decidió la app por servidor caído.
+   */
+  goOffline: (auto: boolean) => Promise<void>;
+  /** Vuelve online en la misma cuenta (instantáneo, sin re-login). */
+  goOnline: () => Promise<void>;
   setOfflineSource: (source: OfflineSource | null) => Promise<void>;
   logout: () => Promise<void>;
   hydrate: () => Promise<void>;
@@ -120,15 +135,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   auth: null,
   profiles: [],
   offline: false,
+  autoOffline: false,
   offlineSource: null,
   hydrating: true,
 
   hydrate: async () => {
     try {
-      const [rawAuth, rawProfiles, rawOffline, rawSource] = await Promise.all([
+      const [rawAuth, rawProfiles, rawOffline, rawAuto, rawSource] = await Promise.all([
         getItem(ACTIVE_KEY),
         getItem(PROFILES_KEY),
         getItem(OFFLINE_KEY),
+        getItem(OFFLINE_AUTO_KEY),
         getItem(OFFLINE_SOURCE_KEY),
       ]);
       const profiles: Profile[] = rawProfiles
@@ -143,6 +160,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         auth: activeAuth ? withUrls(activeAuth) : null,
         profiles,
         offline: rawOffline === '1',
+        autoOffline: rawAuto === '1',
         offlineSource: rawSource ? (JSON.parse(rawSource) as OfflineSource) : null,
       });
     } catch {
@@ -175,8 +193,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await setItem(ACTIVE_KEY, JSON.stringify(auth));
     await setItem(PROFILES_KEY, JSON.stringify(profiles));
     await deleteItem(OFFLINE_KEY);
+    await deleteItem(OFFLINE_AUTO_KEY);
     queryClient.clear();
-    set({ auth, profiles, offline: false });
+    set({ auth, profiles, offline: false, autoOffline: false });
   },
 
   switchProfile: async (profile) => {
@@ -186,17 +205,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const reordered = [profile, ...get().profiles.filter((p) => !same(p, profile))];
     if (profile._type === 'offline') {
       await setItem(OFFLINE_KEY, '1');
+      await deleteItem(OFFLINE_AUTO_KEY);
       await setItem(OFFLINE_SOURCE_KEY, JSON.stringify(profile.source));
       await setItem(PROFILES_KEY, JSON.stringify(reordered));
       queryClient.clear();
-      set({ auth: null, offline: true, offlineSource: profile.source, profiles: reordered });
+      set({
+        auth: null,
+        offline: true,
+        autoOffline: false,
+        offlineSource: profile.source,
+        profiles: reordered,
+      });
       return;
     }
     await ping(profile);
     await setItem(ACTIVE_KEY, JSON.stringify(profile));
     await setItem(PROFILES_KEY, JSON.stringify(reordered));
+    await deleteItem(OFFLINE_KEY);
+    await deleteItem(OFFLINE_AUTO_KEY);
     queryClient.clear();
-    set({ auth: profile, profiles: reordered });
+    set({ auth: profile, profiles: reordered, offline: false, autoOffline: false });
   },
 
   removeProfile: async (profile) => {
@@ -283,6 +311,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ offline: true });
   },
 
+  goOffline: async (auto) => {
+    // Conserva `auth`: es la misma cuenta, pero mostrando/​reproduciendo las
+    // descargas. Los envíos al servidor (scrobble, now-playing) están gated por
+    // `offline` en el player. Vaciar la caché hace que las vistas se recalculen
+    // contra el catálogo local.
+    if (get().offline) return;
+    await setItem(OFFLINE_KEY, '1');
+    if (auto) await setItem(OFFLINE_AUTO_KEY, '1');
+    else await deleteItem(OFFLINE_AUTO_KEY);
+    queryClient.clear();
+    set({ offline: true, autoOffline: auto });
+  },
+
+  goOnline: async () => {
+    // Vuelta instantánea a la misma cuenta (auth intacto). La reproducción no se
+    // toca; las vistas se recalculan contra el servidor al vaciar la caché.
+    if (!get().offline || !get().auth) return;
+    await deleteItem(OFFLINE_KEY);
+    await deleteItem(OFFLINE_AUTO_KEY);
+    queryClient.clear();
+    set({ offline: false, autoOffline: false });
+  },
+
   setOfflineSource: async (source) => {
     if (source) {
       await setItem(OFFLINE_SOURCE_KEY, JSON.stringify(source));
@@ -326,9 +377,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await require('./player').usePlayerStore.getState().reset();
     await deleteItem(ACTIVE_KEY);
     await deleteItem(OFFLINE_KEY);
+    await deleteItem(OFFLINE_AUTO_KEY);
     await deleteItem(OFFLINE_SOURCE_KEY);
     clearLocalCatalog();
     queryClient.clear();
-    set({ auth: null, offline: false, offlineSource: null });
+    set({ auth: null, offline: false, autoOffline: false, offlineSource: null });
   },
 }));

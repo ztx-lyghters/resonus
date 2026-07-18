@@ -13,6 +13,7 @@ import { Dialog } from '@/components/Dialog';
 import { ScreenHeader, settingsStyles } from '@/components/SettingsUI';
 import { useT } from '@/i18n';
 import { useAuthStore } from '@/store/auth';
+import { useDownloads } from '@/store/downloads';
 import { useSettings } from '@/store/settings';
 import { useToast } from '@/store/toast';
 import { colors, fontSize, spacing } from '@/theme';
@@ -26,17 +27,29 @@ export default function SettingsScreen() {
   useSettings((s) => s.appFont); // re-render al cambiar la fuente
   const resetToDefaults = useSettings((s) => s.resetToDefaults);
   const logout = useAuthStore((s) => s.logout);
+  const goOnline = useAuthStore((s) => s.goOnline);
+  const goOffline = useAuthStore((s) => s.goOffline);
   const offline = useAuthStore((s) => s.offline);
+  // Solo ofrecemos "ir offline" a mano si hay algo descargado que oír.
+  const hasDownloads = useDownloads((s) => Object.keys(s.files).length > 0);
   const toast = useToast((s) => s.show);
   // Restaurar valores por defecto: afecta a todos los ajustes, por eso vive
   // aquí (en el índice) y no dentro de una categoría concreta.
   const [confirmReset, setConfirmReset] = useState(false);
 
-  const initial = offline ? 'O' : (auth?.username ?? '?').charAt(0).toUpperCase();
-  const name = offline ? t('Local profile') : auth?.username ?? '—';
-  const detail = offline
-    ? t('Music on your device')
-    : auth?.serverUrl.replace(/^https?:\/\//, '') ?? '';
+  // Cuenta de servidor en modo offline (auth intacto) vs perfil local (sin auth).
+  const serverOffline = offline && !!auth;
+  const initial = serverOffline
+    ? (auth?.username ?? '?').charAt(0).toUpperCase()
+    : offline
+      ? 'O'
+      : (auth?.username ?? '?').charAt(0).toUpperCase();
+  const name = offline && !auth ? t('Local profile') : auth?.username ?? '—';
+  const detail = serverOffline
+    ? t('Offline · your downloads')
+    : offline
+      ? t('Music on your device')
+      : auth?.serverUrl.replace(/^https?:\/\//, '') ?? '';
 
   // En offline, Reproducción también aparece: la propia pantalla oculta lo
   // que es de servidor (bitrates, autoplay) y deja lo que aplica en local
@@ -49,8 +62,14 @@ export default function SettingsScreen() {
     { key: 'downloads', title: 'Downloads', icon: 'download-outline' as const },
     {
       key: 'library',
-      title: offline ? 'Local music' : 'Library',
-      icon: offline ? ('phone-portrait-outline' as const) : ('server-outline' as const),
+      // Servidor offline: la biblioteca es lo descargado. Perfil local: música
+      // del dispositivo. Online: la biblioteca del servidor.
+      title: serverOffline ? 'Downloads' : offline ? 'Local music' : 'Library',
+      icon: serverOffline
+        ? ('cloud-offline-outline' as const)
+        : offline
+          ? ('phone-portrait-outline' as const)
+          : ('server-outline' as const),
     },
     // Red: varias URLs de servidor y conmutación automática. Solo con servidor.
     ...(offline
@@ -89,6 +108,22 @@ export default function SettingsScreen() {
           </Pressable>
         ))}
 
+        {/* Ir offline a mano (ahorrar datos): solo con cuenta de servidor
+            online y algo descargado. Es `manual`, así que no se auto-reconecta:
+            se vuelve con el botón "Back online". */}
+        {!offline && auth && hasDownloads ? (
+          <Pressable
+            style={({ pressed }) => [styles.sectionRow, pressed && { opacity: 0.6 }]}
+            onPress={() => {
+              void goOffline(false);
+              toast(t('Offline · your downloads'));
+            }}
+          >
+            <Ionicons name="cloud-offline-outline" size={24} color={colors.text} />
+            <Text style={styles.sectionRowTitle}>{t('Offline mode')}</Text>
+          </Pressable>
+        ) : null}
+
         <Pressable
           style={({ pressed }) => [styles.sectionRow, pressed && { opacity: 0.6 }]}
           onPress={() => setConfirmReset(true)}
@@ -99,9 +134,12 @@ export default function SettingsScreen() {
           </Text>
         </Pressable>
 
-        <Pressable style={settingsStyles.pillButton} onPress={() => logout()}>
+        <Pressable
+          style={settingsStyles.pillButton}
+          onPress={() => (serverOffline ? void goOnline() : logout())}
+        >
           <Text style={settingsStyles.pillButtonText}>
-            {offline ? t('Exit offline mode') : t('Sign out')}
+            {serverOffline ? t('Back online') : offline ? t('Exit offline mode') : t('Sign out')}
           </Text>
         </Pressable>
       </ScrollView>

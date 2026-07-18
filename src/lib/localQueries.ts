@@ -139,41 +139,24 @@ async function ensureScanCatalog() {
   return getLocalCatalog(mode, key);
 }
 
-/** Artistas del escaneo + de las descargas, fusionados por clave de nombre. */
-function mergeArtists(base: CatArtist[], extra: CatArtist[]): CatArtist[] {
-  const map = new Map(base.map((a) => [a.id, { ...a }]));
-  for (const ar of extra) {
-    const existing = map.get(ar.id);
-    if (existing) {
-      existing.albumCount = (existing.albumCount ?? 0) + (ar.albumCount ?? 0);
-      if (!existing.coverUri) existing.coverUri = ar.coverUri;
-    } else {
-      map.set(ar.id, { ...ar });
-    }
-  }
-  return Array.from(map.values());
-}
-
 /**
- * Catálogo del perfil local = escaneo del origen + descargas del servidor,
- * fusionados. Si el escaneo falla (p. ej. sin permiso de audio), las descargas
- * se muestran igualmente. No hay duplicados posibles: MediaStore/SAF no ven el
- * directorio privado de descargas.
+ * Catálogo del modo sin conexión, según quién esté activo:
+ *   - Cuenta de servidor offline (hay `auth`): SOLO las descargas del servidor.
+ *   - Perfil local (sin `auth`): SOLO la música del dispositivo/carpeta elegida.
+ *
+ * Son cosas distintas: el perfil local es para música que tienes en el móvil, y
+ * las descargas del servidor tienen su propio modo (la cuenta de servidor sin
+ * conexión). Por eso ya no se fusionan.
  */
 async function ensureCatalog(): Promise<MergedCatalog | null> {
-  // Sin origen elegido no se escanea nada: el perfil local puede vivir solo de
-  // las descargas (elegir origen de música local es opcional).
-  const hasSource = !!useAuthStore.getState().offlineSource;
-  const [base, dl] = await Promise.all([
-    hasSource ? ensureScanCatalog().catch(() => undefined) : Promise.resolve(undefined),
-    getDownloadsCatalog().catch(() => ({ songs: [], albums: [], artists: [] })),
-  ]);
-  if (dl.songs.length === 0) return base ?? null;
-  return {
-    songs: [...(base?.songs ?? []), ...dl.songs],
-    albums: [...(base?.albums ?? []), ...dl.albums],
-    artists: mergeArtists(base?.artists ?? [], dl.artists),
-  };
+  if (useAuthStore.getState().auth) {
+    const dl = await getDownloadsCatalog().catch(() => ({ songs: [], albums: [], artists: [] }));
+    if (dl.songs.length === 0) return null;
+    return { songs: dl.songs, albums: dl.albums, artists: dl.artists };
+  }
+  // Perfil local: solo el escaneo del origen elegido (sin descargas).
+  if (!useAuthStore.getState().offlineSource) return null;
+  return (await ensureScanCatalog().catch(() => undefined)) ?? null;
 }
 
 /**

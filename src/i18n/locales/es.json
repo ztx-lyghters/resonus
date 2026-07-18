@@ -447,5 +447,8 @@
   "What the previous button does partway through a song.": "Qué hace el botón anterior a mitad de una canción.",
   "Restart, then previous track": "Reiniciar y luego pista anterior",
   "Always previous track": "Siempre pista anterior",
-  "Server speakers (Jukebox)": "Altavoces del servidor (Jukebox)"
+  "Server speakers (Jukebox)": "Altavoces del servidor (Jukebox)",
+  "Back online": "Volver online",
+  "Offline · your downloads": "Sin conexión · tus descargas",
+  "Offline · playing your downloads": "Sin conexión · reproduciendo tus descargas"
 }

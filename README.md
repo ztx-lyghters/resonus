@@ -16,13 +16,6 @@
   <a href="https://ko-fi.com/juananzzz"><img src="https://img.shields.io/badge/Support_me-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Support me on Ko-fi" /></a>
 </p>
 
-## Why Resonus
-
-I built Resonus because I couldn't find an Android player that felt the way I
-wanted. I have my own music on a self-hosted server, and every app I tried was
-either dated, cluttered, or missing the small things that make listening nice.
-So I made the one I wanted to use.
-
 ## Download
 
 Get the latest APK from the [Releases](https://github.com/juananzzz/resonus/releases/latest) page and install it on your Android device.

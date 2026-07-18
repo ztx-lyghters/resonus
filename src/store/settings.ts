@@ -72,6 +72,10 @@ export type AppFont = 'system' | 'condensed' | 'serif' | 'monospace' | 'casual' 
  *  letra, o mostrar la letra en el sitio de la carátula. */
 export type CoverTapAction = 'none' | 'screen' | 'inline';
 
+/** Conducta del botón "anterior": reiniciar la pista pasados unos segundos (por
+ *  defecto, como Spotify) o ir siempre a la pista previa (como YouTube). */
+export type PreviousButtonMode = 'restart' | 'always';
+
 /** Acción al deslizar una canción a la derecha en las listas (customizable). */
 export type SwipeAction = 'off' | 'queue' | 'next' | 'favorite' | 'menu';
 
@@ -342,6 +346,8 @@ interface SettingsState {
   showDevicesButton: boolean;
   /** Botones de salto ±N segundos junto al play (0 = ocultos). Solo 5/10/30: son los iconos numerados que existen en MaterialIcons. */
   seekButtonsSec: number;
+  /** Conducta del botón "anterior" (reiniciar pista o ir siempre a la previa). */
+  previousButtonMode: PreviousButtonMode;
   /** Acción al deslizar una canción a la derecha en las listas. */
   swipeAction: SwipeAction;
   /** Acción al deslizar una canción a la izquierda en las listas. */
@@ -407,6 +413,7 @@ interface SettingsState {
   setShowQueueButton: (value: boolean) => void;
   setShowDevicesButton: (value: boolean) => void;
   setSeekButtonsSec: (value: number) => void;
+  setPreviousButtonMode: (value: PreviousButtonMode) => void;
   setSwipeAction: (value: SwipeAction) => void;
   setSwipeLeftAction: (value: SwipeAction) => void;
   setHomeSection: (key: HomeSectionKey, value: boolean) => void;
@@ -467,6 +474,7 @@ function snapshot(get: () => SettingsState) {
     showQueueButton: s.showQueueButton,
     showDevicesButton: s.showDevicesButton,
     seekButtonsSec: s.seekButtonsSec,
+    previousButtonMode: s.previousButtonMode,
     swipeAction: s.swipeAction,
     swipeLeftAction: s.swipeLeftAction,
     homeSections: s.homeSections,
@@ -516,6 +524,7 @@ const DEFAULTS = {
   showQueueButton: true,
   showDevicesButton: true,
   seekButtonsSec: 0,
+  previousButtonMode: 'restart' as PreviousButtonMode,
   // Por defecto, deslizar a la derecha encola (comportamiento previo) y a la
   // izquierda no hace nada (opt-in).
   swipeAction: 'queue' as SwipeAction,
@@ -674,6 +683,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
     persist(snapshot(get));
   },
 
+  setPreviousButtonMode: (previousButtonMode) => {
+    set({ previousButtonMode });
+    persist(snapshot(get));
+  },
+
   setSwipeLeftAction: (swipeLeftAction) => {
     set({ swipeLeftAction });
     persist(snapshot(get));
@@ -812,6 +826,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
           showQueueButton: boolean;
           showDevicesButton: boolean;
           seekButtonsSec: number;
+          previousButtonMode: PreviousButtonMode;
           swipeAction: SwipeAction;
           swipeLeftAction: SwipeAction;
           homeSections: unknown;
@@ -936,6 +951,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
         }
         if (parsed.seekButtonsSec === 0 || parsed.seekButtonsSec === 5 || parsed.seekButtonsSec === 10 || parsed.seekButtonsSec === 30) {
           set({ seekButtonsSec: parsed.seekButtonsSec });
+        }
+        if (parsed.previousButtonMode === 'restart' || parsed.previousButtonMode === 'always') {
+          set({ previousButtonMode: parsed.previousButtonMode });
         }
         if (
           parsed.swipeAction === 'off' ||

@@ -1496,8 +1496,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   previous: () => {
     const { index, positionSec } = get();
-    // Como Spotify: pasados unos segundos, "anterior" reinicia la canción.
-    if (positionSec > 3) {
+    // Como Spotify: pasados unos segundos, "anterior" reinicia la canción. En
+    // modo "always" (estilo YouTube) siempre va a la pista previa, sin reiniciar.
+    if (useSettings.getState().previousButtonMode !== 'always' && positionSec > 3) {
       get().seekTo(0);
       return;
     }

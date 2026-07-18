@@ -4,7 +4,7 @@ import { ScrollView, Text } from 'react-native';
 import { SelectList, SettingsPage, settingsStyles, SwitchList } from '@/components/SettingsUI';
 import { useT } from '@/i18n';
 import { useAuthStore } from '@/store/auth';
-import { type CoverTapAction, useSettings } from '@/store/settings';
+import { type CoverTapAction, type PreviousButtonMode, useSettings } from '@/store/settings';
 
 export default function PlayerSettings() {
   const t = useT();
@@ -36,6 +36,8 @@ export default function PlayerSettings() {
   const setShowDevicesButton = useSettings((s) => s.setShowDevicesButton);
   const seekButtonsSec = useSettings((s) => s.seekButtonsSec);
   const setSeekButtonsSec = useSettings((s) => s.setSeekButtonsSec);
+  const previousButtonMode = useSettings((s) => s.previousButtonMode);
+  const setPreviousButtonMode = useSettings((s) => s.setPreviousButtonMode);
 
   return (
     <SettingsPage title={t('Player')}>
@@ -129,6 +131,16 @@ export default function PlayerSettings() {
           ]}
           value={seekButtonsSec}
           onChange={setSeekButtonsSec}
+        />
+        <SelectList<PreviousButtonMode>
+          label={t('Previous button')}
+          description={t('What the previous button does partway through a song.')}
+          options={[
+            { value: 'restart', label: t('Restart, then previous track') },
+            { value: 'always', label: t('Always previous track') },
+          ]}
+          value={previousButtonMode}
+          onChange={setPreviousButtonMode}
         />
 
         <Text style={settingsStyles.sectionTitle}>{t('Lyrics')}</Text>

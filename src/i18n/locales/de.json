@@ -442,5 +442,9 @@
   "Looking for music…": "Musik wird gesucht…",
   "Loading covers…": "Cover werden geladen…",
   "Unknown album": "Unbekanntes Album",
-  "Network (experimental)": "Netzwerk (experimentell)"
+  "Network (experimental)": "Netzwerk (experimentell)",
+  "Previous button": "Zurück-Taste",
+  "What the previous button does partway through a song.": "Was die Zurück-Taste mitten in einem Titel tut.",
+  "Restart, then previous track": "Neu starten, dann vorheriger Titel",
+  "Always previous track": "Immer vorheriger Titel"
 }

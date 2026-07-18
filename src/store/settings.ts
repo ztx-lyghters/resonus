@@ -4,7 +4,7 @@ import { create } from 'zustand';
 import { hashKey } from '@/lib/localLibrary';
 import { getItem, setItem } from '@/lib/storage';
 import { applyAccent, DEFAULT_ACCENT } from '@/theme';
-import { useAuthStore } from './auth';
+import { profileScopeId } from './auth';
 
 // El campo se llama `color` (no `value`) a propósito: Reanimated warnea de más
 // al ver cualquier `.value` dentro de un estilo inline, aunque no sea un shared
@@ -38,13 +38,7 @@ const LANG_KEY = 'resonus.language';
 /** Clave de ajustes del perfil activo (servidor, local o ninguno). El id se
  *  hashea: SecureStore solo admite [A-Za-z0-9._-] y la URL trae `:`, `/`, `|`. */
 function settingsKey(): string {
-  const { auth, offline } = useAuthStore.getState();
-  const id = auth
-    ? `${auth.urls?.[0] ?? auth.serverUrl}|${auth.username}`
-    : offline
-      ? 'local'
-      : 'default';
-  return `${STORAGE_KEY}.${hashKey(id)}`;
+  return `${STORAGE_KEY}.${hashKey(profileScopeId())}`;
 }
 
 /** 0 = calidad original (sin transcodificar); el resto es el bitrate en kbps. */

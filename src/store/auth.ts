@@ -131,6 +131,19 @@ interface AuthState {
   hydrate: () => Promise<void>;
 }
 
+/**
+ * Id estable del perfil activo para partir el almacenamiento por perfil
+ * (ajustes, playlists locales, favoritos locales…). Cuenta de servidor:
+ * `url|usuario` (también en su modo offline, que conserva `auth`); perfil
+ * local: `local`; sin sesión: `default`. Al usarlo como clave de SecureStore
+ * hay que hashearlo (la URL trae `:`, `/`, `|`, no admitidos).
+ */
+export function profileScopeId(): string {
+  const { auth, offline } = useAuthStore.getState();
+  if (auth) return `${auth.urls?.[0] ?? auth.serverUrl}|${auth.username}`;
+  return offline ? 'local' : 'default';
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   auth: null,
   profiles: [],
@@ -360,14 +373,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       clearLocalCatalog();
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       require('@/lib/localQueries').clearLocalFavs();
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require('@/lib/localQueries').clearLocalPlaylists();
       queryClient.removeQueries({ queryKey: ['localSongs'] });
+      queryClient.removeQueries({ queryKey: ['playlists'] });
+      queryClient.removeQueries({ queryKey: ['starred'] });
       set({ offlineSource: source, profiles });
     } else {
       await deleteItem(OFFLINE_SOURCE_KEY);
       clearLocalCatalog();
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       require('@/lib/localQueries').clearLocalFavs();
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require('@/lib/localQueries').clearLocalPlaylists();
       queryClient.removeQueries({ queryKey: ['localSongs'] });
+      queryClient.removeQueries({ queryKey: ['playlists'] });
+      queryClient.removeQueries({ queryKey: ['starred'] });
       set({ offlineSource: source });
     }
   },

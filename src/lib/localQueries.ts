@@ -5,24 +5,33 @@
 import * as FileSystem from 'expo-file-system/legacy';
 
 import { tg } from '@/i18n';
-import { useAuthStore } from '@/store/auth';
+import { profileScopeId, useAuthStore } from '@/store/auth';
 import { usePlayCounts } from '@/store/playCounts';
 import { usePlayHistory } from '@/store/playHistory';
 import { type Album, type Artist, type ArtistInfo, type Playlist, type SearchResult, type Song, type StarType, type Starred } from '@/api/subsonic';
 import { queryClient } from '@/lib/query';
-import { getItem, setItem } from '@/lib/storage';
+import { deleteItem, getItem, setItem } from '@/lib/storage';
 import { getDownloadsCatalog } from '@/store/downloads';
 import {
   clearLocalCatalog,
   clearLocalCatalogDisk,
   getLocalCatalog,
+  hashKey,
   loadDeviceSongs,
   loadFolderSongs,
   normKey,
   registerCover,
 } from './localLibrary';
 
+// Favoritos y playlists locales son POR PERFIL (cada cuenta/perfil los suyos):
+// se guardan bajo `<base>.<hash del perfil>`. La clave base a secas es la de la
+// versión antigua (compartida); solo el perfil local la hereda (migración).
 const FAVS_KEY = 'resonus.localFavorites';
+
+/** Clave de favoritos del perfil activo. */
+function favsKey(): string {
+  return `${FAVS_KEY}.${hashKey(profileScopeId())}`;
+}
 
 interface LocalFavStore {
   songs: string[];
@@ -30,12 +39,22 @@ interface LocalFavStore {
   artists: string[];
 }
 
+// La caché se etiqueta con la clave del perfil para el que se cargó: si cambia
+// el perfil, `loadFavs` la descarta y relee sola (sin depender de que alguien
+// llame a clearLocalFavs en cada transición).
 let favCache: LocalFavStore | null = null;
+let favCacheKey: string | null = null;
 
 async function loadFavs(): Promise<LocalFavStore> {
-  if (favCache) return favCache;
+  const key = favsKey();
+  if (favCache && favCacheKey === key) return favCache;
+  favCacheKey = key;
   try {
-    const raw = await getItem(FAVS_KEY);
+    // El perfil local hereda los favoritos de la versión antigua (clave global)
+    // hasta que cambie algo; el resto de perfiles parten en blanco.
+    const raw =
+      (await getItem(key)) ??
+      (profileScopeId() === 'local' ? await getItem(FAVS_KEY) : null);
     favCache = raw ? (JSON.parse(raw) as LocalFavStore) : { songs: [], albums: [], artists: [] };
   } catch {
     favCache = { songs: [], albums: [], artists: [] };
@@ -44,8 +63,12 @@ async function loadFavs(): Promise<LocalFavStore> {
 }
 
 async function saveFavs(favs: LocalFavStore) {
+  const key = favsKey();
   favCache = favs;
-  await setItem(FAVS_KEY, JSON.stringify(favs));
+  favCacheKey = key;
+  await setItem(key, JSON.stringify(favs));
+  // Migración: al escribir ya en la clave del perfil, retira la global heredada.
+  if (profileScopeId() === 'local') await deleteItem(FAVS_KEY);
 }
 
 export async function starLocal(id: string, type?: StarType) {
@@ -78,6 +101,7 @@ export async function unstarLocal(id: string, type?: StarType) {
 /** Limpia la caché de favoritos (al cambiar de origen). */
 export function clearLocalFavs() {
   favCache = null;
+  favCacheKey = null;
 }
 
 function sourceInfo() {
@@ -370,7 +394,13 @@ export async function getTopSongs(artist: string, count = 10): Promise<Song[]> {
 // ---- Listas de reproducción locales (modo sin conexión) -------------------
 // Se guardan como ids de canción; se resuelven contra el catálogo al leerlas,
 // así que canciones que ya no existan en el origen actual se omiten.
+// Por perfil, como los favoritos: `<base>.<hash del perfil>`.
 const PLAYLISTS_KEY = 'resonus.localPlaylists';
+
+/** Clave de playlists del perfil activo. */
+function playlistsKey(): string {
+  return `${PLAYLISTS_KEY}.${hashKey(profileScopeId())}`;
+}
 
 interface LocalPlaylistRec {
   id: string;
@@ -382,13 +412,29 @@ interface LocalPlaylistRec {
   coverUri?: string;
 }
 
+// Caché etiquetada con la clave del perfil: se relee sola al cambiar de perfil.
 let playlistCache: LocalPlaylistRec[] | null = null;
+let playlistCacheKey: string | null = null;
 
 async function loadPlaylists(): Promise<LocalPlaylistRec[]> {
-  if (playlistCache) return playlistCache;
+  const key = playlistsKey();
+  if (playlistCache && playlistCacheKey === key) return playlistCache;
+  playlistCacheKey = key;
   try {
-    const raw = await getItem(PLAYLISTS_KEY);
-    playlistCache = raw ? (JSON.parse(raw) as LocalPlaylistRec[]) : [];
+    const raw = await getItem(key);
+    if (raw) {
+      playlistCache = JSON.parse(raw) as LocalPlaylistRec[];
+    } else {
+      // Migración de la versión antigua (clave global compartida): cada perfil
+      // hereda solo lo suyo por prefijo de id — el local las creadas a mano
+      // (`lp_`), la cuenta de servidor las descargadas de sus playlists (`dl_`).
+      const legacy = await getItem(PLAYLISTS_KEY);
+      const all = legacy ? (JSON.parse(legacy) as LocalPlaylistRec[]) : [];
+      const local = profileScopeId() === 'local';
+      playlistCache = all.filter((p) =>
+        local ? p.id.startsWith('lp_') : p.id.startsWith('dl_'),
+      );
+    }
   } catch {
     playlistCache = [];
   }
@@ -396,8 +442,16 @@ async function loadPlaylists(): Promise<LocalPlaylistRec[]> {
 }
 
 async function savePlaylists(list: LocalPlaylistRec[]) {
+  const key = playlistsKey();
   playlistCache = list;
-  await setItem(PLAYLISTS_KEY, JSON.stringify(list));
+  playlistCacheKey = key;
+  await setItem(key, JSON.stringify(list));
+}
+
+/** Limpia la caché de playlists (al cambiar de origen/perfil). */
+export function clearLocalPlaylists() {
+  playlistCache = null;
+  playlistCacheKey = null;
 }
 
 function newPlaylistId(): string {

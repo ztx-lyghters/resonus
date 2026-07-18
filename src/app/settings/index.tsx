@@ -119,28 +119,45 @@ export default function SettingsScreen() {
         </Pressable>
 
         <View style={styles.sessionRow}>
-          {/* Ir offline a mano (ahorrar datos): acción de sesión, no una sección.
-              Solo con cuenta de servidor online y algo descargado. Es `manual`,
-              así que no se auto-reconecta: se vuelve con "Back online". */}
+          {/* Acción de MODO (pastilla de contorno, a la izquierda): igual
+              colocación en online y en offline. Online con descargas: ir offline
+              a mano; offline de servidor: volver online. Ambas recargan la
+              biblioteca, así que llevan a Inicio. */}
           {!offline && auth && hasDownloads ? (
             <Pressable
               style={({ pressed }) => [styles.offlinePill, pressed && { opacity: 0.6 }]}
               onPress={() => {
                 void goOffline(false);
                 toast(t('Offline · your downloads'));
+                router.replace('/(tabs)');
               }}
             >
               <Ionicons name="cloud-offline-outline" size={18} color={colors.text} />
               <Text style={styles.offlinePillText}>{t('Offline mode')}</Text>
             </Pressable>
+          ) : serverOffline ? (
+            <Pressable
+              style={({ pressed }) => [styles.offlinePill, pressed && { opacity: 0.6 }]}
+              onPress={() => {
+                void goOnline();
+                router.replace('/(tabs)');
+              }}
+            >
+              <Ionicons name="cloud-outline" size={18} color={colors.text} />
+              <Text style={styles.offlinePillText}>{t('Back online')}</Text>
+            </Pressable>
           ) : null}
 
+          {/* Cerrar sesión (pastilla de contorno oscura + icono): mismo estilo
+              y posición en online y offline. En perfil local es "Exit local
+              mode". logout() no necesita red, así que funciona sin conexión. */}
           <Pressable
-            style={[settingsStyles.pillButton, styles.sessionPill]}
-            onPress={() => (serverOffline ? void goOnline() : logout())}
+            style={({ pressed }) => [styles.offlinePill, pressed && { opacity: 0.6 }]}
+            onPress={() => logout()}
           >
-            <Text style={settingsStyles.pillButtonText}>
-              {serverOffline ? t('Back online') : offline ? t('Exit local mode') : t('Sign out')}
+            <Ionicons name="log-out-outline" size={18} color={colors.text} />
+            <Text style={styles.offlinePillText}>
+              {offline && !auth ? t('Exit local mode') : t('Sign out')}
             </Text>
           </Pressable>
         </View>
@@ -197,11 +214,8 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginTop: spacing.lg,
   },
-  // El botón sólido comparte estilo con settingsStyles.pillButton; anulamos su
-  // margen porque el espaciado lo pone ya la fila.
-  sessionPill: { marginTop: 0 },
-  // Pastilla secundaria (contorno) para "ir offline", subordinada al botón
-  // sólido de sesión. Mismo alto que él (paddingVertical) para que casen.
+  // Pastilla de contorno oscura para las acciones de sesión (cambio de modo y
+  // cerrar sesión). Fondo transparente + borde fino: más limpia que la sólida.
   offlinePill: {
     flexDirection: 'row',
     alignItems: 'center',

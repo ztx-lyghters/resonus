@@ -27,6 +27,12 @@ import { useToast } from './toast';
 let started = false;
 let checking = false;
 let debounce: ReturnType<typeof setTimeout> | null = null;
+/**
+ * Sondeos fallidos seguidos. Exigimos 2 antes de caer a offline: un único fallo
+ * puede ser un hipo de red (handoff Wi-Fi↔datos, DNS lento…), y no queremos
+ * cambiar de modo por eso. Se reinicia en cuanto el servidor responde.
+ */
+let consecutiveFails = 0;
 
 /**
  * Sondea las URLs del perfil activo y actúa: conmuta a la primera alcanzable,
@@ -51,6 +57,7 @@ async function check(): Promise<void> {
     const now = useAuthStore.getState();
     if (!now.auth) return;
     if (up) {
+      consecutiveFails = 0;
       if (now.autoOffline) {
         // Habíamos caído a offline solos: el servidor volvió → reconecta.
         // Primero online, luego (si toca) fija la URL alcanzable, ya en contexto
@@ -72,11 +79,18 @@ async function check(): Promise<void> {
         await now.setActiveUrl(up);
       }
     } else if (!now.offline && (await hasDownloads())) {
-      // Ningún servidor responde y hay descargas: cae a offline. Sin descargas
-      // se deja el estado online (la UI ya avisa de que no hay conexión); caer a
-      // una biblioteca vacía sería peor que el aviso.
-      await now.goOffline(true);
-      useToast.getState().show(tg('Offline · your downloads'));
+      // Ningún servidor responde y hay descargas. Confirmamos con un 2.º sondeo
+      // antes de caer a offline (un fallo suelto puede ser un hipo). Sin
+      // descargas se deja online (la UI ya avisa); caer a una biblioteca vacía
+      // sería peor que el aviso.
+      consecutiveFails += 1;
+      if (consecutiveFails >= 2) {
+        consecutiveFails = 0;
+        await now.goOffline(true);
+        useToast.getState().show(tg('Offline · your downloads'));
+      } else {
+        schedule(); // re-sondea en un momento para confirmar
+      }
     }
   } finally {
     checking = false;

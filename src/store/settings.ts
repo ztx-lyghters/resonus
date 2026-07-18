@@ -1,8 +1,10 @@
 /** Ajustes de la app (persistidos): calidad de streaming e idioma. */
 import { create } from 'zustand';
 
+import { hashKey } from '@/lib/localLibrary';
 import { getItem, setItem } from '@/lib/storage';
 import { applyAccent, DEFAULT_ACCENT } from '@/theme';
+import { useAuthStore } from './auth';
 
 // El campo se llama `color` (no `value`) a propósito: Reanimated warnea de más
 // al ver cualquier `.value` dentro de un estilo inline, aunque no sea un shared
@@ -24,7 +26,26 @@ export const ACCENT_OPTIONS: { name: string; color: string }[] = [
   { name: 'Lime', color: '#A6D93C' },
 ];
 
+// Base de la clave de ajustes. Los ajustes son POR PERFIL: cada uno guarda bajo
+// `resonus.settings.<id de perfil>`. La clave base a secas (`resonus.settings`)
+// es la de la versión antigua (compartida); se usa como respaldo/migración: un
+// perfil sin ajustes propios aún hereda los antiguos hasta que cambie algo.
 const STORAGE_KEY = 'resonus.settings';
+// El idioma es GLOBAL (de la app, no del perfil): con el reset por cambio de
+// perfil, hacerlo por perfil pondría inglés en cada cuenta nueva.
+const LANG_KEY = 'resonus.language';
+
+/** Clave de ajustes del perfil activo (servidor, local o ninguno). El id se
+ *  hashea: SecureStore solo admite [A-Za-z0-9._-] y la URL trae `:`, `/`, `|`. */
+function settingsKey(): string {
+  const { auth, offline } = useAuthStore.getState();
+  const id = auth
+    ? `${auth.urls?.[0] ?? auth.serverUrl}|${auth.username}`
+    : offline
+      ? 'local'
+      : 'default';
+  return `${STORAGE_KEY}.${hashKey(id)}`;
+}
 
 /** 0 = calidad original (sin transcodificar); el resto es el bitrate en kbps. */
 export const BITRATE_OPTIONS = [
@@ -442,7 +463,7 @@ interface SettingsState {
 }
 
 function persist(state: ReturnType<typeof snapshot>) {
-  void setItem(STORAGE_KEY, JSON.stringify(state));
+  void setItem(settingsKey(), JSON.stringify(state));
 }
 
 function snapshot(get: () => SettingsState) {
@@ -452,7 +473,7 @@ function snapshot(get: () => SettingsState) {
     maxBitRateCellular: s.maxBitRateCellular,
     downloadBitRate: s.downloadBitRate,
     downloadWifiOnly: s.downloadWifiOnly,
-    language: s.language,
+    // `language` no va en el blob del perfil: es global (ver LANG_KEY).
     showAudioQuality: s.showAudioQuality,
     showRating: s.showRating,
     showListArtwork: s.showListArtwork,
@@ -575,7 +596,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
 
   setLanguage: (language) => {
     set({ language });
-    persist(snapshot(get));
+    void setItem(LANG_KEY, language); // idioma global, no por perfil
   },
 
   setShowAudioQuality: (showAudioQuality) => {
@@ -797,7 +818,15 @@ export const useSettings = create<SettingsState>((set, get) => ({
 
   hydrate: async () => {
     try {
-      const raw = await getItem(STORAGE_KEY);
+      // Reset a fábrica primero (conservando el idioma, que es global): al
+      // conmutar de perfil no debe heredar los ajustes del anterior. El acento
+      // se aplica a mano porque es efecto colateral (el blob lo re-aplica si lo
+      // trae); la fuente es reactiva y no lo necesita.
+      set({ ...DEFAULTS, language: get().language });
+      applyAccent(DEFAULT_ACCENT);
+      // Ajustes del perfil activo; si aún no tiene propios, hereda los antiguos
+      // (compartidos) como respaldo/migración.
+      const raw = (await getItem(settingsKey())) ?? (await getItem(STORAGE_KEY));
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<{
           maxBitRate: number;
@@ -865,14 +894,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
         if (typeof parsed.downloadWifiOnly === 'boolean') {
           set({ downloadWifiOnly: parsed.downloadWifiOnly });
         }
-        if (
-          parsed.language === 'es' ||
-          parsed.language === 'en' ||
-          parsed.language === 'de' ||
-          parsed.language === 'ca'
-        ) {
-          set({ language: parsed.language });
-        }
+        // `language` ya no se aplica aquí: es global, se carga al final.
         // Antes era un modo ('off'/'player'/'everywhere'); ahora un simple
         // on/off. Mapeamos los valores viejos: cualquier modo que mostrara la
         // etiqueta pasa a activado.
@@ -1029,6 +1051,26 @@ export const useSettings = create<SettingsState>((set, get) => ({
         if (parsed.appFont && parsed.appFont in APP_FONT_FAMILY) {
           set({ appFont: parsed.appFont });
         }
+      }
+      // Idioma: global (no por perfil). Si aún no está guardado aparte, se migra
+      // del blob antiguo (que lo incluía) la primera vez.
+      let lang = await getItem(LANG_KEY);
+      if (!lang) {
+        const legacy = await getItem(STORAGE_KEY);
+        if (legacy) {
+          try {
+            const l = (JSON.parse(legacy) as { language?: string }).language;
+            if (l) {
+              lang = l;
+              void setItem(LANG_KEY, l);
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
+      if (lang === 'es' || lang === 'en' || lang === 'de' || lang === 'ca') {
+        set({ language: lang });
       }
     } catch {
       // valores por defecto si falla

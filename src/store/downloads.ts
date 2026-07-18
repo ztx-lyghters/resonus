@@ -140,9 +140,16 @@ async function serverDirs(): Promise<string[]> {
   }
 }
 
-// ── Catálogo fusionable (todas las cuentas), cacheado en memoria ────────────
+// ── Catálogo de la cuenta activa, cacheado en memoria ───────────────────────
 
-let mergedCache: DownloadsCatalog | null = null;
+let cachedCatalog: DownloadsCatalog | null = null;
+let cachedForDir: string | null = null;
+
+/** Directorio de descargas de la cuenta de servidor activa (null si no hay). */
+function activeServerDir(): string | null {
+  const auth = useAuthStore.getState().auth;
+  return auth ? serverDir(auth) : null;
+}
 
 function deriveArtists(albums: DlAlbum[]): (Artist & { coverUri?: string })[] {
   const map = new Map<string, Artist & { coverUri?: string }>();
@@ -161,36 +168,34 @@ function deriveArtists(albums: DlAlbum[]): (Artist & { coverUri?: string })[] {
 }
 
 /**
- * Catálogo de descargas de todas las cuentas. Es la biblioteca del modo "cuenta
+ * Descargas de la CUENTA de servidor activa. Es la biblioteca del modo "cuenta
  * de servidor sin conexión" (el perfil local solo muestra la música del móvil).
- * Registra las carátulas en el índice global al construirse.
+ * Cada cuenta ve solo lo suyo. Registra las carátulas en el índice global.
  */
 export async function getDownloadsCatalog(): Promise<DownloadsCatalog> {
-  if (!mergedCache) {
-    const songs: Song[] = [];
-    const albums: DlAlbum[] = [];
-    for (const dir of await serverDirs()) {
-      const cat = await readServerCatalog(dir);
-      if (!cat) continue;
-      songs.push(...cat.songs);
-      albums.push(...cat.albums);
-    }
-    mergedCache = { songs, albums, artists: deriveArtists(albums) };
+  const dir = activeServerDir();
+  if (!dir) return { songs: [], albums: [], artists: [] };
+  if (!cachedCatalog || cachedForDir !== dir) {
+    const cat = await readServerCatalog(dir);
+    const albums = cat?.albums ?? [];
+    cachedCatalog = { songs: cat?.songs ?? [], albums, artists: deriveArtists(albums) };
+    cachedForDir = dir;
   }
   // Siempre (no solo al construir): clearLocalCatalog() vacía el índice global
   // de carátulas y hay que volver a apuntar las de las descargas.
-  for (const a of mergedCache.albums) registerCover(a.id, a.coverUri);
-  for (const a of mergedCache.artists) registerCover(a.id, a.coverUri);
-  return mergedCache;
+  for (const a of cachedCatalog.albums) registerCover(a.id, a.coverUri);
+  for (const a of cachedCatalog.artists) registerCover(a.id, a.coverUri);
+  return cachedCatalog;
 }
 
-/** ¿Hay alguna descarga (de cualquier cuenta)? Barato: usa el catálogo cacheado. */
+/** ¿Tiene descargas la cuenta activa? Barato: usa el catálogo cacheado. */
 export async function hasDownloads(): Promise<boolean> {
   return (await getDownloadsCatalog()).songs.length > 0;
 }
 
 function invalidate() {
-  mergedCache = null;
+  cachedCatalog = null;
+  cachedForDir = null;
   // Las pantallas cachean listas con react-query; el catálogo acaba de cambiar.
   void queryClient.invalidateQueries();
 }

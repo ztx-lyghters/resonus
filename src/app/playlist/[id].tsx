@@ -363,6 +363,7 @@ export default function PlaylistScreen() {
               <Ionicons name="create-outline" size={24} color={colors.text} />
               <Text style={styles.actionText}>{t('Edit playlist')}</Text>
             </Pressable>
+            <View style={styles.actionDivider} />
             <Pressable
               style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
               onPress={() => {
@@ -455,6 +456,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
   actionText: { color: colors.text, fontSize: fontSize.md },
+  actionDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginVertical: spacing.xs,
+  },
   changeCover: { color: colors.text, fontSize: fontSize.md, fontWeight: '700' },
   coverError: { color: colors.danger, fontSize: fontSize.sm, textAlign: 'center' },
 });

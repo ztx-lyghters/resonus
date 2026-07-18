@@ -113,7 +113,6 @@
   "Elements": "Elementos",
   "Evens out loudness between songs using your files' ReplayGain tags.": "Iguala la sonoridad entre canciones usando las etiquetas ReplayGain de tus ficheros.",
   "Exit": "Salir",
-  "Exit offline mode": "Salir del modo sin conexión",
   "Extras": "Extras",
   "Favorites": "Favoritos",
   "Filter artists": "Filtrar artistas",
@@ -450,5 +449,6 @@
   "Server speakers (Jukebox)": "Altavoces del servidor (Jukebox)",
   "Back online": "Volver online",
   "Offline · your downloads": "Sin conexión · tus descargas",
-  "Offline · playing your downloads": "Sin conexión · reproduciendo tus descargas"
+  "Offline · playing your downloads": "Sin conexión · reproduciendo tus descargas",
+  "Exit local mode": "Salir del modo local"
 }

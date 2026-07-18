@@ -113,7 +113,6 @@
   "Elements": "Elements",
   "Evens out loudness between songs using your files' ReplayGain tags.": "Evens out loudness between songs using your files' ReplayGain tags.",
   "Exit": "Exit",
-  "Exit offline mode": "Exit offline mode",
   "Extras": "Extras",
   "Favorites": "Favorites",
   "Filter artists": "Filter artists",
@@ -450,5 +449,6 @@
   "Server speakers (Jukebox)": "Server speakers (Jukebox)",
   "Back online": "Back online",
   "Offline · your downloads": "Offline · your downloads",
-  "Offline · playing your downloads": "Offline · playing your downloads"
+  "Offline · playing your downloads": "Offline · playing your downloads",
+  "Exit local mode": "Exit local mode"
 }

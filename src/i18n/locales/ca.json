@@ -113,7 +113,6 @@
   "Elements": "Elements",
   "Evens out loudness between songs using your files' ReplayGain tags.": "Iguala la sonoritat entre cançons amb les etiquetes ReplayGain dels teus fitxers.",
   "Exit": "Surt",
-  "Exit offline mode": "Surt del mode fora de línia",
   "Extras": "Extres",
   "Favorites": "Preferits",
   "Filter artists": "Filtra els artistes",
@@ -450,5 +449,6 @@
   "Server speakers (Jukebox)": "Altaveus del servidor (Jukebox)",
   "Back online": "Torna a estar en línia",
   "Offline · your downloads": "Sense connexió · les teves baixades",
-  "Offline · playing your downloads": "Sense connexió · reproduint les teves baixades"
+  "Offline · playing your downloads": "Sense connexió · reproduint les teves baixades",
+  "Exit local mode": "Surt del mode local"
 }

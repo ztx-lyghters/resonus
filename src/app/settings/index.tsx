@@ -16,7 +16,7 @@ import { useAuthStore } from '@/store/auth';
 import { useDownloads } from '@/store/downloads';
 import { useSettings } from '@/store/settings';
 import { useToast } from '@/store/toast';
-import { colors, fontSize, spacing } from '@/theme';
+import { colors, fontSize, radius, spacing } from '@/theme';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -108,22 +108,6 @@ export default function SettingsScreen() {
           </Pressable>
         ))}
 
-        {/* Ir offline a mano (ahorrar datos): solo con cuenta de servidor
-            online y algo descargado. Es `manual`, así que no se auto-reconecta:
-            se vuelve con el botón "Back online". */}
-        {!offline && auth && hasDownloads ? (
-          <Pressable
-            style={({ pressed }) => [styles.sectionRow, pressed && { opacity: 0.6 }]}
-            onPress={() => {
-              void goOffline(false);
-              toast(t('Offline · your downloads'));
-            }}
-          >
-            <Ionicons name="cloud-offline-outline" size={24} color={colors.text} />
-            <Text style={styles.sectionRowTitle}>{t('Offline mode')}</Text>
-          </Pressable>
-        ) : null}
-
         <Pressable
           style={({ pressed }) => [styles.sectionRow, pressed && { opacity: 0.6 }]}
           onPress={() => setConfirmReset(true)}
@@ -134,14 +118,32 @@ export default function SettingsScreen() {
           </Text>
         </Pressable>
 
-        <Pressable
-          style={settingsStyles.pillButton}
-          onPress={() => (serverOffline ? void goOnline() : logout())}
-        >
-          <Text style={settingsStyles.pillButtonText}>
-            {serverOffline ? t('Back online') : offline ? t('Exit offline mode') : t('Sign out')}
-          </Text>
-        </Pressable>
+        <View style={styles.sessionRow}>
+          {/* Ir offline a mano (ahorrar datos): acción de sesión, no una sección.
+              Solo con cuenta de servidor online y algo descargado. Es `manual`,
+              así que no se auto-reconecta: se vuelve con "Back online". */}
+          {!offline && auth && hasDownloads ? (
+            <Pressable
+              style={({ pressed }) => [styles.offlinePill, pressed && { opacity: 0.6 }]}
+              onPress={() => {
+                void goOffline(false);
+                toast(t('Offline · your downloads'));
+              }}
+            >
+              <Ionicons name="cloud-offline-outline" size={18} color={colors.text} />
+              <Text style={styles.offlinePillText}>{t('Offline mode')}</Text>
+            </Pressable>
+          ) : null}
+
+          <Pressable
+            style={[settingsStyles.pillButton, styles.sessionPill]}
+            onPress={() => (serverOffline ? void goOnline() : logout())}
+          >
+            <Text style={settingsStyles.pillButtonText}>
+              {serverOffline ? t('Back online') : offline ? t('Exit local mode') : t('Sign out')}
+            </Text>
+          </Pressable>
+        </View>
       </ScrollView>
 
       <Dialog
@@ -187,4 +189,28 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md + 2,
   },
   sectionRowTitle: { color: colors.text, fontSize: fontSize.md, fontWeight: '600', flex: 1 },
+  // Fila con las acciones de sesión (offline manual + salir), centradas.
+  sessionRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.lg,
+  },
+  // El botón sólido comparte estilo con settingsStyles.pillButton; anulamos su
+  // margen porque el espaciado lo pone ya la fila.
+  sessionPill: { marginTop: 0 },
+  // Pastilla secundaria (contorno) para "ir offline", subordinada al botón
+  // sólido de sesión. Mismo alto que él (paddingVertical) para que casen.
+  offlinePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  offlinePillText: { color: colors.text, fontSize: fontSize.sm, fontWeight: '600' },
 });

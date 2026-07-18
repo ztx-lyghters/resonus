@@ -177,15 +177,20 @@ function shuffled<T>(arr: T[]): T[] {
 const ARTIST_SIZE = 130;
 
 /** Fila de artistas al azar (para redescubrir). */
-function ArtistSection({ title }: { title: string }) {
+function ArtistSection({ title, reshuffleKey }: { title: string; reshuffleKey: number }) {
   const canFetch = useAuthStore((s) => !!s.auth || s.offline);
   const { data, isLoading } = useQuery({
     queryKey: ['artists'],
     queryFn: () => getArtists(),
     enabled: canFetch,
   });
-  // Selección al azar estable: solo se rebaraja cuando cambia la lista.
-  const artists = useMemo(() => (data ? shuffled(data).slice(0, 10) : []), [data]);
+  // Rebaraja al cambiar la lista o al tirar para refrescar (`reshuffleKey`). Sin
+  // esa key, cuando la lista no cambia react-query conserva la misma referencia
+  // (structural sharing) y el memo devolvería siempre los mismos 10 artistas.
+  const artists = useMemo(
+    () => (data ? shuffled(data).slice(0, 10) : []),
+    [data, reshuffleKey],
+  );
 
   if (isLoading) {
     return (
@@ -219,15 +224,19 @@ function ArtistSection({ title }: { title: string }) {
 const DISCOVER_OFFSET = 15;
 const DISCOVER_POOL = 50;
 
-function DiscoverSection({ title }: { title: string }) {
+function DiscoverSection({ title, reshuffleKey }: { title: string; reshuffleKey: number }) {
   const canFetch = useAuthStore((s) => !!s.auth || s.offline);
   const { data, isLoading } = useQuery({
     queryKey: ['albumList', 'discover'],
     queryFn: () => getAlbumList('recent', DISCOVER_POOL, DISCOVER_OFFSET),
     enabled: canFetch,
   });
-  // Selección estable: solo se rebaraja al recargar la lista (pull-to-refresh).
-  const albums = useMemo(() => (data ? shuffled(data).slice(0, 10) : []), [data]);
+  // Rebaraja al cambiar la lista o al tirar para refrescar (`reshuffleKey`); ver
+  // la nota en ArtistSection sobre el structural sharing de react-query.
+  const albums = useMemo(
+    () => (data ? shuffled(data).slice(0, 10) : []),
+    [data, reshuffleKey],
+  );
 
   if (isLoading) {
     return (
@@ -390,6 +399,9 @@ export default function HomeScreen() {
   const queryClient = useQueryClient();
   const t = useT();
   const [refreshing, setRefreshing] = useState(false);
+  // Sube en cada pull-to-refresh para forzar que las filas al azar (artistas y
+  // Discover) traigan una selección nueva aunque la biblioteca no haya cambiado.
+  const [reshuffleKey, setReshuffleKey] = useState(0);
   const showHistoryButton = useSettings((s) => s.showHistoryButton);
   const showProfileButton = useSettings((s) => s.showProfileButton);
   const showQuickGrid = useSettings((s) => s.showQuickGrid);
@@ -427,6 +439,7 @@ export default function HomeScreen() {
   async function onRefresh() {
     setRefreshing(true);
     await queryClient.invalidateQueries();
+    setReshuffleKey((k) => k + 1);
     setRefreshing(false);
   }
 
@@ -505,10 +518,18 @@ export default function HomeScreen() {
               if (!s.enabled) return null;
               if (s.key === 'discover' && offline) return null;
               if (s.key === 'discover') {
-                return <DiscoverSection key={s.key} title={t('Discover')} />;
+                return (
+                  <DiscoverSection key={s.key} title={t('Discover')} reshuffleKey={reshuffleKey} />
+                );
               }
               if (s.key === 'randomArtists') {
-                return <ArtistSection key={s.key} title={t('Random artists')} />;
+                return (
+                  <ArtistSection
+                    key={s.key}
+                    title={t('Random artists')}
+                    reshuffleKey={reshuffleKey}
+                  />
+                );
               }
               const cfg = HOME_ALBUM_CONFIG[s.key];
               return <AlbumSection key={s.key} title={t(cfg.title)} type={cfg.type} />;

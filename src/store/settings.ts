@@ -134,7 +134,7 @@ export function normalizeHomeSections(raw: unknown): HomeSection[] {
 }
 
 /** Chip de la fila de explorar de Inicio. `genres` y `radio` son solo servidor. */
-export type ExploreChipKey = 'shuffle' | 'albums' | 'artists' | 'genres' | 'radio';
+export type ExploreChipKey = 'shuffle' | 'favorites' | 'albums' | 'artists' | 'genres' | 'radio';
 
 /** Chip con su estado (el orden lo da la posición en la lista). */
 export interface ExploreChip {
@@ -142,11 +142,19 @@ export interface ExploreChip {
   enabled: boolean;
 }
 
-const EXPLORE_CHIP_KEYS: ExploreChipKey[] = ['shuffle', 'albums', 'artists', 'genres', 'radio'];
+const EXPLORE_CHIP_KEYS: ExploreChipKey[] = [
+  'shuffle',
+  'favorites',
+  'albums',
+  'artists',
+  'genres',
+  'radio',
+];
 
 /** Orden y estado por defecto: los de siempre, todos visibles. */
 export const DEFAULT_EXPLORE_CHIPS: ExploreChip[] = [
   { key: 'shuffle', enabled: true },
+  { key: 'favorites', enabled: false },
   { key: 'albums', enabled: true },
   { key: 'artists', enabled: true },
   { key: 'genres', enabled: true },

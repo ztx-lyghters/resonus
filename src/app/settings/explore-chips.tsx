@@ -24,6 +24,7 @@ import { colors, fontSize, radius, spacing, SCREEN_BOTTOM_PADDING } from '@/them
 /** Etiqueta (clave i18n) de cada chip. Las mismas que se pintan en Inicio. */
 const LABEL: Record<ExploreChipKey, string> = {
   shuffle: 'Shuffle',
+  favorites: 'Favorites',
   albums: 'Albums',
   artists: 'Artists',
   genres: 'Genres',

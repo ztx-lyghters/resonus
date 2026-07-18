@@ -269,6 +269,7 @@ function DiscoverSection({ title, reshuffleKey }: { title: string; reshuffleKey:
  *  navegar (solo el de aleatorio). */
 const EXPLORE: Record<ExploreChipKey, { href?: string; icon: keyof typeof Ionicons.glyphMap; label: string }> = {
   shuffle: { icon: 'shuffle', label: 'Shuffle' },
+  favorites: { href: '/favorites', icon: 'heart-outline', label: 'Favorites' },
   albums: { href: '/browse/albums', icon: 'disc-outline', label: 'Albums' },
   artists: { href: '/browse/artists', icon: 'people-outline', label: 'Artists' },
   genres: { href: '/genres', icon: 'pricetags-outline', label: 'Genres' },
@@ -276,7 +277,7 @@ const EXPLORE: Record<ExploreChipKey, { href?: string; icon: keyof typeof Ionico
 };
 
 // En local hay aleatorio, álbumes y artistas (radio y géneros son de servidor).
-const OFFLINE_KEYS = new Set<ExploreChipKey>(['shuffle', 'albums', 'artists']);
+const OFFLINE_KEYS = new Set<ExploreChipKey>(['shuffle', 'favorites', 'albums', 'artists']);
 
 function ExploreChips({ offline }: { offline: boolean }) {
   const t = useT();

@@ -122,10 +122,10 @@ const HOME_SECTION_KEYS: HomeSectionKey[] = [
 
 /** Orden y estado por defecto (las opcionales apagadas para no recargar Inicio). */
 export const DEFAULT_HOME_SECTIONS: HomeSection[] = [
+  { key: 'discover', enabled: true },
   { key: 'recentlyAdded', enabled: true },
   { key: 'recentlyPlayed', enabled: true },
   { key: 'mostPlayed', enabled: true },
-  { key: 'discover', enabled: true },
   { key: 'randomAlbums', enabled: false },
   { key: 'randomArtists', enabled: false },
 ];

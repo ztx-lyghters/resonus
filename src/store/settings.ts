@@ -87,6 +87,10 @@ export type AppFont = 'system' | 'condensed' | 'serif' | 'monospace' | 'casual' 
  *  letra, o mostrar la letra en el sitio de la carátula. */
 export type CoverTapAction = 'none' | 'screen' | 'inline';
 
+/** Pestaña en la que arranca la app (y a la que vuelve al reabrir tras un rato
+ *  en segundo plano). Coincide con los nombres de ruta de `(tabs)`. */
+export type DefaultTab = 'index' | 'search' | 'library';
+
 /** Conducta del botón "anterior": reiniciar la pista pasados unos segundos (por
  *  defecto, como Spotify) o ir siempre a la pista previa (como YouTube). */
 export type PreviousButtonMode = 'restart' | 'always';
@@ -417,6 +421,8 @@ interface SettingsState {
   /** Visibilidad de botones opcionales, para quien prefiera una UI mínima. */
   showHistoryButton: boolean;
   showProfileButton: boolean;
+  /** Pestaña de arranque de la app (Inicio/Buscar/Biblioteca). */
+  defaultTab: DefaultTab;
   /** Orden elegido en la Biblioteca (recientes/añadido/alfabético). */
   librarySort: LibrarySort;
   /** Lista o cuadrícula en la Biblioteca. */
@@ -483,6 +489,7 @@ interface SettingsState {
   setShowFolderBrowser: (value: boolean) => void;
   setShowHistoryButton: (value: boolean) => void;
   setShowProfileButton: (value: boolean) => void;
+  setDefaultTab: (value: DefaultTab) => void;
   setLibrarySort: (value: LibrarySort) => void;
   setLibraryLayout: (value: ListLayout) => void;
   setBrowseArtistsLayout: (value: ListLayout) => void;
@@ -545,6 +552,7 @@ function snapshot(get: () => SettingsState) {
     showFolderBrowser: s.showFolderBrowser,
     showHistoryButton: s.showHistoryButton,
     showProfileButton: s.showProfileButton,
+    defaultTab: s.defaultTab,
     librarySort: s.librarySort,
     libraryLayout: s.libraryLayout,
     browseArtistsLayout: s.browseArtistsLayout,
@@ -603,6 +611,7 @@ const DEFAULTS = {
   showFolderBrowser: false,
   showHistoryButton: true,
   showProfileButton: true,
+  defaultTab: 'index' as DefaultTab,
   librarySort: 'recent' as LibrarySort,
   libraryLayout: 'list' as ListLayout,
   // Cuadrícula por defecto: a un artista se le reconoce por la cara, y es como
@@ -852,6 +861,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
     persist(snapshot(get));
   },
 
+  setDefaultTab: (defaultTab) => {
+    set({ defaultTab });
+    persist(snapshot(get));
+  },
+
   setLibraryLayout: (libraryLayout) => {
     set({ libraryLayout });
     persist(snapshot(get));
@@ -949,6 +963,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
           showFolderBrowser: boolean;
           showHistoryButton: boolean;
           showProfileButton: boolean;
+          defaultTab: DefaultTab;
           librarySort: LibrarySort;
           libraryLayout: ListLayout;
           browseArtistsLayout: ListLayout;
@@ -1125,6 +1140,13 @@ export const useSettings = create<SettingsState>((set, get) => ({
         }
         if (typeof parsed.showProfileButton === 'boolean') {
           set({ showProfileButton: parsed.showProfileButton });
+        }
+        if (
+          parsed.defaultTab === 'index' ||
+          parsed.defaultTab === 'search' ||
+          parsed.defaultTab === 'library'
+        ) {
+          set({ defaultTab: parsed.defaultTab });
         }
         if (parsed.librarySort === 'recent' || parsed.librarySort === 'added' || parsed.librarySort === 'alpha') {
           set({ librarySort: parsed.librarySort });

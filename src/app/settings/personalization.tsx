@@ -16,6 +16,7 @@ import {
   APP_FONT_LABELS,
   LANGUAGE_NAMES,
   useSettings,
+  type DefaultTab,
   type SwipeAction,
 } from '@/store/settings';
 
@@ -40,6 +41,8 @@ export default function AppearanceSettings() {
   const setShowHistoryButton = useSettings((s) => s.setShowHistoryButton);
   const showProfileButton = useSettings((s) => s.showProfileButton);
   const setShowProfileButton = useSettings((s) => s.setShowProfileButton);
+  const defaultTab = useSettings((s) => s.defaultTab);
+  const setDefaultTab = useSettings((s) => s.setDefaultTab);
   const swipeAction = useSettings((s) => s.swipeAction);
   const setSwipeAction = useSettings((s) => s.setSwipeAction);
   const swipeLeftAction = useSettings((s) => s.swipeLeftAction);
@@ -142,6 +145,17 @@ export default function AppearanceSettings() {
         />
 
         <Text style={settingsStyles.sectionTitle}>{t('Interface')}</Text>
+        <SelectList<DefaultTab>
+          label={t('Open the app on')}
+          description={t('Which tab opens on launch, and after a while in the background.')}
+          options={[
+            { value: 'index', label: t('Home') },
+            { value: 'search', label: t('Search') },
+            { value: 'library', label: t('Library') },
+          ]}
+          value={defaultTab}
+          onChange={setDefaultTab}
+        />
         <SwitchList
           options={[
             {

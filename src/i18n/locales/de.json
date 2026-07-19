@@ -473,5 +473,7 @@
   "Pin favorites": "Favoriten anheften",
   "{n} cards": "{n} Karten",
   "Keep the Favorites tile first.": "Die Favoriten-Kachel bleibt vorne.",
-  "Show, personalize and size the shortcut cards on Home.": "Schnellzugriff-Karten auf der Startseite anzeigen, anpassen und Größe wählen."
+  "Show, personalize and size the shortcut cards on Home.": "Schnellzugriff-Karten auf der Startseite anzeigen, anpassen und Größe wählen.",
+  "Open the app on": "App öffnen mit",
+  "Which tab opens on launch, and after a while in the background.": "Welcher Tab beim Start und nach längerer Zeit im Hintergrund geöffnet wird."
 }

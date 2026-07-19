@@ -10,6 +10,7 @@ import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { AppStartupTab } from '@/components/AppStartupTab';
 import { ArtistPickerSheet } from '@/components/ArtistPickerSheet';
 import { CarAutoSync } from '@/components/CarAutoSync';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -189,6 +190,7 @@ export default function RootLayout() {
                 options={{ presentation: 'modal', animation: 'fade_from_bottom' }}
               />
             </Stack>
+            {auth || offline ? <AppStartupTab /> : null}
             {auth || offline ? <GlobalMiniPlayer /> : null}
             {auth || offline ? <SongMenuSheet /> : null}
             {auth || offline ? <ArtistPickerSheet /> : null}

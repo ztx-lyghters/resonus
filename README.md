@@ -13,7 +13,6 @@
 <p align="center">
   <a href="https://github.com/juananzzz/resonus/releases/latest"><img src="https://img.shields.io/badge/⬇_Download_APK-6366F1?style=for-the-badge" alt="Download APK" /></a>
   <a href="https://discord.gg/hpDfszr8r"><img src="https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord" /></a>
-  <a href="https://ko-fi.com/juananzzz"><img src="https://img.shields.io/badge/Support_me-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Support me on Ko-fi" /></a>
 </p>
 
 ## Download

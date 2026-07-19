@@ -62,7 +62,7 @@ const DEBOUNCE_MS = 300;
 // simetría: no tiene equivalente en Artistas, donde ordenar por artista es
 // justo lo que ya hace A-Z.
 const SORTS: { key: AlbumListType; label: string }[] = [
-  { key: 'newest', label: 'Recent' },
+  { key: 'recent', label: 'Recent' },
   { key: 'alphabeticalByName', label: 'A-Z' },
   { key: 'frequent', label: 'Most played' },
   { key: 'random', label: 'Shuffle' },
@@ -72,7 +72,7 @@ export default function BrowseAlbumsScreen() {
   const router = useRouter();
   const t = useT();
   const canFetch = useAuthStore((s) => !!s.auth || s.offline);
-  const [sort, setSort] = useState<AlbumListType>('newest');
+  const [sort, setSort] = useState<AlbumListType>('recent');
   const layout = useSettings((s) => s.browseAlbumsLayout);
   const setLayout = useSettings((s) => s.setBrowseAlbumsLayout);
   const grid = layout === 'grid';
@@ -306,11 +306,15 @@ export default function BrowseAlbumsScreen() {
                 title={t('No results')}
                 subtitle={t('No results for “{q}”', { q: query.trim() })}
               />
-            ) : sort === 'frequent' ? (
+            ) : sort === 'frequent' || sort === 'recent' ? (
               <EmptyState
                 icon="play-outline"
                 title={t('Nothing played yet')}
-                subtitle={t('Your most played albums will show up here.')}
+                subtitle={
+                  sort === 'recent'
+                    ? t('Your recently played albums will show up here.')
+                    : t('Your most played albums will show up here.')
+                }
               />
             ) : (
               <EmptyState

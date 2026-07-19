@@ -14,7 +14,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
@@ -31,6 +30,7 @@ import { ArtistCard } from '@/components/ArtistCard';
 import { Cover } from '@/components/Cover';
 import { FavoritesArt } from '@/components/FavoritesArt';
 import { Message } from '@/components/Message';
+import { OfflineIndicator } from '@/components/OfflineIndicator';
 import { useT } from '@/i18n';
 import { useAuthStore } from '@/store/auth';
 import { checkAutoUrlNow } from '@/store/autoUrl';
@@ -343,31 +343,6 @@ function ExploreChips({ offline }: { offline: boolean }) {
   );
 }
 
-/**
- * Aviso calmado cuando una cuenta de servidor está sin conexión (auto o manual):
- * explica por qué se ve solo lo descargado y ofrece reintentar. En un perfil
- * local (sin `auth`) no se muestra: ahí "offline" es el estado normal. */
-function OfflineBanner() {
-  const t = useT();
-  const offline = useAuthStore((s) => s.offline);
-  const hasAccount = useAuthStore((s) => !!s.auth);
-  if (!offline || !hasAccount) return null;
-  // Solo informativo: se vuelve online desde Ajustes ("Back online"). Sin acción
-  // aquí el texto ocupa todo el ancho y no se corta.
-  return (
-    <Animated.View
-      entering={FadeIn.duration(250)}
-      exiting={FadeOut.duration(200)}
-      style={styles.offlineBanner}
-    >
-      <Ionicons name="cloud-offline-outline" size={20} color={colors.accent} />
-      <Text style={styles.offlineBannerText} numberOfLines={1}>
-        {t('Offline · playing your downloads')}
-      </Text>
-    </Animated.View>
-  );
-}
-
 function ScanningPanel() {
   const t = useT();
   const phase = useScanProgress((s) => s.phase);
@@ -513,6 +488,7 @@ export default function HomeScreen() {
             ) : null}
           </View>
           <View style={styles.headerRight}>
+            <OfflineIndicator />
             {showHistoryButton ? (
               <Link href="/history" asChild>
                 <Pressable hitSlop={10} accessibilityLabel={t('History')}>
@@ -534,8 +510,6 @@ export default function HomeScreen() {
         </View>
 
         {offline && scanning ? <ScanningPanel /> : null}
-
-        <OfflineBanner />
 
         <ExploreChips offline={offline} />
 
@@ -582,18 +556,6 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  offlineBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-  },
-  offlineBannerText: { flex: 1, color: colors.textSecondary, fontSize: fontSize.sm },
   content: { paddingVertical: spacing.md, paddingBottom: SCREEN_BOTTOM_PADDING },
   header: {
     flexDirection: 'row',

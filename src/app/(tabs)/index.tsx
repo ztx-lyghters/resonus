@@ -275,6 +275,7 @@ const EXPLORE: Record<ExploreChipKey, { href?: string; icon: keyof typeof Ionico
   artists: { href: '/browse/artists', icon: 'people-outline', label: 'Artists' },
   genres: { href: '/genres', icon: 'pricetags-outline', label: 'Genres' },
   radio: { href: '/radio', icon: 'radio-outline', label: 'Radio' },
+  history: { href: '/history', icon: 'time-outline', label: 'Recently played' },
 };
 
 // En local hay aleatorio, álbumes y artistas (radio y géneros son de servidor).

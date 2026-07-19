@@ -29,6 +29,7 @@ const LABEL: Record<ExploreChipKey, string> = {
   artists: 'Artists',
   genres: 'Genres',
   radio: 'Radio',
+  history: 'Recently played',
 };
 
 function ChipRow({ chip }: { chip: ExploreChip }) {
@@ -64,7 +65,7 @@ function ChipRow({ chip }: { chip: ExploreChip }) {
 
 /** Chips que en local no existen (Inicio los filtra por OFFLINE_KEYS): su fila
  *  aquí prometería algo que nunca aparece. */
-const SERVER_ONLY: ExploreChipKey[] = ['genres', 'radio'];
+const SERVER_ONLY: ExploreChipKey[] = ['genres', 'radio', 'history'];
 
 export default function ExploreChipsSettings() {
   const t = useT();

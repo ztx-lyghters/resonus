@@ -450,5 +450,8 @@
   "Back online": "Torna a estar en línia",
   "Offline · your downloads": "Sense connexió · les teves baixades",
   "Offline · playing your downloads": "Sense connexió · reproduint les teves baixades",
-  "Exit local mode": "Surt del mode local"
+  "Exit local mode": "Surt del mode local",
+  "Nothing here is downloaded": "Aquí no hi ha res baixat",
+  "Automatic offline mode": "Mode sense connexió automàtic",
+  "Switch to your downloads when the server is unreachable, and back when it returns.": "Passa a les teves baixades quan el servidor no respon i torna en línia quan respon de nou."
 }

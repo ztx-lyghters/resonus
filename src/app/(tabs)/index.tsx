@@ -351,18 +351,9 @@ function OfflineBanner() {
   const t = useT();
   const offline = useAuthStore((s) => s.offline);
   const hasAccount = useAuthStore((s) => !!s.auth);
-  const autoOffline = useAuthStore((s) => s.autoOffline);
-  const goOnline = useAuthStore((s) => s.goOnline);
-  const [retrying, setRetrying] = useState(false);
   if (!offline || !hasAccount) return null;
-  function retry() {
-    if (retrying) return;
-    setRetrying(true);
-    checkAutoUrlNow();
-    // El sondeo va con debounce (~1.5 s) + red; damos feedback un momento. Si
-    // reconecta, el banner se desmonta antes y da igual.
-    setTimeout(() => setRetrying(false), 2500);
-  }
+  // Solo informativo: se vuelve online desde Ajustes ("Back online"). Sin acción
+  // aquí el texto ocupa todo el ancho y no se corta.
   return (
     <Animated.View
       entering={FadeIn.duration(250)}
@@ -373,21 +364,6 @@ function OfflineBanner() {
       <Text style={styles.offlineBannerText} numberOfLines={1}>
         {t('Offline · playing your downloads')}
       </Text>
-      {autoOffline ? (
-        // Caída automática: reintentar sondea y reconecta si el servidor volvió.
-        <Pressable hitSlop={8} onPress={retry} disabled={retrying}>
-          {retrying ? (
-            <ActivityIndicator size="small" color={colors.textSecondary} />
-          ) : (
-            <Text style={styles.offlineBannerRetry}>{t('Retry')}</Text>
-          )}
-        </Pressable>
-      ) : (
-        // Offline manual: se vuelve directo (no hay nada que sondear).
-        <Pressable hitSlop={8} onPress={() => void goOnline()}>
-          <Text style={styles.offlineBannerRetry}>{t('Back online')}</Text>
-        </Pressable>
-      )}
     </Animated.View>
   );
 }
@@ -618,7 +594,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
   },
   offlineBannerText: { flex: 1, color: colors.textSecondary, fontSize: fontSize.sm },
-  offlineBannerRetry: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700' },
   content: { paddingVertical: spacing.md, paddingBottom: SCREEN_BOTTOM_PADDING },
   header: {
     flexDirection: 'row',

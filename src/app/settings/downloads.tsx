@@ -64,6 +64,8 @@ export default function DownloadsSettings() {
   const setDownloadBitRate = useSettings((s) => s.setDownloadBitRate);
   const downloadWifiOnly = useSettings((s) => s.downloadWifiOnly);
   const setDownloadWifiOnly = useSettings((s) => s.setDownloadWifiOnly);
+  const autoOfflineSwitch = useSettings((s) => s.autoOfflineSwitch);
+  const setAutoOfflineSwitch = useSettings((s) => s.setAutoOfflineSwitch);
   const files = useDownloads((s) => s.files);
   const usageBytes = useDownloads((s) => s.usageBytes);
   const clearAll = useDownloads((s) => s.clearAll);
@@ -112,8 +114,21 @@ export default function DownloadsSettings() {
         )}
         {/* En offline no hay sección de descarga: este pasa a ser el primer título. */}
         <Text style={[settingsStyles.sectionTitle, offline && { marginTop: 0 }]}>
-          {t('Storage used')}
+          {t('Offline')}
         </Text>
+        <SwitchList
+          options={[
+            {
+              label: t('Automatic offline mode'),
+              description: t(
+                'Switch to your downloads when the server is unreachable, and back when it returns.',
+              ),
+              value: autoOfflineSwitch,
+              onChange: setAutoOfflineSwitch,
+            },
+          ]}
+        />
+        <Text style={settingsStyles.sectionTitle}>{t('Storage used')}</Text>
         {(() => {
           const disk = diskSpace();
           if (!disk || usage == null) {

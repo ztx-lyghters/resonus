@@ -329,6 +329,13 @@ interface SettingsState {
    * más (transcodes, estadísticas) sin que el usuario lo pida.
    */
   preloadUpcoming: boolean;
+  /**
+   * Cambiar solo entre online y offline según la conectividad: caer a las
+   * descargas cuando el servidor no responde y reconectar cuando vuelve.
+   * Activado por defecto. Si se apaga, el usuario controla el modo a mano
+   * (Ajustes → "Offline mode" / "Back online") y la app nunca lo cambia sola.
+   */
+  autoOfflineSwitch: boolean;
   /** Normalización de volumen (ReplayGain): apagada, por canción o por álbum. */
   replayGain: ReplayGainMode;
   /** Mantener la pantalla encendida mientras la app está en primer plano. */
@@ -414,6 +421,7 @@ interface SettingsState {
   setAutoplaySimilar: (value: boolean) => void;
   setCrossfadeSec: (value: number) => void;
   setPreloadUpcoming: (value: boolean) => void;
+  setAutoOfflineSwitch: (value: boolean) => void;
   setReplayGain: (value: ReplayGainMode) => void;
   setKeepScreenAwake: (value: boolean) => void;
   setHapticsEnabled: (value: boolean) => void;
@@ -475,6 +483,7 @@ function snapshot(get: () => SettingsState) {
     autoplaySimilar: s.autoplaySimilar,
     crossfadeSec: s.crossfadeSec,
     preloadUpcoming: s.preloadUpcoming,
+    autoOfflineSwitch: s.autoOfflineSwitch,
     replayGain: s.replayGain,
     keepScreenAwake: s.keepScreenAwake,
     hapticsEnabled: s.hapticsEnabled,
@@ -524,6 +533,7 @@ const DEFAULTS = {
   autoplaySimilar: true,
   crossfadeSec: 0,
   preloadUpcoming: false,
+  autoOfflineSwitch: true,
   replayGain: 'off' as ReplayGainMode,
   keepScreenAwake: false,
   hapticsEnabled: false,
@@ -625,6 +635,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
 
   setPreloadUpcoming: (preloadUpcoming) => {
     set({ preloadUpcoming });
+    persist(snapshot(get));
+  },
+
+  setAutoOfflineSwitch: (autoOfflineSwitch) => {
+    set({ autoOfflineSwitch });
     persist(snapshot(get));
   },
 

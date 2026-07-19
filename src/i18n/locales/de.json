@@ -450,5 +450,8 @@
   "Back online": "Wieder online",
   "Offline · your downloads": "Offline · deine Downloads",
   "Offline · playing your downloads": "Offline · deine Downloads werden abgespielt",
-  "Exit local mode": "Lokalen Modus verlassen"
+  "Exit local mode": "Lokalen Modus verlassen",
+  "Nothing here is downloaded": "Hier ist nichts heruntergeladen",
+  "Automatic offline mode": "Automatischer Offline-Modus",
+  "Switch to your downloads when the server is unreachable, and back when it returns.": "Wechselt zu deinen Downloads, wenn der Server nicht erreichbar ist, und zurück, sobald er wieder da ist."
 }

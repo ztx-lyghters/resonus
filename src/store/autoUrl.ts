@@ -22,6 +22,7 @@ import { tg } from '@/i18n';
 import { byProbePriority } from '@/lib/serverUrls';
 import { useAuthStore } from './auth';
 import { hasDownloads } from './downloads';
+import { useSettings } from './settings';
 import { useToast } from './toast';
 
 let started = false;
@@ -56,9 +57,12 @@ async function check(): Promise<void> {
     // Pudo cambiar el perfil mientras sondeábamos: revalida contra el estado vivo.
     const now = useAuthStore.getState();
     if (!now.auth) return;
+    // Cambio automático online↔offline: el usuario puede apagarlo para controlar
+    // el modo a mano. La conmutación de URL (autoUrl) es aparte y no se gatea.
+    const autoSwitch = useSettings.getState().autoOfflineSwitch;
     if (up) {
       consecutiveFails = 0;
-      if (now.autoOffline) {
+      if (now.autoOffline && autoSwitch) {
         // Habíamos caído a offline solos: el servidor volvió → reconecta.
         // Primero online, luego (si toca) fija la URL alcanzable, ya en contexto
         // online para que la recarga de la pista opere bien.
@@ -78,7 +82,7 @@ async function check(): Promise<void> {
         // Conmutación de URL normal (misma red distinta: local ↔ remota).
         await now.setActiveUrl(up);
       }
-    } else if (!now.offline && (await hasDownloads())) {
+    } else if (!now.offline && autoSwitch && (await hasDownloads())) {
       // Ningún servidor responde y hay descargas. Confirmamos con un 2.º sondeo
       // antes de caer a offline (un fallo suelto puede ser un hipo). Sin
       // descargas se deja online (la UI ya avisa); caer a una biblioteca vacía

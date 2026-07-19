@@ -60,17 +60,21 @@ export default function SettingsScreen() {
     // En offline la pantalla de Descargas se reduce a espacio usado y borrado
     // (sin servidor no se descarga, pero liberar espacio sigue siendo útil).
     { key: 'downloads', title: 'Downloads', icon: 'download-outline' as const },
-    {
-      key: 'library',
-      // Servidor offline: la biblioteca es lo descargado. Perfil local: música
-      // del dispositivo. Online: la biblioteca del servidor.
-      title: serverOffline ? 'Downloads' : offline ? 'Local music' : 'Library',
-      icon: serverOffline
-        ? ('cloud-offline-outline' as const)
-        : offline
-          ? ('phone-portrait-outline' as const)
-          : ('server-outline' as const),
-    },
+    // Biblioteca: online es la del servidor; en perfil local, la música del
+    // dispositivo. En servidor-offline se oculta: su contenido es de servidor
+    // (escaneo, bibliotecas) que no aplica sin conexión, y la gestión de las
+    // descargas ya vive en la sección "Downloads" de arriba (evita duplicarla).
+    ...(serverOffline
+      ? []
+      : [
+          {
+            key: 'library',
+            title: offline ? 'Local music' : 'Library',
+            icon: offline
+              ? ('phone-portrait-outline' as const)
+              : ('server-outline' as const),
+          },
+        ]),
     // Red: varias URLs de servidor y conmutación automática. Solo con servidor.
     ...(offline
       ? []

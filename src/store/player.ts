@@ -41,6 +41,7 @@ import {
 import { prefetchLyrics } from '@/hooks/useLyrics';
 import { getItem, setItem } from '@/lib/storage';
 import { useAuthStore } from './auth';
+import { checkAutoUrlNow } from './autoUrl';
 import { useEqualizer } from './equalizer';
 import { useLastPlayed } from './lastPlayed';
 import {
@@ -239,6 +240,15 @@ function downloadedUri(song: Song): string | undefined {
   return useDownloads.getState().files[song.id];
 }
 
+/**
+ * ¿Se puede reproducir esta pista sin conexión? Radio (url propia), pista de la
+ * biblioteca local (localUri) o descarga en disco. En offline, las que solo
+ * existen como stream del servidor no se pueden sonar y hay que saltarlas.
+ */
+function playableOffline(song: Song | null | undefined): boolean {
+  return !!song && (!!song.url || !!song.localUri || !!downloadedUri(song));
+}
+
 /** Bitrate máximo de streaming según la red actual (Wi-Fi o datos móviles). */
 export function effectiveMaxBitRate(): number {
   const s = useSettings.getState();
@@ -404,6 +414,29 @@ function consumeQueuedOnIndexChange(next: number) {
 
 /** Carga la pista en `index` y (opcionalmente) la reproduce. */
 async function loadIndex(index: number, autoplay: boolean) {
+  // Sin conexión, una pista que solo existe como stream del servidor no se
+  // puede reproducir: saltamos hacia delante a la siguiente descargada en vez
+  // de atascarnos (cubre "anterior", toques manuales y restaurar cola). Si no
+  // queda ninguna reproducible, paramos. `nextIndex` ya evita llegar aquí en el
+  // avance normal, así que esto es la red de seguridad para el resto de vías.
+  if (useAuthStore.getState().offline) {
+    const q = usePlayerStore.getState().queue;
+    if (q[index] && !playableOffline(q[index])) {
+      let target = -1;
+      for (let i = index + 1; i < q.length; i++) {
+        if (playableOffline(q[i])) {
+          target = i;
+          break;
+        }
+      }
+      if (target === -1) {
+        usePlayerStore.setState({ isPlaying: false });
+        useToast.getState().show(tg('Nothing here is downloaded'));
+        return;
+      }
+      index = target;
+    }
+  }
   cutCrossfade();
   pendingSeek = null;
   streamOffsetSec = 0;
@@ -637,11 +670,23 @@ async function maybeQueueAutoplay() {
 }
 
 /** Siguiente índice al terminar/saltar; null si la reproducción debe parar. */
-function nextIndex(manual: boolean): number | null {
+function nextIndex(_manual: boolean): number | null {
   const { queue, index, repeat } = usePlayerStore.getState();
-  if (index < queue.length - 1) return index + 1;
-  if (repeat === 'all') return 0;
-  return manual ? null : null;
+  // Sin conexión se saltan las pistas sin fichero local (solo-stream); online
+  // cualquiera vale. `ok` decide si un índice es candidato.
+  const offline = useAuthStore.getState().offline;
+  const ok = (i: number) => !offline || playableOffline(queue[i]);
+  for (let i = index + 1; i < queue.length; i++) {
+    if (ok(i)) return i;
+  }
+  // Fin de la cola: con repeat 'all' se envuelve buscando desde el principio
+  // (incluye el índice actual, así que una sola pista reproducible se repite).
+  if (repeat === 'all') {
+    for (let i = 0; i <= index; i++) {
+      if (ok(i)) return i;
+    }
+  }
+  return null;
 }
 
 // ── ReplayGain (normalización de volumen) ───────────────────────────────────
@@ -1032,6 +1077,46 @@ function fadeVolume(p: AudioPlayer, from: number, to: number, onDone?: () => voi
 let pendingSeek: { sec: number; at: number } | null = null;
 
 /** Listener de estado de expo-audio: progreso, play/pausa y fin de pista. */
+// ── Detección de servidor caído a mitad de reproducción ─────────────────────
+// El motor de red (autoUrl) reacciona a cambios de estado de red y al fallo de
+// la query de Inicio, pero si el servidor se cae mientras suena una pista de
+// streaming (sin cambiar la red y fuera de Inicio) nada lo notaría. Aquí lo
+// detectamos por ATASCO: si una pista que suena por streaming se queda
+// buffering sin que avance la posición varios segundos, pedimos un sondeo; si
+// de verdad no llega y hay descargas, autoUrl cae a offline solo.
+const STALL_PROBE_MS = 6000;
+let stallSince = 0;
+let stallPos = -1;
+let stallProbed = false;
+
+function maybeDetectStall(intendPlay: boolean, buffering: boolean, positionSec: number): void {
+  const st = usePlayerStore.getState();
+  const song = st.queue[st.index];
+  // Solo aplica online y a pistas que salen del servidor por streaming (las
+  // descargadas/locales suenan de disco y no dependen del servidor).
+  const streamed = !!song && !song.url && !song.localUri && !downloadedUri(song);
+  if (useAuthStore.getState().offline || !intendPlay || !streamed || !buffering) {
+    stallSince = 0;
+    stallProbed = false;
+    stallPos = positionSec;
+    return;
+  }
+  // Si la posición avanza, es un rebuffer normal, no un atasco.
+  if (Math.abs(positionSec - stallPos) > 0.5) {
+    stallSince = 0;
+    stallProbed = false;
+    stallPos = positionSec;
+    return;
+  }
+  const now = Date.now();
+  if (stallSince === 0) {
+    stallSince = now;
+  } else if (!stallProbed && now - stallSince >= STALL_PROBE_MS) {
+    stallProbed = true; // una sola vez por atasco; autoUrl ya reintenta
+    checkAutoUrlNow();
+  }
+}
+
 function onStatus(status: AudioStatus) {
   // Con salida remota (UPnP/DLNA) el player local está en pausa y sus
   // estados no deben pisar los que llegan del aparato remoto.
@@ -1081,6 +1166,7 @@ function onStatus(status: AudioStatus) {
     isBuffering: buffering,
   });
   maybeScrobbleThreshold(positionSec);
+  maybeDetectStall(intendPlay, buffering, positionSec);
   // Sincronización de la cola con el servidor.
   if (status.playing) startPeriodicSync();
   else {

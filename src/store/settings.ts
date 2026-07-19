@@ -317,6 +317,8 @@ interface SettingsState {
   showListArtwork: boolean;
   /** Duración de cada canción en las listas (Spotify no la muestra). */
   showSongDuration: boolean;
+  /** Estrellas de valoración de cada canción en las listas. */
+  showListRating: boolean;
   /** Al acabar la cola, seguir con canciones parecidas (getSimilarSongs2). */
   autoplaySimilar: boolean;
   /** Segundos de fundido cruzado entre canciones (0 = desactivado). */
@@ -418,6 +420,7 @@ interface SettingsState {
   setShowRating: (value: boolean) => void;
   setShowListArtwork: (value: boolean) => void;
   setShowSongDuration: (value: boolean) => void;
+  setShowListRating: (value: boolean) => void;
   setAutoplaySimilar: (value: boolean) => void;
   setCrossfadeSec: (value: number) => void;
   setPreloadUpcoming: (value: boolean) => void;
@@ -480,6 +483,7 @@ function snapshot(get: () => SettingsState) {
     showRating: s.showRating,
     showListArtwork: s.showListArtwork,
     showSongDuration: s.showSongDuration,
+    showListRating: s.showListRating,
     autoplaySimilar: s.autoplaySimilar,
     crossfadeSec: s.crossfadeSec,
     preloadUpcoming: s.preloadUpcoming,
@@ -530,6 +534,7 @@ const DEFAULTS = {
   showRating: false,
   showListArtwork: true,
   showSongDuration: false,
+  showListRating: false,
   autoplaySimilar: true,
   crossfadeSec: 0,
   preloadUpcoming: false,
@@ -620,6 +625,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
 
   setShowSongDuration: (showSongDuration) => {
     set({ showSongDuration });
+    persist(snapshot(get));
+  },
+
+  setShowListRating: (showListRating) => {
+    set({ showListRating });
     persist(snapshot(get));
   },
 
@@ -847,6 +857,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
           showRating: boolean;
           showListArtwork: boolean;
           showSongDuration: boolean;
+          showListRating: boolean;
           autoplaySimilar: boolean;
           crossfadeSec: number;
           preloadUpcoming: boolean;
@@ -922,6 +933,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
         }
         if (typeof parsed.showSongDuration === 'boolean') {
           set({ showSongDuration: parsed.showSongDuration });
+        }
+        if (typeof parsed.showListRating === 'boolean') {
+          set({ showListRating: parsed.showListRating });
         }
         if (typeof parsed.autoplaySimilar === 'boolean') {
           set({ autoplaySimilar: parsed.autoplaySimilar });

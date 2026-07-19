@@ -39,6 +39,7 @@ import {
   type SubsonicAuth,
 } from '@/api/backend';
 import { prefetchLyrics } from '@/hooks/useLyrics';
+import { queryClient } from '@/lib/query';
 import { getItem, setItem } from '@/lib/storage';
 import { useAuthStore } from './auth';
 import { checkAutoUrlNow } from './autoUrl';
@@ -1796,6 +1797,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     set({
       queue: patch(queue),
       originalQueue: originalQueue ? patch(originalQueue) : null,
+    });
+    // Refleja la nota en las listas ya cargadas (álbum, playlist, favoritos,
+    // búsqueda): todas exponen `songs: Song[]`. Parche optimista en la caché de
+    // React Query para que el cambio se vea al momento sin re-pedir al servidor.
+    queryClient.setQueriesData({ predicate: () => true }, (data: unknown) => {
+      if (!data || typeof data !== 'object') return data;
+      const songs = (data as { songs?: Song[] }).songs;
+      if (!Array.isArray(songs) || !songs.some((s) => s.id === id)) return data;
+      return { ...data, songs: patch(songs) };
     });
   },
 

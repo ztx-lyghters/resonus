@@ -32,6 +32,8 @@ export default function AppearanceSettings() {
   const setShowListArtwork = useSettings((s) => s.setShowListArtwork);
   const showSongDuration = useSettings((s) => s.showSongDuration);
   const setShowSongDuration = useSettings((s) => s.setShowSongDuration);
+  const showListRating = useSettings((s) => s.showListRating);
+  const setShowListRating = useSettings((s) => s.setShowListRating);
   const showArtistPhoto = useSettings((s) => s.showArtistPhoto);
   const setShowArtistPhoto = useSettings((s) => s.setShowArtistPhoto);
   const showHistoryButton = useSettings((s) => s.showHistoryButton);
@@ -85,6 +87,12 @@ export default function AppearanceSettings() {
               label: t('Show song duration'),
               value: showSongDuration,
               onChange: setShowSongDuration,
+            },
+            {
+              label: t('Show rating'),
+              description: t('Show each song’s star rating in lists.'),
+              value: showListRating,
+              onChange: setShowListRating,
             },
           ]}
         />

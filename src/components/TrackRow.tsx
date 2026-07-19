@@ -109,6 +109,7 @@ export function TrackRow({
   const openMenu = useSongMenu((s) => s.open);
   const t = useT();
   const showDuration = useSettings((s) => s.showSongDuration);
+  const showRating = useSettings((s) => s.showListRating);
   const swipeAction = useSettings((s) => s.swipeAction);
   const swipeLeftAction = useSettings((s) => s.swipeLeftAction);
   const addToQueue = usePlayerStore((s) => s.addToQueue);
@@ -244,6 +245,13 @@ export function TrackRow({
       </View>
 
       {favorited && !selecting ? <FavoriteButton id={song.id} starred size={20} /> : null}
+      {showRating && song.userRating ? (
+        <View style={styles.rating} accessibilityLabel={t('Rate {n} stars', { n: song.userRating })}>
+          {Array.from({ length: song.userRating }).map((_, i) => (
+            <Ionicons key={i} name="star" size={12} color={colors.accent} />
+          ))}
+        </View>
+      ) : null}
       {showDuration ? <Text style={styles.duration}>{formatDuration(song.duration)}</Text> : null}
       {showMenu && !selecting ? (
         <Pressable
@@ -320,5 +328,9 @@ const styles = StyleSheet.create({
   duration: {
     color: colors.textMuted,
     fontSize: fontSize.sm,
+  },
+  rating: {
+    flexDirection: 'row',
+    gap: 1,
   },
 });

@@ -63,6 +63,7 @@ const DEBOUNCE_MS = 300;
 // justo lo que ya hace A-Z.
 const SORTS: { key: AlbumListType; label: string }[] = [
   { key: 'recent', label: 'Recent' },
+  { key: 'newest', label: 'Recently added' },
   { key: 'alphabeticalByName', label: 'A-Z' },
   { key: 'frequent', label: 'Most played' },
   { key: 'random', label: 'Shuffle' },

@@ -24,7 +24,7 @@ import {
 } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { getAlbumList, getArtists, type Artist } from '@/api/data';
+import { getAlbumList, getArtists, type Album, type Artist } from '@/api/data';
 import { ArtistCard } from '@/components/ArtistCard';
 import { ArtistGridSkeleton } from '@/components/ArtistGridSkeleton';
 import { ArtistListSkeleton } from '@/components/ArtistListSkeleton';
@@ -55,18 +55,19 @@ const CARD = (Dimensions.get('window').width - spacing.lg * 2 - GAP * (COLUMNS -
  * los álbumes, donde ordena el servidor). Como ya están todos aquí, ordenar
  * sale gratis.
  */
-type ArtistSort = 'alpha' | 'recent' | 'frequent' | 'random';
+type ArtistSort = 'alpha' | 'recent' | 'newest' | 'frequent' | 'random';
 
 // Mismo orden que los chips de Álbumes (sin 'Artist', que aquí no pinta nada):
 // son pantallas hermanas y verlas ordenadas distinto chirriaba.
 const SORTS: { key: ArtistSort; label: string }[] = [
   { key: 'recent', label: 'Recent' },
+  { key: 'newest', label: 'Recently added' },
   { key: 'alpha', label: 'A-Z' },
   { key: 'frequent', label: 'Most played' },
   { key: 'random', label: 'Shuffle' },
 ];
 
-/** Cuántos álbumes frecuentes se miran para deducir tus artistas. */
+/** Cuántos álbumes se miran para deducir artistas frecuentes / recién añadidos. */
 const FREQUENT_POOL = 50;
 
 /** Alto de la barra desplegada: la caja (44) más su separación con los chips. */
@@ -155,18 +156,29 @@ export default function BrowseArtistsScreen() {
     enabled: canFetch && sort === 'frequent',
   });
 
+  // "Recién añadidos" se deduce igual: Subsonic no da fecha de alta del artista,
+  // así que se ordenan por lo reciente que sea su álbum más nuevo (getAlbumList
+  // 'newest'). Aproximado, pero es la única señal disponible.
+  const { data: newestAlbums } = useQuery({
+    queryKey: ['albumList', 'newest', FREQUENT_POOL],
+    queryFn: () => getAlbumList('newest', FREQUENT_POOL),
+    enabled: canFetch && sort === 'newest',
+  });
+
   // Puntúa por lo arriba que esté su mejor álbum en esa lista. Los que no
   // aparecen quedan a 0 y caen al orden alfabético.
-  const playedByArtist = useMemo(() => {
+  const scoreByBestAlbum = (albums: Album[] | undefined) => {
     const m = new Map<string, number>();
-    (frequentAlbums ?? []).forEach((al, i) => {
+    (albums ?? []).forEach((al, i) => {
       const id = al.artistId;
       if (!id) return;
       const score = FREQUENT_POOL - i;
       if ((m.get(id) ?? 0) < score) m.set(id, score);
     });
     return m;
-  }, [frequentAlbums]);
+  };
+  const playedByArtist = useMemo(() => scoreByBestAlbum(frequentAlbums), [frequentAlbums]);
+  const addedByArtist = useMemo(() => scoreByBestAlbum(newestAlbums), [newestAlbums]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -195,11 +207,13 @@ export default function BrowseArtistsScreen() {
     const score =
       sort === 'frequent'
         ? (a: Artist) => playedByArtist.get(a.id) ?? 0
-        : (a: Artist) => Math.max(times[`/artist/${a.id}`] ?? 0, byArtist.get(a.id) ?? 0);
+        : sort === 'newest'
+          ? (a: Artist) => addedByArtist.get(a.id) ?? 0
+          : (a: Artist) => Math.max(times[`/artist/${a.id}`] ?? 0, byArtist.get(a.id) ?? 0);
     // Empate → alfabético, para que no salga un orden arbitrario entre los
     // muchos artistas sin escuchas ni álbumes contados.
     return all.sort((a, b) => score(b) - score(a) || byName(a, b));
-  }, [filtered, sort, shuffledArtists, times, byArtist, playedByArtist]);
+  }, [filtered, sort, shuffledArtists, times, byArtist, playedByArtist, addedByArtist]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>

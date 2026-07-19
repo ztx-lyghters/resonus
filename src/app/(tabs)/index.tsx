@@ -23,8 +23,10 @@ import {
   getPlaylists,
   type Album,
   type Artist,
+  type Playlist,
 } from '@/api/data';
 import { AlbumCard } from '@/components/AlbumCard';
+import { PlaylistCard } from '@/components/PlaylistCard';
 import { AlbumCardsSkeleton } from '@/components/AlbumCardsSkeleton';
 import { ArtistCard } from '@/components/ArtistCard';
 import { Cover } from '@/components/Cover';
@@ -178,6 +180,42 @@ function AlbumSection({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.rowContent}
         renderItem={({ item }) => <AlbumCard album={item} />}
+      />
+    </View>
+  );
+}
+
+/** Fila de playlists (acceso rápido desde Inicio). Existe también en offline
+ *  (playlists locales), así que no se filtra como las de solo-servidor. */
+function PlaylistsSection({ title }: { title: string }) {
+  const canFetch = useAuthStore((s) => !!s.auth || s.offline);
+  const { data, isLoading } = useQuery({
+    queryKey: ['playlists'],
+    queryFn: () => getPlaylists(),
+    enabled: canFetch,
+  });
+
+  if (isLoading) {
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        <AlbumCardsSkeleton horizontal />
+      </View>
+    );
+  }
+  if (!data || data.length === 0) return null;
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <FlatList
+        {...listPerf}
+        horizontal
+        data={data}
+        keyExtractor={(item: Playlist) => item.id}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.rowContent}
+        renderItem={({ item }) => <PlaylistCard playlist={item} />}
       />
     </View>
   );
@@ -404,7 +442,7 @@ function ScanningPanel() {
 /** Título (clave i18n) y tipo de lista de las secciones que usan AlbumSection.
  *  «discover» y «randomArtists» se pintan con sus propios componentes. */
 const HOME_ALBUM_CONFIG: Record<
-  Exclude<HomeSectionKey, 'randomArtists' | 'discover'>,
+  Exclude<HomeSectionKey, 'randomArtists' | 'discover' | 'playlists'>,
   { title: string; type: 'newest' | 'recent' | 'frequent' | 'random' }
 > = {
   recentlyAdded: { title: 'Recently added', type: 'newest' },
@@ -568,6 +606,9 @@ export default function HomeScreen() {
                     reshuffleKey={reshuffleKey}
                   />
                 );
+              }
+              if (s.key === 'playlists') {
+                return <PlaylistsSection key={s.key} title={t('Playlists')} />;
               }
               const cfg = HOME_ALBUM_CONFIG[s.key];
               return <AlbumSection key={s.key} title={t(cfg.title)} type={cfg.type} />;

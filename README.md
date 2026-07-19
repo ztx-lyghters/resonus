@@ -52,7 +52,7 @@ Get the latest APK from the [Releases](https://github.com/juananzzz/resonus/rele
 Resonus is maintained in-house in **English, Spanish, and Catalan**
 (`src/i18n/locales/`), with English as the source language. It also ships a
 community-contributed **German** translation. More community translations are
-welcome — pull requests are the way to add or improve one.
+welcome, and pull requests are the way to add or improve one.
 
 ## Community
 

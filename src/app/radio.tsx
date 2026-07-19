@@ -143,7 +143,7 @@ export default function RadioScreen() {
                 onLongPress={canManage ? () => setMenu(item) : undefined}
               >
                 <View style={styles.radioIcon}>
-                  <Ionicons name="radio" size={22} color={colors.accent} />
+                  <Ionicons name="radio" size={22} color={colors.textMuted} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text
@@ -156,9 +156,7 @@ export default function RadioScreen() {
                     <Text style={styles.rowSub} numberOfLines={1}>{item.homePageUrl}</Text>
                   ) : null}
                 </View>
-                {playing ? (
-                  <Ionicons name="volume-medium" size={22} color={colors.accent} />
-                ) : canManage ? (
+                {canManage ? (
                   <Pressable
                     hitSlop={8}
                     onPress={() => setMenu(item)}

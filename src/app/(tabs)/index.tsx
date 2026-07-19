@@ -30,7 +30,6 @@ import { ArtistCard } from '@/components/ArtistCard';
 import { Cover } from '@/components/Cover';
 import { FavoritesArt } from '@/components/FavoritesArt';
 import { Message } from '@/components/Message';
-import { OfflineIndicator } from '@/components/OfflineIndicator';
 import { useT } from '@/i18n';
 import { useAuthStore } from '@/store/auth';
 import { checkAutoUrlNow } from '@/store/autoUrl';
@@ -486,6 +485,14 @@ export default function HomeScreen() {
                 accessibilityLabel={t('Offline')}
               />
             ) : null}
+            {offline && auth ? (
+              <Ionicons
+                name="cloud-offline-outline"
+                size={22}
+                color={colors.textMuted}
+                accessibilityLabel={t('Offline')}
+              />
+            ) : null}
           </View>
           <View style={styles.headerRight}>
             {showHistoryButton ? (
@@ -509,14 +516,6 @@ export default function HomeScreen() {
         </View>
 
         {offline && scanning ? <ScanningPanel /> : null}
-
-        {/* Estado offline como línea sutil bajo la cabecera (no apretado entre el
-            saludo y los iconos), alineado con el contenido. */}
-        {offline && auth ? (
-          <View style={styles.offlineLine}>
-            <OfflineIndicator />
-          </View>
-        ) : null}
 
         <ExploreChips offline={offline} />
 
@@ -591,8 +590,6 @@ const styles = StyleSheet.create({
   avatarText: { color: colors.text, fontSize: fontSize.md, fontWeight: '700' },
   chipsRow: { flexGrow: 0, marginBottom: spacing.lg },
   chips: { gap: spacing.sm, paddingHorizontal: spacing.lg },
-  // Alineado con el resto del contenido; un respiro bajo la cabecera.
-  offlineLine: { paddingHorizontal: spacing.lg, marginBottom: spacing.md },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',

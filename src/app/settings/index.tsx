@@ -136,7 +136,7 @@ export default function SettingsScreen() {
                 router.replace('/(tabs)');
               }}
             >
-              <Ionicons name="cloud-offline-outline" size={18} color={colors.text} />
+              <Ionicons name="cloud-offline-outline" size={18} color="#000" />
               <Text style={styles.offlinePillText}>{t('Offline mode')}</Text>
             </Pressable>
           ) : serverOffline ? (
@@ -147,7 +147,7 @@ export default function SettingsScreen() {
                 router.replace('/(tabs)');
               }}
             >
-              <Ionicons name="cloud-outline" size={18} color={colors.text} />
+              <Ionicons name="cloud-outline" size={18} color="#000" />
               <Text style={styles.offlinePillText}>{t('Back online')}</Text>
             </Pressable>
           ) : null}
@@ -159,7 +159,7 @@ export default function SettingsScreen() {
             style={({ pressed }) => [styles.offlinePill, pressed && { opacity: 0.6 }]}
             onPress={() => logout()}
           >
-            <Ionicons name="log-out-outline" size={18} color={colors.text} />
+            <Ionicons name="log-out-outline" size={18} color="#000" />
             <Text style={styles.offlinePillText}>
               {offline && !auth ? t('Exit local mode') : t('Sign out')}
             </Text>
@@ -218,17 +218,16 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginTop: spacing.lg,
   },
-  // Pastilla de contorno oscura para las acciones de sesión (cambio de modo y
-  // cerrar sesión). Fondo transparente + borde fino: más limpia que la sólida.
+  // Pastilla sólida clara para las acciones de sesión (cambio de modo y cerrar
+  // sesión): fondo blanco con texto e iconos negros, para que destaquen.
   offlinePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     borderRadius: radius.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+    backgroundColor: '#fff',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
-  offlinePillText: { color: colors.text, fontSize: fontSize.sm, fontWeight: '600' },
+  offlinePillText: { color: '#000', fontSize: fontSize.sm, fontWeight: '600' },
 });

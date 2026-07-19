@@ -732,6 +732,30 @@ export async function getRadioStations(_auth: SubsonicAuth): Promise<RadioStatio
   return [];
 }
 
+/** Jellyfin no soporta gestionar emisoras de radio. */
+export async function createRadioStation(
+  _auth: SubsonicAuth,
+  _name: string,
+  _streamUrl: string,
+  _homePageUrl?: string,
+): Promise<void> {
+  throw new Error('Jellyfin no soporta emisoras de radio');
+}
+
+export async function updateRadioStation(
+  _auth: SubsonicAuth,
+  _id: string,
+  _name: string,
+  _streamUrl: string,
+  _homePageUrl?: string,
+): Promise<void> {
+  throw new Error('Jellyfin no soporta emisoras de radio');
+}
+
+export async function deleteRadioStation(_auth: SubsonicAuth, _id: string): Promise<void> {
+  throw new Error('Jellyfin no soporta emisoras de radio');
+}
+
 // ── Reproducción ──
 
 /** Marca la canción como reproducida (actualiza contador y fecha). */

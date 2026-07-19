@@ -130,7 +130,7 @@ export function MiniPlayer() {
           onPress={() => router.push('/player')}
         >
       <Animated.View style={[styles.details, detailsStyle]}>
-        <Cover uri={cover} size={44} />
+        <Cover uri={cover} size={44} placeholderIcon={song.url ? 'radio' : 'musical-notes'} />
         <View style={styles.info}>
           <MarqueeText text={song.title} style={styles.title} enabled={marqueeTitles} />
           {song.artist ? (

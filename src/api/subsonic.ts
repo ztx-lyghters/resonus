@@ -968,6 +968,44 @@ export async function getRadioStations(
   return res.internetRadioStations?.internetRadioStation ?? [];
 }
 
+/** Crea una emisora de radio por internet en el servidor. */
+export async function createRadioStation(
+  auth: SubsonicAuth,
+  name: string,
+  streamUrl: string,
+  homePageUrl?: string,
+): Promise<void> {
+  await request(auth, 'createInternetRadioStation.view', {
+    name,
+    streamUrl,
+    homepageUrl: homePageUrl || undefined,
+  });
+}
+
+/** Edita una emisora de radio existente. */
+export async function updateRadioStation(
+  auth: SubsonicAuth,
+  id: string,
+  name: string,
+  streamUrl: string,
+  homePageUrl?: string,
+): Promise<void> {
+  await request(auth, 'updateInternetRadioStation.view', {
+    id,
+    name,
+    streamUrl,
+    homepageUrl: homePageUrl || undefined,
+  });
+}
+
+/** Elimina una emisora de radio del servidor. */
+export async function deleteRadioStation(
+  auth: SubsonicAuth,
+  id: string,
+): Promise<void> {
+  await request(auth, 'deleteInternetRadioStation.view', { id });
+}
+
 /** URL de la carátula. `id` puede venir de un álbum, canción o playlist. */
 export function coverArtUrl(
   auth: SubsonicAuth,

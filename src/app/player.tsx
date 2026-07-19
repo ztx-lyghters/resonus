@@ -363,11 +363,13 @@ export default function PlayerScreen() {
               <>
                 <Text style={styles.topLabel}>{t('PLAYING FROM')}</Text>
                 <Text style={styles.topSource} numberOfLines={1}>
-                  {source === SOURCE_FAVORITES
-                    ? t('Favorites')
-                    : source === SOURCE_HISTORY
-                      ? t('History')
-                      : source}
+                  {song?.url
+                    ? t('Radio')
+                    : source === SOURCE_FAVORITES
+                      ? t('Favorites')
+                      : source === SOURCE_HISTORY
+                        ? t('History')
+                        : source}
                 </Text>
               </>
             ) : (
@@ -397,7 +399,12 @@ export default function PlayerScreen() {
                     {/* Con la letra en el sitio se oculta la carátula: la letra
                         (fondo transparente) queda sobre el fondo del player. */}
                     {paneSong && !inlineLyrics ? (
-                      <Cover uri={paneCover} size={COVER} transition={0} />
+                      <Cover
+                        uri={paneCover}
+                        size={COVER}
+                        transition={0}
+                        placeholderIcon={paneSong.url ? 'radio' : 'musical-notes'}
+                      />
                     ) : null}
                   </Animated.View>
                 );

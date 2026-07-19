@@ -11,10 +11,19 @@ interface Props {
   rounded?: boolean;
   /** Fundido al cargar/cambiar la imagen (ms). 0 para cambios instantáneos. */
   transition?: number;
+  /** Icono del marcador de posición cuando no hay imagen (p. ej. radio). */
+  placeholderIcon?: keyof typeof Ionicons.glyphMap;
   style?: StyleProp<ViewStyle | ImageStyle>;
 }
 
-export function Cover({ uri, size, rounded, transition = 200, style }: Props) {
+export function Cover({
+  uri,
+  size,
+  rounded,
+  transition = 200,
+  placeholderIcon = 'musical-notes',
+  style,
+}: Props) {
   const borderRadius = rounded ? size / 2 : radius.md;
   if (!uri) {
     return (
@@ -31,7 +40,7 @@ export function Cover({ uri, size, rounded, transition = 200, style }: Props) {
           style as StyleProp<ViewStyle>,
         ]}
       >
-        <Ionicons name="musical-notes" size={size * 0.4} color={colors.textMuted} />
+        <Ionicons name={placeholderIcon} size={size * 0.4} color={colors.textMuted} />
       </View>
     );
   }

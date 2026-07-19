@@ -208,6 +208,24 @@ export const scrobble = (auth: SubsonicAuth, id: string, submission?: boolean) =
 
 export const getRadioStations = (auth: SubsonicAuth) => api(auth).getRadioStations(auth);
 
+export const createRadioStation = (
+  auth: SubsonicAuth,
+  name: string,
+  streamUrl: string,
+  homePageUrl?: string,
+) => api(auth).createRadioStation(auth, name, streamUrl, homePageUrl);
+
+export const updateRadioStation = (
+  auth: SubsonicAuth,
+  id: string,
+  name: string,
+  streamUrl: string,
+  homePageUrl?: string,
+) => api(auth).updateRadioStation(auth, id, name, streamUrl, homePageUrl);
+
+export const deleteRadioStation = (auth: SubsonicAuth, id: string) =>
+  api(auth).deleteRadioStation(auth, id);
+
 export const coverArtUrl = (auth: SubsonicAuth, id: string | undefined, size?: number) =>
   api(auth).coverArtUrl(auth, id, size);
 

@@ -198,13 +198,21 @@ export function TrackListView({
   const searchH = useRef(new Animated.Value(0)).current;
   const searchBar = !!searchable && songs.length > 0;
 
+  // `setRevealed` es asíncrono: el gesto dispara `onChange` muchas veces por
+  // arrastre y varias pasarían el guard `!revealed` antes del re-render, con
+  // una vibración cada una. El ref se actualiza en el acto y corta el resto.
+  const revealedRef = useRef(false);
+
   function revealSearchBar() {
+    if (revealedRef.current) return;
+    revealedRef.current = true;
     haptic('light');
     setRevealed(true);
     Animated.timing(searchH, { toValue: SEARCH_H, duration: 200, useNativeDriver: false }).start();
   }
 
   function collapseSearchBar() {
+    revealedRef.current = false;
     setRevealed(false);
     Animated.timing(searchH, { toValue: 0, duration: 200, useNativeDriver: false }).start();
   }

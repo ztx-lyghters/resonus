@@ -365,6 +365,8 @@ export default function LoginScreen() {
                       placeholder={t('Password')}
                       placeholderTextColor={colors.textMuted}
                       secureTextEntry
+                      autoCapitalize="none"
+                      autoCorrect={false}
                       value={password}
                       onChangeText={setPassword}
                     />

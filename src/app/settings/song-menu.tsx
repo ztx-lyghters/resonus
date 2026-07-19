@@ -24,6 +24,7 @@ const LABEL: Record<SongMenuActionKey, string> = {
   playNext: 'Play next',
   queue: 'Add to queue',
   favorite: 'Add to favorites',
+  rating: 'Rate',
   download: 'Download',
   sleepTimer: 'Sleep timer',
 };
@@ -38,6 +39,7 @@ const ORDER: SongMenuActionKey[] = [
   'playNext',
   'queue',
   'favorite',
+  'rating',
   'download',
   'sleepTimer',
 ];
@@ -47,10 +49,10 @@ export default function SongMenuSettings() {
   const offline = useAuthStore((s) => s.offline);
   const songMenuActions = useSettings((s) => s.songMenuActions);
   const setSongMenuAction = useSettings((s) => s.setSongMenuAction);
-  // «Iniciar mix» no existe en local (las parecidas las busca el servidor):
-  // su interruptor aquí prometería una acción que el menú nunca enseña.
-  // «Descargar» se queda: en local sigue mandando sobre «Quitar descarga».
-  const order = offline ? ORDER.filter((k) => k !== 'mix') : ORDER;
+  // «Iniciar mix» y «Valorar» no existen en local (parecidas y valoración son
+  // del servidor): sus interruptores prometerían acciones que el menú nunca
+  // enseña. «Descargar» se queda: en local manda sobre «Quitar descarga».
+  const order = offline ? ORDER.filter((k) => k !== 'mix' && k !== 'rating') : ORDER;
 
   return (
     <SettingsPage title={t('Song menu')}>

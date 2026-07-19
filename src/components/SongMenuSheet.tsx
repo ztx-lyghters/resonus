@@ -42,6 +42,7 @@ import { useT } from '@/i18n';
 import { colors, fontSize, radius, spacing } from '@/theme';
 import { Cover } from './Cover';
 import { Dialog } from './Dialog';
+import { StarRating } from './StarRating';
 
 /** Alto máximo de la lista de playlists: proporcional a la pantalla para que
  *  no quede compacta en móviles grandes (antes era un fijo de 360). */
@@ -103,6 +104,8 @@ export function SongMenuSheet() {
   // Acciones visibles (Ajustes → Aspecto → Menú de canción). Se suma a las
   // condiciones de cada una: esconderla no reactiva lo que ya no aplicaba.
   const menu = useSettings((s) => s.songMenuActions);
+  const serverType = useAuthStore((s) => s.auth?.serverType);
+  const rateSong = usePlayerStore((s) => s.rateSong);
   const setSleepTimer = usePlayerStore((s) => s.setSleepTimer);
   const setSleepAtSongEnd = usePlayerStore((s) => s.setSleepAtSongEnd);
   const cancelSleepTimer = usePlayerStore((s) => s.cancelSleepTimer);
@@ -117,7 +120,7 @@ export function SongMenuSheet() {
   const favIds = useFavoriteIds(!!song);
   const favorited = song ? (favIds ? favIds.has(song.id) : !!song.starred) : false;
 
-  const [mode, setMode] = useState<'actions' | 'playlists' | 'sleep'>('actions');
+  const [mode, setMode] = useState<'actions' | 'playlists' | 'sleep' | 'rating'>('actions');
   const [creating, setCreating] = useState(false);
   // Aviso "ya está en la playlist" pendiente de confirmar (estilo Spotify).
   const [dupPrompt, setDupPrompt] = useState<{ playlistId: string; name: string } | null>(null);
@@ -322,6 +325,21 @@ export function SongMenuSheet() {
               </Pressable>
             ) : null}
           </View>
+        ) : mode === 'rating' ? (
+          <View>
+            <Pressable style={styles.action} onPress={() => setMode('actions')}>
+              <Ionicons name="chevron-back" size={24} color={colors.text} />
+              <Text style={styles.actionText}>{t('Rate')}</Text>
+            </Pressable>
+            <View style={styles.ratingRow}>
+              <StarRating
+                id={song.id}
+                rating={song.userRating}
+                size={34}
+                onRated={(r) => rateSong(song.id, r)}
+              />
+            </View>
+          </View>
         ) : (
           <>
             {menu.playlist ? (
@@ -426,6 +444,11 @@ export function SongMenuSheet() {
                 }}
               />
             ) : null}
+            {/* Valorar (setRating de Subsonic): solo online, servidor no-Jellyfin
+                y no en local/descargadas/radio, donde no aplica. */}
+            {menu.rating && !offline && serverType !== 'jellyfin' && !song.localUri && !song.url ? (
+              <Action icon="star-outline" label={t('Rate')} onPress={() => setMode('rating')} />
+            ) : null}
             {menu.download && downloaded ? (
               <Action
                 icon="arrow-down-circle"
@@ -516,6 +539,7 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontSize: fontSize.md, fontWeight: '700' },
   artist: { color: colors.textSecondary, fontSize: fontSize.sm, marginTop: 2 },
   divider: { height: 1, backgroundColor: colors.border, marginBottom: spacing.sm },
+  ratingRow: { alignItems: 'center', paddingVertical: spacing.sm, marginBottom: spacing.sm },
   action: {
     flexDirection: 'row',
     alignItems: 'center',

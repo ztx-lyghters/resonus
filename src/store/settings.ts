@@ -227,6 +227,7 @@ export type SongMenuActionKey =
   | 'playNext'
   | 'queue'
   | 'favorite'
+  | 'rating'
   | 'download'
   | 'sleepTimer';
 
@@ -246,11 +247,12 @@ const SONG_MENU_ACTION_KEYS: SongMenuActionKey[] = [
   'playNext',
   'queue',
   'favorite',
+  'rating',
   'download',
   'sleepTimer',
 ];
 
-/** Todas visibles: el menú de siempre. */
+/** Todas visibles menos «Valorar», que empieza oculta (la pediste tú). */
 export const DEFAULT_SONG_MENU_ACTIONS: SongMenuActions = {
   playlist: true,
   artist: true,
@@ -260,6 +262,7 @@ export const DEFAULT_SONG_MENU_ACTIONS: SongMenuActions = {
   playNext: true,
   queue: true,
   favorite: true,
+  rating: false,
   download: true,
   sleepTimer: true,
 };

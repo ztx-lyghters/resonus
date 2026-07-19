@@ -34,12 +34,13 @@ interface Props {
   /** true si se está editando una emisora existente (cambia el título). */
   editing: boolean;
   /**
-   * Id de la emisora en el servidor: habilita ponerle una carátula propia
-   * (copiada al dispositivo). Solo al editar; al crear aún no hay id.
+   * Id de la emisora en el servidor (solo al editar): la carátula elegida se
+   * guarda en el acto. Al crear aún no hay id, así que la imagen queda
+   * "pendiente" y se aplica en `onSave` cuando el servidor asigna el id.
    */
   coverId?: string;
   onCancel: () => void;
-  onSave: (changes: RadioEdit) => void;
+  onSave: (changes: RadioEdit, pendingCoverUri?: string) => void;
 }
 
 export function RadioEditSheet({ visible, initial, editing, coverId, onCancel, onSave }: Props) {
@@ -48,15 +49,17 @@ export function RadioEditSheet({ visible, initial, editing, coverId, onCancel, o
   const [streamUrl, setStreamUrl] = useState(initial.streamUrl);
   const [homePageUrl, setHomePageUrl] = useState(initial.homePageUrl);
 
-  // Carátula local (se guarda en el acto al elegir/quitar, independiente de
-  // Guardar; misma idea que la hoja de edición de playlist).
-  const coverUri = useRadioCovers((s) => (coverId ? s.covers[coverId] : undefined));
+  // Carátula local. Al editar se guarda en el acto (misma idea que la hoja de
+  // playlist). Al crear no hay id todavía: la imagen se queda "pendiente" en
+  // estado local y se sube tras crear (ver onSave del padre).
+  const storedCover = useRadioCovers((s) => (coverId ? s.covers[coverId] : undefined));
   const setCover = useRadioCovers((s) => s.setCover);
   const removeCover = useRadioCovers((s) => s.removeCover);
+  const [pendingCover, setPendingCover] = useState<string | null>(null);
   const [coverBusy, setCoverBusy] = useState(false);
+  const coverUri = coverId ? storedCover : (pendingCover ?? undefined);
 
   async function pickCover() {
-    if (!coverId) return;
     const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
@@ -65,6 +68,10 @@ export function RadioEditSheet({ visible, initial, editing, coverId, onCancel, o
     });
     const asset = res.assets?.[0];
     if (res.canceled || !asset) return;
+    if (!coverId) {
+      setPendingCover(asset.uri);
+      return;
+    }
     setCoverBusy(true);
     try {
       await setCover(coverId, asset.uri);
@@ -74,7 +81,10 @@ export function RadioEditSheet({ visible, initial, editing, coverId, onCancel, o
   }
 
   async function clearCover() {
-    if (!coverId) return;
+    if (!coverId) {
+      setPendingCover(null);
+      return;
+    }
     setCoverBusy(true);
     try {
       await removeCover(coverId);
@@ -89,6 +99,7 @@ export function RadioEditSheet({ visible, initial, editing, coverId, onCancel, o
       setName(initial.name);
       setStreamUrl(initial.streamUrl);
       setHomePageUrl(initial.homePageUrl);
+      setPendingCover(null);
     }
   }, [visible, initial.name, initial.streamUrl, initial.homePageUrl]);
 
@@ -113,11 +124,14 @@ export function RadioEditSheet({ visible, initial, editing, coverId, onCancel, o
             hitSlop={12}
             disabled={!canSave}
             onPress={() =>
-              onSave({
-                name: name.trim(),
-                streamUrl: streamUrl.trim(),
-                homePageUrl: homePageUrl.trim(),
-              })
+              onSave(
+                {
+                  name: name.trim(),
+                  streamUrl: streamUrl.trim(),
+                  homePageUrl: homePageUrl.trim(),
+                },
+                coverId ? undefined : (pendingCover ?? undefined),
+              )
             }
           >
             <Text
@@ -133,41 +147,39 @@ export function RadioEditSheet({ visible, initial, editing, coverId, onCancel, o
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-            {coverId ? (
-              <View style={styles.coverWrap}>
-                <Pressable
-                  onPress={() => void pickCover()}
-                  disabled={coverBusy}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('Change cover')}
-                  style={({ pressed }) => pressed && { opacity: 0.7 }}
-                >
-                  <Cover uri={coverUri} size={160} placeholderIcon="radio" />
-                  {coverBusy ? (
-                    <View style={styles.coverOverlay}>
-                      <ActivityIndicator color={colors.text} />
+            <View style={styles.coverWrap}>
+              <Pressable
+                onPress={() => void pickCover()}
+                disabled={coverBusy}
+                accessibilityRole="button"
+                accessibilityLabel={t('Change cover')}
+                style={({ pressed }) => pressed && { opacity: 0.7 }}
+              >
+                <Cover uri={coverUri} size={160} placeholderIcon="radio" />
+                {coverBusy ? (
+                  <View style={styles.coverOverlay}>
+                    <ActivityIndicator color={colors.text} />
+                  </View>
+                ) : (
+                  <View style={styles.coverBadges}>
+                    <View style={styles.coverBadge}>
+                      <Ionicons name="camera" size={16} color={colors.text} />
                     </View>
-                  ) : (
-                    <View style={styles.coverBadges}>
-                      <View style={styles.coverBadge}>
-                        <Ionicons name="camera" size={16} color={colors.text} />
-                      </View>
-                      {coverUri ? (
-                        <Pressable
-                          hitSlop={6}
-                          accessibilityRole="button"
-                          accessibilityLabel={t('Remove cover')}
-                          onPress={() => void clearCover()}
-                          style={({ pressed }) => [styles.coverBadge, pressed && { opacity: 0.7 }]}
-                        >
-                          <Ionicons name="trash-outline" size={16} color={colors.text} />
-                        </Pressable>
-                      ) : null}
-                    </View>
-                  )}
-                </Pressable>
-              </View>
-            ) : null}
+                    {coverUri ? (
+                      <Pressable
+                        hitSlop={6}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('Remove cover')}
+                        onPress={() => void clearCover()}
+                        style={({ pressed }) => [styles.coverBadge, pressed && { opacity: 0.7 }]}
+                      >
+                        <Ionicons name="trash-outline" size={16} color={colors.text} />
+                      </Pressable>
+                    ) : null}
+                  </View>
+                )}
+              </Pressable>
+            </View>
 
             <Text style={styles.label}>{t('Name')}</Text>
             <TextInput

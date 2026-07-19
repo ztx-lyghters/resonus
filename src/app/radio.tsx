@@ -65,7 +65,7 @@ export default function RadioScreen() {
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['radioStations'] });
 
-  async function saveStation(changes: RadioEdit) {
+  async function saveStation(changes: RadioEdit, pendingCoverUri?: string) {
     const station = editForm?.station ?? null;
     setEditForm(null);
     try {
@@ -78,7 +78,16 @@ export default function RadioScreen() {
           changes.homePageUrl,
         );
       } else {
-        await createRadioStation(auth!, changes.name, changes.streamUrl, changes.homePageUrl);
+        const newId = await createRadioStation(
+          auth!,
+          changes.name,
+          changes.streamUrl,
+          changes.homePageUrl,
+        );
+        // Carátula elegida al crear: se aplica ahora que el servidor asignó id.
+        if (newId && pendingCoverUri) {
+          await useRadioCovers.getState().setCover(newId, pendingCoverUri);
+        }
       }
       await refresh();
     } catch {
@@ -200,7 +209,7 @@ export default function RadioScreen() {
         }
         coverId={editForm?.station?.id}
         onCancel={() => setEditForm(null)}
-        onSave={(changes) => void saveStation(changes)}
+        onSave={(changes, pendingCoverUri) => void saveStation(changes, pendingCoverUri)}
       />
 
       <Modal

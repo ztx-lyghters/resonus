@@ -738,7 +738,7 @@ export async function createRadioStation(
   _name: string,
   _streamUrl: string,
   _homePageUrl?: string,
-): Promise<void> {
+): Promise<string | undefined> {
   throw new Error('Jellyfin no soporta emisoras de radio');
 }
 

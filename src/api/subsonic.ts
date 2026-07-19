@@ -968,18 +968,32 @@ export async function getRadioStations(
   return res.internetRadioStations?.internetRadioStation ?? [];
 }
 
-/** Crea una emisora de radio por internet en el servidor. */
+/**
+ * Crea una emisora de radio por internet en el servidor. Devuelve su id si se
+ * puede averiguar: `createInternetRadioStation` no lo devuelve (fuera de spec),
+ * así que se busca la recién creada por nombre + URL. Sirve para ponerle
+ * carátula al momento (que se guarda en el dispositivo, por id).
+ */
 export async function createRadioStation(
   auth: SubsonicAuth,
   name: string,
   streamUrl: string,
   homePageUrl?: string,
-): Promise<void> {
+): Promise<string | undefined> {
   await request(auth, 'createInternetRadioStation.view', {
     name,
     streamUrl,
     homepageUrl: homePageUrl || undefined,
   });
+  try {
+    const stations = await getRadioStations(auth);
+    // De atrás hacia delante: si hay duplicados de nombre+URL, la última es la
+    // que acabamos de crear.
+    const match = [...stations].reverse().find((s) => s.name === name && s.streamUrl === streamUrl);
+    return match?.id;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Edita una emisora de radio existente. */

@@ -44,8 +44,6 @@ export default function AppearanceSettings() {
   const setSwipeAction = useSettings((s) => s.setSwipeAction);
   const swipeLeftAction = useSettings((s) => s.swipeLeftAction);
   const setSwipeLeftAction = useSettings((s) => s.setSwipeLeftAction);
-  const showQuickGrid = useSettings((s) => s.showQuickGrid);
-  const setShowQuickGrid = useSettings((s) => s.setShowQuickGrid);
   const showFolderBrowser = useSettings((s) => s.showFolderBrowser);
   const setShowFolderBrowser = useSettings((s) => s.setShowFolderBrowser);
   const hapticsEnabled = useSettings((s) => s.hapticsEnabled);
@@ -101,12 +99,6 @@ export default function AppearanceSettings() {
         <SwitchList
           options={[
             {
-              label: t('Show quick grid'),
-              description: t('The shortcut cards at the top of Home.'),
-              value: showQuickGrid,
-              onChange: setShowQuickGrid,
-            },
-            {
               label: t('Show history button'),
               description: t('The clock button on Home.'),
               value: showHistoryButton,
@@ -123,7 +115,7 @@ export default function AppearanceSettings() {
 
         <SettingRow
           label={t('Quick grid')}
-          description={t('Pick what fills the shortcut cards and how many to show.')}
+          description={t('Show, personalize and size the shortcut cards on Home.')}
           chevron
           onPress={() => router.push('/settings/quick-grid')}
         />

@@ -17,6 +17,8 @@ export default function QuickGridSettings() {
   // En local no hay playlists de servidor; la fuente se oculta para no prometer
   // algo que nunca aparece (misma idea que los chips solo-servidor).
   const offline = useAuthStore((s) => s.offline);
+  const showQuickGrid = useSettings((s) => s.showQuickGrid);
+  const setShowQuickGrid = useSettings((s) => s.setShowQuickGrid);
   const withFavorites = useSettings((s) => s.quickGridFavorites);
   const setWithFavorites = useSettings((s) => s.setQuickGridFavorites);
   const withAlbums = useSettings((s) => s.quickGridAlbums);
@@ -52,15 +54,31 @@ export default function QuickGridSettings() {
   return (
     <SettingsPage title={t('Quick grid')}>
       <ScrollView contentContainerStyle={settingsStyles.content}>
-        <Text style={settingsStyles.sectionTitle}>{t('Sources')}</Text>
-        <SwitchList options={sources} />
-
-        <Text style={settingsStyles.sectionTitle}>{t('Size')}</Text>
-        <SelectList
-          value={size}
-          onChange={setSize}
-          options={SIZES.map((n) => ({ value: n, label: t('{n} cards', { n }) }))}
+        <SwitchList
+          options={[
+            {
+              label: t('Show quick grid'),
+              description: t('The shortcut cards at the top of Home.'),
+              value: showQuickGrid,
+              onChange: setShowQuickGrid,
+            },
+          ]}
         />
+
+        {/* Fuentes y tamaño solo tienen sentido con la rejilla activa. */}
+        {showQuickGrid ? (
+          <>
+            <Text style={settingsStyles.sectionTitle}>{t('Sources')}</Text>
+            <SwitchList options={sources} />
+
+            <Text style={settingsStyles.sectionTitle}>{t('Size')}</Text>
+            <SelectList
+              value={size}
+              onChange={setSize}
+              options={SIZES.map((n) => ({ value: n, label: t('{n} cards', { n }) }))}
+            />
+          </>
+        ) : null}
       </ScrollView>
     </SettingsPage>
   );

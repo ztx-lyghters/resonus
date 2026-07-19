@@ -488,7 +488,6 @@ export default function HomeScreen() {
             ) : null}
           </View>
           <View style={styles.headerRight}>
-            <OfflineIndicator />
             {showHistoryButton ? (
               <Link href="/history" asChild>
                 <Pressable hitSlop={10} accessibilityLabel={t('History')}>
@@ -510,6 +509,14 @@ export default function HomeScreen() {
         </View>
 
         {offline && scanning ? <ScanningPanel /> : null}
+
+        {/* Estado offline como línea sutil bajo la cabecera (no apretado entre el
+            saludo y los iconos), alineado con el contenido. */}
+        {offline && auth ? (
+          <View style={styles.offlineLine}>
+            <OfflineIndicator />
+          </View>
+        ) : null}
 
         <ExploreChips offline={offline} />
 
@@ -584,6 +591,8 @@ const styles = StyleSheet.create({
   avatarText: { color: colors.text, fontSize: fontSize.md, fontWeight: '700' },
   chipsRow: { flexGrow: 0, marginBottom: spacing.lg },
   chips: { gap: spacing.sm, paddingHorizontal: spacing.lg },
+  // Alineado con el resto del contenido; un respiro bajo la cabecera.
+  offlineLine: { paddingHorizontal: spacing.lg, marginBottom: spacing.md },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',

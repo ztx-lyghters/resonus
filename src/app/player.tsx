@@ -30,7 +30,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { coverArtUrl } from '@/api/data';
+import { coverArtUrl, type Song } from '@/api/data';
 import { AudioQualityBadge } from '@/components/AudioQualityBadge';
 import { Cover } from '@/components/Cover';
 import { FavoriteButton } from '@/components/FavoriteButton';
@@ -47,6 +47,7 @@ import { haptic } from '@/lib/haptics';
 import { useArtistPicker } from '@/store/artistPicker';
 import { useAuthStore } from '@/store/auth';
 import { currentSong, SOURCE_FAVORITES, SOURCE_HISTORY, usePlayerStore } from '@/store/player';
+import { useRadioCovers } from '@/store/radioCovers';
 import { useSettings } from '@/store/settings';
 import { useSongMenu } from '@/store/songMenu';
 import { useToast } from '@/store/toast';
@@ -152,7 +153,13 @@ export default function PlayerScreen() {
 
   // La capa de datos resuelve la carátula: del servidor (online) o del índice
   // local por álbum (offline). Ya no se guarda el base64 en cada canción.
-  const cover = song ? coverArtUrl(song.coverArt ?? song.albumId, 600) : undefined;
+  // Emisoras de radio: carátula propia guardada en el dispositivo (Subsonic no
+  // tiene carátula para radios). Se resuelve por id de canción/emisora.
+  const radioCovers = useRadioCovers((s) => s.covers);
+  const radioCoverOf = (s?: Song) => (s?.url ? radioCovers[s.id] : undefined);
+  const cover = song
+    ? (song.url ? radioCoverOf(song) : coverArtUrl(song.coverArt ?? song.albumId, 600))
+    : undefined;
   // Fondo estilo Spotify: degradado del color dominante de la carátula
   // (desactivable en Ajustes → Aspecto). El color transiciona suave al cambiar
   // de canción: se anima un color plano y el degradado hacia el fondo es una
@@ -193,8 +200,12 @@ export default function PlayerScreen() {
   const nextSong = usePlayerStore((s) =>
     s.queue.length > 1 ? s.queue[(s.index + 1) % s.queue.length] : undefined,
   );
-  const prevCover = prevSong ? coverArtUrl(prevSong.coverArt ?? prevSong.albumId, 600) : undefined;
-  const nextCover = nextSong ? coverArtUrl(nextSong.coverArt ?? nextSong.albumId, 600) : undefined;
+  const prevCover = prevSong
+    ? (prevSong.url ? radioCoverOf(prevSong) : coverArtUrl(prevSong.coverArt ?? prevSong.albumId, 600))
+    : undefined;
+  const nextCover = nextSong
+    ? (nextSong.url ? radioCoverOf(nextSong) : coverArtUrl(nextSong.coverArt ?? nextSong.albumId, 600))
+    : undefined;
   const goNext = () => {
     const { queue, index } = usePlayerStore.getState();
     if (queue.length > 1) jumpTo(index < queue.length - 1 ? index + 1 : 0);

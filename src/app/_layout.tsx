@@ -27,6 +27,7 @@ import { useLibraries } from '@/store/libraries';
 import { checkAutoUrlNow, initAutoUrl } from '@/store/autoUrl';
 import { initNetworkType } from '@/store/networkType';
 import { usePins } from '@/store/pins';
+import { useRadioCovers } from '@/store/radioCovers';
 import { initRemoteIntegration, usePlayerStore } from '@/store/player';
 import { usePlayCounts } from '@/store/playCounts';
 import { usePlayHistory } from '@/store/playHistory';
@@ -70,6 +71,7 @@ export default function RootLayout() {
     useSortPrefs.getState().hydrate();
     void useLastPlayed.getState().hydrate();
     void usePins.getState().hydrate();
+    void useRadioCovers.getState().hydrate();
     void useDownloads.getState().hydrate();
     // Ecualizador: lee las capacidades del móvil y aplica lo guardado.
     void useEqualizer.getState().hydrate();

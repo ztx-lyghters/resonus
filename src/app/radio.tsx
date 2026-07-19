@@ -22,6 +22,7 @@ import {
   updateRadioStation,
   type RadioStation,
 } from '@/api/backend';
+import { Cover } from '@/components/Cover';
 import { Dialog } from '@/components/Dialog';
 import { EmptyState } from '@/components/EmptyState';
 import { Message } from '@/components/Message';
@@ -30,6 +31,7 @@ import { useT } from '@/i18n';
 import { queryClient } from '@/lib/query';
 import { useAuthStore } from '@/store/auth';
 import { currentSong, usePlayerStore } from '@/store/player';
+import { useRadioCovers } from '@/store/radioCovers';
 import { useToast } from '@/store/toast';
 import { colors, fontSize, radius, spacing, SCREEN_BOTTOM_PADDING } from '@/theme';
 
@@ -43,6 +45,7 @@ export default function RadioScreen() {
   const offline = useAuthStore((s) => s.offline);
   const playQueue = usePlayerStore((s) => s.playQueue);
   const playingId = usePlayerStore((s) => currentSong(s)?.id);
+  const covers = useRadioCovers((s) => s.covers);
   const toast = useToast((s) => s.show);
 
   // Jellyfin no gestiona emisoras; el modo offline no llega al servidor.
@@ -89,6 +92,7 @@ export default function RadioScreen() {
     if (!station) return;
     try {
       await deleteRadioStation(auth!, station.id);
+      void useRadioCovers.getState().removeCover(station.id);
       await refresh();
     } catch {
       toast(t("Couldn't complete the action"));
@@ -142,9 +146,7 @@ export default function RadioScreen() {
                 }
                 onLongPress={canManage ? () => setMenu(item) : undefined}
               >
-                <View style={styles.radioIcon}>
-                  <Ionicons name="radio" size={22} color={colors.textMuted} />
-                </View>
+                <Cover uri={covers[item.id]} size={52} rounded placeholderIcon="radio" />
                 <View style={{ flex: 1 }}>
                   <Text
                     style={[styles.rowTitle, playing && { color: colors.accent }]}
@@ -196,6 +198,7 @@ export default function RadioScreen() {
               }
             : EMPTY_EDIT
         }
+        coverId={editForm?.station?.id}
         onCancel={() => setEditForm(null)}
         onSave={(changes) => void saveStation(changes)}
       />
@@ -259,14 +262,6 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontSize: fontSize.lg, fontWeight: '800' },
   list: { paddingHorizontal: spacing.lg, paddingBottom: SCREEN_BOTTOM_PADDING, gap: spacing.md },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  radioIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: colors.surfaceHighlight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   rowTitle: { color: colors.text, fontSize: fontSize.md, fontWeight: '600' },
   rowSub: { color: colors.textSecondary, fontSize: fontSize.xs, marginTop: 2 },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },

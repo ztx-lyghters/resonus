@@ -24,6 +24,7 @@ import { useT } from '@/i18n';
 import { haptic } from '@/lib/haptics';
 import { useAuthStore } from '@/store/auth';
 import { currentSong, usePlayerStore } from '@/store/player';
+import { useRadioCovers } from '@/store/radioCovers';
 import { useSettings } from '@/store/settings';
 import { useToast } from '@/store/toast';
 import { colors, fontSize, radius, spacing } from '@/theme';
@@ -101,14 +102,20 @@ export function MiniPlayer() {
     translateY.value = 0;
   }, [song?.id, translateX, translateY]);
 
-  const cover = song ? coverArtUrl(song.coverArt ?? song.albumId, 100) : undefined;
+  // Emisora de radio: carátula propia del dispositivo (Subsonic no la tiene).
+  const radioCover = useRadioCovers((s) => (song?.url ? s.covers[song.id] : undefined));
+  const cover = song
+    ? (song.url ? radioCover : coverArtUrl(song.coverArt ?? song.albumId, 100))
+    : undefined;
   // Color dominante de la carátula, si el ajuste está activo; si no, superficie neutra.
   const miniColor = useSettings((s) => s.miniPlayerColorBackground);
   const marqueeTitles = useSettings((s) => s.marqueeTitles);
   // La paleta se extrae de la MISMA imagen que usa el reproductor (600 px):
   // con tamaños distintos la cuantización elige colores distintos y el mini
   // acababa de un color y la pantalla del player de otro para la misma canción.
-  const colorSource = song ? coverArtUrl(song.coverArt ?? song.albumId, 600) : undefined;
+  const colorSource = song
+    ? (song.url ? radioCover : coverArtUrl(song.coverArt ?? song.albumId, 600))
+    : undefined;
   const dominant = useDominantColor(miniColor ? colorSource : undefined);
   const bg = miniColor ? dominant : colors.surfaceHighlight;
   const offline = useAuthStore((s) => s.offline);

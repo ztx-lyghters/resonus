@@ -34,6 +34,7 @@ import { Dialog } from '@/components/Dialog';
 import { EmptyState } from '@/components/EmptyState';
 import { FavoritesArt } from '@/components/FavoritesArt';
 import { Message } from '@/components/Message';
+import { OfflineIndicator } from '@/components/OfflineIndicator';
 import { useBottomSheetAnim } from '@/hooks/useBottomSheetAnim';
 import { albumsLabel, songsLabel, useT } from '@/i18n';
 import { useAuthStore } from '@/store/auth';
@@ -565,6 +566,7 @@ export default function LibraryScreen() {
       <View style={styles.header}>
         <Text style={styles.heading}>{t('Library')}</Text>
         <View style={styles.headerActions}>
+          <OfflineIndicator />
           <Pressable
             hitSlop={12}
             accessibilityRole="button"

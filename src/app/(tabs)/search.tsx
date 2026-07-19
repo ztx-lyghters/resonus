@@ -27,6 +27,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { GenreCard } from '@/components/GenreCard';
 import { GenreGridSkeleton } from '@/components/GenreGridSkeleton';
 import { Message } from '@/components/Message';
+import { OfflineIndicator } from '@/components/OfflineIndicator';
 import { TrackRow } from '@/components/TrackRow';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useT } from '@/i18n';
@@ -139,6 +140,7 @@ export default function SearchScreen() {
             <Ionicons name="close-circle" size={20} color={colors.textMuted} />
           </Pressable>
         ) : null}
+        <OfflineIndicator />
       </View>
 
       <ScrollView

@@ -85,6 +85,10 @@ export default function BrowseAlbumsScreen() {
       getNextPageParam: (last, pages) =>
         last.length === PAGE ? pages.length * PAGE : undefined,
       enabled: canFetch,
+      // «Recién reproducidos» cambia con cada escucha: se refresca al volver a
+      // la pantalla para que se sienta vivo (los demás órdenes cambian poco y
+      // se quedan con el staleTime global de 5 min).
+      refetchOnMount: sort === 'recent' ? 'always' : undefined,
     });
 
   // ── Búsqueda al tirar hacia abajo ───────────────────────────────────────

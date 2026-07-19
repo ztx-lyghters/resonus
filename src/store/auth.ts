@@ -9,7 +9,14 @@
  */
 import { create } from 'zustand';
 
-import { makeAuth, normalizeUrl, ping, reachable, type SubsonicAuth } from '@/api/backend';
+import {
+  makeAuth,
+  normalizeUrl,
+  ping,
+  reachable,
+  SubsonicRequestError,
+  type SubsonicAuth,
+} from '@/api/backend';
 import { primaryUrl } from '@/lib/serverUrls';
 import { clearLocalCatalog } from '@/lib/localLibrary';
 import { queryClient } from '@/lib/query';
@@ -101,7 +108,12 @@ interface AuthState {
     password: string,
     serverType?: string,
   ) => Promise<void>;
-  switchProfile: (profile: Profile) => Promise<void>;
+  /**
+   * Entra en un perfil guardado. Con un perfil de servidor sin red, en vez de
+   * fallar cae al modo offline de esa cuenta (sus descargas). Devuelve a qué
+   * modo se entró para que la UI avise.
+   */
+  switchProfile: (profile: Profile) => Promise<'online' | 'offline'>;
   removeProfile: (profile: Profile) => Promise<void>;
   /** Conmuta la URL activa del perfil (una de sus `urls`). Recarga la pista en
    *  curso contra la nueva URL; la cola se conserva. */
@@ -229,15 +241,32 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         offlineSource: profile.source,
         profiles: reordered,
       });
-      return;
+      return 'offline';
     }
-    await ping(profile);
+    try {
+      await ping(profile);
+    } catch (e) {
+      // Sin red (no un rechazo de la cuenta): en vez de dejar sin entrar, se
+      // entra en el modo offline de esa cuenta —conservando `auth`— para oír las
+      // descargas. `autoOffline` hace que se reconecte sola al volver la red.
+      if (e instanceof SubsonicRequestError && e.network) {
+        await setItem(ACTIVE_KEY, JSON.stringify(profile));
+        await setItem(PROFILES_KEY, JSON.stringify(reordered));
+        await setItem(OFFLINE_KEY, '1');
+        await setItem(OFFLINE_AUTO_KEY, '1');
+        queryClient.clear();
+        set({ auth: profile, profiles: reordered, offline: true, autoOffline: true });
+        return 'offline';
+      }
+      throw e;
+    }
     await setItem(ACTIVE_KEY, JSON.stringify(profile));
     await setItem(PROFILES_KEY, JSON.stringify(reordered));
     await deleteItem(OFFLINE_KEY);
     await deleteItem(OFFLINE_AUTO_KEY);
     queryClient.clear();
     set({ auth: profile, profiles: reordered, offline: false, autoOffline: false });
+    return 'online';
   },
 
   removeProfile: async (profile) => {

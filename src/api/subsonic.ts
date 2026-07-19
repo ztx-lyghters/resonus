@@ -252,6 +252,21 @@ function buildUrl(
 const REQUEST_TIMEOUT_MS = 15000;
 
 /** Realiza una petición y desempaqueta la respuesta Subsonic. */
+/**
+ * Error de una petición Subsonic. `network` distingue "el servidor no respondió"
+ * (sin conexión o timeout) de "respondió con error" (credenciales, 4xx/5xx…):
+ * lo primero es un problema de red del que se puede caer a modo offline; lo
+ * segundo es un problema real de la cuenta que hay que mostrar.
+ */
+export class SubsonicRequestError extends Error {
+  network: boolean;
+  constructor(message: string, network: boolean) {
+    super(message);
+    this.name = 'SubsonicRequestError';
+    this.network = network;
+  }
+}
+
 async function request<T>(
   auth: SubsonicAuth,
   endpoint: string,
@@ -267,19 +282,19 @@ async function request<T>(
     });
   } catch {
     if (controller.signal.aborted) {
-      throw new Error('El servidor tardó demasiado en responder');
+      throw new SubsonicRequestError('El servidor tardó demasiado en responder', true);
     }
-    throw new Error('No se pudo conectar con el servidor');
+    throw new SubsonicRequestError('No se pudo conectar con el servidor', true);
   } finally {
     clearTimeout(timer);
   }
 
-  if (!res.ok) throw new Error(`Error de red (${res.status})`);
+  if (!res.ok) throw new SubsonicRequestError(`Error de red (${res.status})`, false);
   const json = await res.json();
   const sub = json['subsonic-response'];
-  if (!sub) throw new Error('Respuesta inesperada del servidor');
+  if (!sub) throw new SubsonicRequestError('Respuesta inesperada del servidor', false);
   if (sub.status === 'failed') {
-    throw new Error(sub.error?.message ?? 'Error de Subsonic');
+    throw new SubsonicRequestError(sub.error?.message ?? 'Error de Subsonic', false);
   }
   return sub as T;
 }

@@ -16,6 +16,7 @@ import * as Crypto from 'expo-crypto';
 import {
   CLIENT_NAME,
   normalizeUrl,
+  SubsonicRequestError,
   type Album,
   type AlbumListType,
   type Artist,
@@ -128,15 +129,17 @@ async function request<T>(
     });
   } catch {
     if (controller.signal.aborted) {
-      throw new Error('El servidor tardó demasiado en responder');
+      throw new SubsonicRequestError('El servidor tardó demasiado en responder', true);
     }
-    throw new Error('No se pudo conectar con el servidor');
+    throw new SubsonicRequestError('No se pudo conectar con el servidor', true);
   } finally {
     clearTimeout(timer);
   }
 
-  if (res.status === 401) throw new Error('Sesión caducada: vuelve a iniciar sesión');
-  if (!res.ok) throw new Error(`Error de red (${res.status})`);
+  if (res.status === 401) {
+    throw new SubsonicRequestError('Sesión caducada: vuelve a iniciar sesión', false);
+  }
+  if (!res.ok) throw new SubsonicRequestError(`Error de red (${res.status})`, false);
   const text = await res.text();
   return (text ? JSON.parse(text) : undefined) as T;
 }

@@ -178,7 +178,11 @@ export default function LoginScreen() {
 
   async function onProfileTap(p: Profile) {
     try {
-      await switchProfile(p);
+      const mode = await switchProfile(p);
+      // Perfil de servidor sin red: se entró en su modo offline (descargas).
+      if (mode === 'offline' && isServer(p)) {
+        toast(t('Offline · your downloads'));
+      }
     } catch {
       if (isServer(p)) {
         toast(t("Couldn't sign in; check the account"));

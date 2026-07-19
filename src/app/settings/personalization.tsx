@@ -122,6 +122,13 @@ export default function AppearanceSettings() {
         />
 
         <SettingRow
+          label={t('Quick grid')}
+          description={t('Pick what fills the shortcut cards and how many to show.')}
+          chevron
+          onPress={() => router.push('/settings/quick-grid')}
+        />
+
+        <SettingRow
           label={t('Explore chips')}
           description={t('Show, hide and reorder the chips at the top of Home.')}
           chevron

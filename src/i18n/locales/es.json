@@ -465,5 +465,13 @@
   "Exit local mode": "Salir del modo local",
   "Nothing here is downloaded": "Aquí no hay nada descargado",
   "Automatic offline mode": "Modo sin conexión automático",
-  "Switch to your downloads when the server is unreachable, and back when it returns.": "Pasa a tus descargas cuando el servidor no responde y vuelve online cuando responde de nuevo."
+  "Switch to your downloads when the server is unreachable, and back when it returns.": "Pasa a tus descargas cuando el servidor no responde y vuelve online cuando responde de nuevo.",
+  "Quick grid": "Rejilla rápida",
+  "Sources": "Fuentes",
+  "Size": "Tamaño",
+  "Recent albums": "Álbumes recientes",
+  "Pin favorites": "Fijar favoritos",
+  "{n} cards": "{n} tarjetas",
+  "Keep the Favorites tile first.": "Mantén el mosaico de Favoritos el primero.",
+  "Pick what fills the shortcut cards and how many to show.": "Elige qué llena las tarjetas de acceso rápido y cuántas mostrar."
 }

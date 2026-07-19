@@ -465,5 +465,13 @@
   "Exit local mode": "Exit local mode",
   "Nothing here is downloaded": "Nothing here is downloaded",
   "Automatic offline mode": "Automatic offline mode",
-  "Switch to your downloads when the server is unreachable, and back when it returns.": "Switch to your downloads when the server is unreachable, and back when it returns."
+  "Switch to your downloads when the server is unreachable, and back when it returns.": "Switch to your downloads when the server is unreachable, and back when it returns.",
+  "Quick grid": "Quick grid",
+  "Sources": "Sources",
+  "Size": "Size",
+  "Recent albums": "Recent albums",
+  "Pin favorites": "Pin favorites",
+  "{n} cards": "{n} cards",
+  "Keep the Favorites tile first.": "Keep the Favorites tile first.",
+  "Pick what fills the shortcut cards and how many to show.": "Pick what fills the shortcut cards and how many to show."
 }

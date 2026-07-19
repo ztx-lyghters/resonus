@@ -74,15 +74,22 @@ function QuickGrid() {
   const offline = useAuthStore((s) => s.offline);
   const times = useLastPlayed((s) => s.times);
   const t = useT();
+  // Fuentes y tamaño configurables (Ajustes → Aspecto → Quick grid). Cada
+  // fuente solo se consulta si está activa; el tamaño es el total de mosaicos
+  // (Favoritos incluido cuando está fijado).
+  const withFavorites = useSettings((s) => s.quickGridFavorites);
+  const withAlbums = useSettings((s) => s.quickGridAlbums);
+  const withPlaylists = useSettings((s) => s.quickGridPlaylists);
+  const size = useSettings((s) => s.quickGridSize);
   const { data: playlists } = useQuery({
     queryKey: ['playlists'],
     queryFn: () => getPlaylists(),
-    enabled: canFetch,
+    enabled: canFetch && withPlaylists,
   });
   const { data: albums } = useQuery({
     queryKey: ['albumList', offline ? 'newest' : 'recent'],
     queryFn: () => getAlbumList(offline ? 'newest' : 'recent'),
-    enabled: canFetch,
+    enabled: canFetch && withAlbums,
   });
 
   // Rejilla dinámica estilo Spotify: mezcla listas y álbumes recientes ordenados
@@ -90,34 +97,45 @@ function QuickGrid() {
   // acabas de escuchar sube; el resto se rellena con álbumes recientes (orden
   // del servidor) y listas frescas (por fecha de modificación). Favoritos queda
   // siempre fijo el primero, fuera de esta ordenación.
+  // Favoritos, si está fijado, ocupa un hueco del total; el resto se reparte
+  // entre las fuentes activas ordenadas por última escucha.
+  const dynamicCount = Math.max(0, size - (withFavorites ? 1 : 0));
   const tiles = useMemo(() => {
     type Item = { key: string; href: string; name: string; cover?: string; ts: number };
-    const pl: Item[] = (playlists ?? []).map((p) => {
-      const href = `/playlist/${p.id}`;
-      return {
-        key: href,
-        href,
-        name: p.name,
-        cover: coverArtUrl(p.coverArt ?? p.id, 100),
-        ts: times[href] ?? (Date.parse(p.changed ?? p.created ?? '') || 0),
-      };
-    });
-    const al: Item[] = (albums ?? []).map((a) => {
-      const href = `/album/${a.id}`;
-      return {
-        key: href,
-        href,
-        name: a.name,
-        cover: coverArtUrl(a.coverArt ?? a.id, 100),
-        ts: times[href] ?? 0,
-      };
-    });
-    return [...al, ...pl].sort((x, y) => y.ts - x.ts).slice(0, 7);
-  }, [playlists, albums, times]);
+    const pl: Item[] = withPlaylists
+      ? (playlists ?? []).map((p) => {
+          const href = `/playlist/${p.id}`;
+          return {
+            key: href,
+            href,
+            name: p.name,
+            cover: coverArtUrl(p.coverArt ?? p.id, 100),
+            ts: times[href] ?? (Date.parse(p.changed ?? p.created ?? '') || 0),
+          };
+        })
+      : [];
+    const al: Item[] = withAlbums
+      ? (albums ?? []).map((a) => {
+          const href = `/album/${a.id}`;
+          return {
+            key: href,
+            href,
+            name: a.name,
+            cover: coverArtUrl(a.coverArt ?? a.id, 100),
+            ts: times[href] ?? 0,
+          };
+        })
+      : [];
+    return [...al, ...pl].sort((x, y) => y.ts - x.ts).slice(0, dynamicCount);
+  }, [playlists, albums, times, withPlaylists, withAlbums, dynamicCount]);
+
+  // Sin fuentes activas no hay nada que enseñar (el interruptor general sigue
+  // decidiendo si se monta el bloque; esto cubre "todo apagado" desde aquí).
+  if (!withFavorites && tiles.length === 0) return null;
 
   return (
     <View style={styles.grid}>
-      <QuickTile href="/favorites" name={t('Favorites')} favorites />
+      {withFavorites ? <QuickTile href="/favorites" name={t('Favorites')} favorites /> : null}
       {tiles.map((it) => (
         <QuickTile key={it.key} href={it.href} name={it.name} cover={it.cover} />
       ))}

@@ -392,6 +392,14 @@ interface SettingsState {
   homeSections: HomeSection[];
   /** Cuadrícula de acceso rápido (Favoritos + recientes) arriba en Inicio. */
   showQuickGrid: boolean;
+  /** Fijar el mosaico de Favoritos el primero en el quick grid. */
+  quickGridFavorites: boolean;
+  /** Incluir álbumes recientes en el quick grid. */
+  quickGridAlbums: boolean;
+  /** Incluir playlists en el quick grid. */
+  quickGridPlaylists: boolean;
+  /** Nº total de mosaicos del quick grid (4, 6 u 8). */
+  quickGridSize: number;
   /** Mostrar el saludo ("Buenos días"…) en Inicio. */
   showGreeting: boolean;
   /** Saludo propio; vacío = el automático según la hora. */
@@ -458,6 +466,10 @@ interface SettingsState {
   /** Reemplaza la lista completa (para reordenar). */
   setHomeSections: (sections: HomeSection[]) => void;
   setShowQuickGrid: (value: boolean) => void;
+  setQuickGridFavorites: (value: boolean) => void;
+  setQuickGridAlbums: (value: boolean) => void;
+  setQuickGridPlaylists: (value: boolean) => void;
+  setQuickGridSize: (value: number) => void;
   setShowGreeting: (value: boolean) => void;
   /** Recorta a GREETING_MAX por su cuenta: el tope no depende de quien llame. */
   setCustomGreeting: (value: string) => void;
@@ -519,6 +531,10 @@ function snapshot(get: () => SettingsState) {
     swipeLeftAction: s.swipeLeftAction,
     homeSections: s.homeSections,
     showQuickGrid: s.showQuickGrid,
+    quickGridFavorites: s.quickGridFavorites,
+    quickGridAlbums: s.quickGridAlbums,
+    quickGridPlaylists: s.quickGridPlaylists,
+    quickGridSize: s.quickGridSize,
     showGreeting: s.showGreeting,
     customGreeting: s.customGreeting,
     exploreChips: s.exploreChips,
@@ -573,6 +589,10 @@ const DEFAULTS = {
   swipeLeftAction: 'off' as SwipeAction,
   homeSections: DEFAULT_HOME_SECTIONS.map((s) => ({ ...s })),
   showQuickGrid: true,
+  quickGridFavorites: true,
+  quickGridAlbums: true,
+  quickGridPlaylists: true,
+  quickGridSize: 8,
   showGreeting: true,
   customGreeting: '',
   exploreChips: DEFAULT_EXPLORE_CHIPS.map((c) => ({ ...c })),
@@ -777,6 +797,26 @@ export const useSettings = create<SettingsState>((set, get) => ({
     persist(snapshot(get));
   },
 
+  setQuickGridFavorites: (quickGridFavorites) => {
+    set({ quickGridFavorites });
+    persist(snapshot(get));
+  },
+
+  setQuickGridAlbums: (quickGridAlbums) => {
+    set({ quickGridAlbums });
+    persist(snapshot(get));
+  },
+
+  setQuickGridPlaylists: (quickGridPlaylists) => {
+    set({ quickGridPlaylists });
+    persist(snapshot(get));
+  },
+
+  setQuickGridSize: (quickGridSize) => {
+    set({ quickGridSize });
+    persist(snapshot(get));
+  },
+
   setExploreChip: (key, value) => {
     set((s) => ({
       exploreChips: s.exploreChips.map((x) => (x.key === key ? { ...x, enabled: value } : x)),
@@ -894,6 +934,10 @@ export const useSettings = create<SettingsState>((set, get) => ({
           /** Ajuste antiguo (booleano); se migra a swipeAction. */
           swipeToQueue: boolean;
           showQuickGrid: boolean;
+          quickGridFavorites: boolean;
+          quickGridAlbums: boolean;
+          quickGridPlaylists: boolean;
+          quickGridSize: number;
           showGreeting: boolean;
           customGreeting: string;
           showExploreChips: boolean;
@@ -1038,6 +1082,18 @@ export const useSettings = create<SettingsState>((set, get) => ({
         }
         if (typeof parsed.showQuickGrid === 'boolean') {
           set({ showQuickGrid: parsed.showQuickGrid });
+        }
+        if (typeof parsed.quickGridFavorites === 'boolean') {
+          set({ quickGridFavorites: parsed.quickGridFavorites });
+        }
+        if (typeof parsed.quickGridAlbums === 'boolean') {
+          set({ quickGridAlbums: parsed.quickGridAlbums });
+        }
+        if (typeof parsed.quickGridPlaylists === 'boolean') {
+          set({ quickGridPlaylists: parsed.quickGridPlaylists });
+        }
+        if (parsed.quickGridSize === 4 || parsed.quickGridSize === 6 || parsed.quickGridSize === 8) {
+          set({ quickGridSize: parsed.quickGridSize });
         }
         if (typeof parsed.showGreeting === 'boolean') {
           set({ showGreeting: parsed.showGreeting });

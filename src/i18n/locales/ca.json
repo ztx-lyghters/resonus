@@ -465,5 +465,13 @@
   "Exit local mode": "Surt del mode local",
   "Nothing here is downloaded": "Aquí no hi ha res baixat",
   "Automatic offline mode": "Mode sense connexió automàtic",
-  "Switch to your downloads when the server is unreachable, and back when it returns.": "Passa a les teves baixades quan el servidor no respon i torna en línia quan respon de nou."
+  "Switch to your downloads when the server is unreachable, and back when it returns.": "Passa a les teves baixades quan el servidor no respon i torna en línia quan respon de nou.",
+  "Quick grid": "Graella ràpida",
+  "Sources": "Fonts",
+  "Size": "Mida",
+  "Recent albums": "Àlbums recents",
+  "Pin favorites": "Fixar preferits",
+  "{n} cards": "{n} targetes",
+  "Keep the Favorites tile first.": "Mantén el mosaic de Preferits al davant.",
+  "Pick what fills the shortcut cards and how many to show.": "Tria què omple les targetes d’accés ràpid i quantes es mostren."
 }

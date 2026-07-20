@@ -181,7 +181,7 @@ export default function LoginScreen() {
       const mode = await switchProfile(p);
       // Perfil de servidor sin red: se entró en su modo offline (descargas).
       if (mode === 'offline' && isServer(p)) {
-        toast(t('Offline · your downloads'));
+        toast(t('Offline'));
       }
     } catch {
       if (isServer(p)) {

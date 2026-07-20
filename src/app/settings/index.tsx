@@ -132,7 +132,7 @@ export default function SettingsScreen() {
               style={({ pressed }) => [styles.offlinePill, pressed && { opacity: 0.6 }]}
               onPress={() => {
                 void goOffline(false);
-                toast(t('Offline · your downloads'));
+                toast(t('Offline'));
                 router.replace('/(tabs)');
               }}
             >

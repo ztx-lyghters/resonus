@@ -91,7 +91,7 @@ async function check(): Promise<void> {
       if (consecutiveFails >= 2) {
         consecutiveFails = 0;
         await now.goOffline(true);
-        useToast.getState().show(tg('Offline · your downloads'));
+        useToast.getState().show(tg('Offline'));
       } else {
         schedule(); // re-sondea en un momento para confirmar
       }

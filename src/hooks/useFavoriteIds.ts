@@ -8,7 +8,31 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { getStarred, type StarType } from '@/api/data';
+import { type Starred } from '@/api/subsonic';
 import { useAuthStore } from '@/store/auth';
+
+// Un Set por objeto `Starred` (y por tipo), compartido entre TODAS las filas.
+// React Query entrega el mismo objeto `data` a todos los consumidores mientras
+// no se invalide, así que el WeakMap devuelve siempre el mismo Set: no se
+// reconstruye por fila ni por render. Antes se hacía en un `select` inline, que
+// al no memoizarse recreaba el Set con todos los favoritos en cada render de
+// cada TrackRow (coste real al montar filas mientras se hace scroll).
+const setCache = new WeakMap<Starred, Partial<Record<StarType, Set<string>>>>();
+
+function idSet(data: Starred, type: StarType): Set<string> {
+  let entry = setCache.get(data);
+  if (!entry) {
+    entry = {};
+    setCache.set(data, entry);
+  }
+  let set = entry[type];
+  if (!set) {
+    const list = type === 'album' ? data.albums : type === 'artist' ? data.artists : data.songs;
+    set = new Set(list.map((x) => x.id));
+    entry[type] = set;
+  }
+  return set;
+}
 
 export function useFavoriteIds(enabled = true, type: StarType = 'song'): Set<string> | undefined {
   const canFetch = useAuthStore((s) => !!s.auth || s.offline);
@@ -16,10 +40,6 @@ export function useFavoriteIds(enabled = true, type: StarType = 'song'): Set<str
     queryKey: ['starred'],
     queryFn: () => getStarred(),
     enabled: enabled && canFetch,
-    select: (d) =>
-      new Set(
-        (type === 'album' ? d.albums : type === 'artist' ? d.artists : d.songs).map((x) => x.id),
-      ),
   });
-  return data;
+  return data ? idSet(data, type) : undefined;
 }

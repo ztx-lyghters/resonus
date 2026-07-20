@@ -365,6 +365,11 @@ export function TrackListView({
         ref={listRef}
         simultaneousHandlers={revealPanRef}
         {...listPerf}
+        // Cada fila monta un ReanimatedSwipeable (gestos + reanimated); con
+        // `removeClippedSubviews` (bug conocido de Android) esas filas pesadas
+        // salen en blanco y tardan en aparecer al scrollear listas grandes.
+        // Desactivarlo aquí las mantiene montadas dentro de la ventana virtual.
+        removeClippedSubviews={false}
         data={shownSongs}
         keyExtractor={(item) => item.id}
         keyboardShouldPersistTaps="handled"

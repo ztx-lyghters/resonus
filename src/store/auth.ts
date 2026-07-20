@@ -219,8 +219,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await setItem(PROFILES_KEY, JSON.stringify(profiles));
     await deleteItem(OFFLINE_KEY);
     await deleteItem(OFFLINE_AUTO_KEY);
-    queryClient.clear();
     set({ auth, profiles, offline: false, autoOffline: false });
+    // Sube al servidor lo que quedara pendiente en el outbox de este perfil
+    // (p. ej. cambios hechos offline antes de cerrar sesión). Best-effort.
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      await require('@/api/data').flushOfflineQueue(auth);
+    } catch {
+      // No bloquea el inicio de sesión.
+    }
+    queryClient.clear();
   },
 
   switchProfile: async (profile) => {
@@ -264,8 +272,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await setItem(PROFILES_KEY, JSON.stringify(reordered));
     await deleteItem(OFFLINE_KEY);
     await deleteItem(OFFLINE_AUTO_KEY);
-    queryClient.clear();
     set({ auth: profile, profiles: reordered, offline: false, autoOffline: false });
+    // Sube al servidor lo que quedara pendiente en el outbox de este perfil.
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      await require('@/api/data').flushOfflineQueue(profile);
+    } catch {
+      // No bloquea el cambio de perfil.
+    }
+    queryClient.clear();
     return 'online';
   },
 

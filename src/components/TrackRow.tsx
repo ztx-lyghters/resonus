@@ -204,10 +204,13 @@ export function TrackRow({
     <Pressable
       // Sin feedback visual al pulsar (como Spotify): el "pressed" saltaba con
       // el dedo al scrollear y parecía que se estaban pulsando las filas.
-      style={[styles.row, unavailable && styles.dimmed]}
-      onPressIn={unavailable ? undefined : onPressIn}
-      onPress={unavailable ? () => toast(t('Not available offline')) : onPress}
-      onLongPress={unavailable ? undefined : onLongPress}
+      // No descargada: atenuada y con aviso al tocar FUERA de selección; dentro
+      // de selección participa normal (mantener pulsado entra, tocar marca) para
+      // poder añadirla a una lista aunque no se pueda reproducir.
+      style={[styles.row, unavailable && !selecting && styles.dimmed]}
+      onPressIn={unavailable && !selecting ? undefined : onPressIn}
+      onPress={unavailable && !selecting ? () => toast(t('Not available offline')) : onPress}
+      onLongPress={onLongPress}
     >
       {selecting ? (
         <Ionicons

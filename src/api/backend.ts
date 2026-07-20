@@ -43,9 +43,10 @@ export function makeAuth(
   username: string,
   password: string,
   serverType?: string,
+  plainAuth?: boolean,
 ): Promise<SubsonicAuth> {
   if (serverType === 'jellyfin') return Jellyfin.makeAuth(serverUrl, username, password);
-  return Subsonic.makeAuth(serverUrl, username, password, serverType);
+  return Subsonic.makeAuth(serverUrl, username, password, serverType, plainAuth);
 }
 
 export const ping = (auth: SubsonicAuth) => api(auth).ping(auth);

@@ -107,6 +107,7 @@ interface AuthState {
     username: string,
     password: string,
     serverType?: string,
+    plainAuth?: boolean,
   ) => Promise<void>;
   /**
    * Entra en un perfil guardado. Con un perfil de servidor sin red, en vez de
@@ -195,8 +196,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  login: async (serverUrl, username, password, serverType) => {
-    const base = await makeAuth(serverUrl, username, password, serverType);
+  login: async (serverUrl, username, password, serverType, plainAuth) => {
+    const base = await makeAuth(serverUrl, username, password, serverType, plainAuth);
     const auth: ServerProfile = {
       ...base,
       // Nace con su URL como única candidata; se añaden más desde Ajustes › Red.

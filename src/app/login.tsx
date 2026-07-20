@@ -10,6 +10,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -123,6 +124,10 @@ export default function LoginScreen() {
   const [serverUrl, setServerUrl] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  // Auth en claro (`p=enc:`) para montajes con proxy/SSO que no validan el
+  // hash con salt; off por defecto (el token con salt es lo estándar y seguro).
+  const [plainAuth, setPlainAuth] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showAll, setShowAll] = useState(false);
@@ -130,6 +135,9 @@ export default function LoginScreen() {
   const [step, setStep] = useState<'home' | 'server' | 'form'>('home');
 
   const isLocal = server === 'local';
+  // Solo tiene sentido en servidores Subsonic que por defecto usan token+salt.
+  // Ampache ya va siempre en claro; Jellyfin tiene su propia auth por sesión.
+  const supportsPlainAuth = server === 'navidrome' || server === 'opensubsonic';
   // Sin exigir contraseña: hay servidores con cuentas sin ella (p. ej. la
   // demo pública de Jellyfin).
   const canSubmit = serverUrl.trim() && username.trim() && !loading;
@@ -143,6 +151,8 @@ export default function LoginScreen() {
   function pickServer(key: ServerKey | 'local') {
     setServer(key);
     setError(null);
+    setPlainAuth(false);
+    setShowAdvanced(false);
     setStep('form');
   }
 
@@ -168,7 +178,7 @@ export default function LoginScreen() {
     setError(null);
     setLoading(true);
     try {
-      await login(serverUrl, username, password, server);
+      await login(serverUrl, username, password, server, supportsPlainAuth && plainAuth);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("Couldn't sign in"));
     } finally {
@@ -376,6 +386,40 @@ export default function LoginScreen() {
                     />
                   </View>
 
+                  {supportsPlainAuth ? (
+                    <View>
+                      <Pressable
+                        style={styles.advancedToggle}
+                        onPress={() => setShowAdvanced((v) => !v)}
+                      >
+                        <Text style={styles.advancedLink}>{t('Advanced')}</Text>
+                        <Ionicons
+                          name={showAdvanced ? 'chevron-up' : 'chevron-down'}
+                          size={16}
+                          color={colors.textSecondary}
+                        />
+                      </Pressable>
+                      {showAdvanced ? (
+                        <View style={styles.switchRow}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.switchLabel}>
+                              {t('Plain-text password authentication')}
+                            </Text>
+                            <Text style={styles.switchDesc}>
+                              {t('Sends the password directly instead of a salted token. Only enable it if your server sits behind a reverse proxy or SSO that requires it.')}
+                            </Text>
+                          </View>
+                          <Switch
+                            value={plainAuth}
+                            onValueChange={setPlainAuth}
+                            trackColor={{ false: colors.border, true: colors.accent }}
+                            thumbColor={colors.text}
+                          />
+                        </View>
+                      ) : null}
+                    </View>
+                  ) : null}
+
                   {error ? <Text style={styles.error}>{error}</Text> : null}
 
                   <Pressable
@@ -561,6 +605,22 @@ const styles = StyleSheet.create({
   localOptTitle: { color: colors.text, fontSize: fontSize.md, fontWeight: '700' },
   localOptSub: { color: colors.textSecondary, fontSize: fontSize.xs, marginTop: 2 },
   form: { gap: spacing.md },
+  advancedToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    alignSelf: 'flex-start',
+    paddingVertical: spacing.xs,
+  },
+  advancedLink: { color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: '600' },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.sm,
+  },
+  switchLabel: { color: colors.text, fontSize: fontSize.sm, fontWeight: '600' },
+  switchDesc: { color: colors.textMuted, fontSize: fontSize.xs, marginTop: 2 },
   error: { color: colors.danger, fontSize: fontSize.sm },
   button: {
     borderRadius: radius.pill,

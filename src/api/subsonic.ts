@@ -32,11 +32,19 @@ export interface SubsonicAuth {
   /** Tipo de servidor (para mostrar su logo); navidrome/opensubsonic/ampache. */
   serverType?: string;
   /**
-   * Contraseña en claro, solo para servidores que no soportan bien la auth por
-   * token (Ampache). Se manda como `p=enc:<hex>` siguiendo el método clásico de
-   * Subsonic. Para los demás servidores no se guarda (se usa token + salt).
+   * Contraseña en claro. Se manda como `p=enc:<hex>` (método clásico de
+   * Subsonic) en vez de token + salt. Se guarda cuando el servidor no valida
+   * bien la auth por token (Ampache) o cuando el usuario fuerza la auth en
+   * claro (`plainAuth`, p. ej. proxies/SSO que validan contra un backend
+   * externo). En el resto no se guarda (se usa token + salt).
    */
   password?: string;
+  /**
+   * El usuario forzó la auth en claro (`p=enc:`) en el perfil, para montajes
+   * (reverse-proxy/LDAP/SSO) que no pueden validar el hash con salt contra un
+   * backend externo. Solo informativo; el envío en claro lo decide `password`.
+   */
+  plainAuth?: boolean;
   /**
    * Contraseña para la API nativa de Navidrome (JWT), que necesita usuario y
    * contraseña en claro. Solo se guarda en perfiles Navidrome; la auth
@@ -208,20 +216,24 @@ export async function makeAuth(
   username: string,
   password: string,
   serverType?: string,
+  plainAuth?: boolean,
 ): Promise<SubsonicAuth> {
   const salt = randomSalt();
   const token = await Crypto.digestStringAsync(
     Crypto.CryptoDigestAlgorithm.MD5,
     password + salt,
   );
+  // Ampache valida mal el token, y el usuario puede forzar la auth en claro
+  // (proxies/SSO): en ambos casos guardamos la contraseña para usar `p=enc:`.
+  const usePlain = isAmpache(serverType) || !!plainAuth;
   return {
     serverUrl: normalizeUrl(serverUrl),
     username,
     token,
     salt,
     serverType,
-    // Ampache valida mal el token; guardamos la contraseña para usar `p=enc:`.
-    ...(isAmpache(serverType) ? { password } : {}),
+    ...(usePlain ? { password } : {}),
+    ...(plainAuth ? { plainAuth: true } : {}),
     // Navidrome: la API nativa (subir carátulas) necesita la contraseña.
     ...(serverType === 'navidrome' ? { ndPassword: password } : {}),
   };

@@ -37,7 +37,8 @@ import { useMediaMenu } from '@/store/mediaMenu';
 import { currentSong, usePlayerStore } from '@/store/player';
 import { useRecentSearches, type RecentItem } from '@/store/recentSearches';
 import { useSettings } from '@/store/settings';
-import { colors, fontSize, radius, spacing, SCREEN_BOTTOM_PADDING } from '@/theme';
+import { colors, fontSize, radius, spacing } from '@/theme';
+import { useScreenBottomPadding } from '@/hooks/useScreenBottomPadding';
 
 const GENRE_W = (Dimensions.get('window').width - spacing.lg * 2 - spacing.sm) / 2;
 
@@ -47,6 +48,7 @@ export default function SearchScreen() {
   const canSearch = useAuthStore((s) => !!s.auth || s.offline);
   const auth = useAuthStore((s) => s.auth);
   const t = useT();
+  const bottomPad = useScreenBottomPadding();
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
   const debouncedQuery = useDebounce(query.trim(), 350);
@@ -144,7 +146,7 @@ export default function SearchScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: bottomPad }]}
         keyboardShouldPersistTaps="handled"
       >
         {showRecent ? (
@@ -366,7 +368,6 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: SCREEN_BOTTOM_PADDING,
   },
   section: {
     marginBottom: spacing.xl,

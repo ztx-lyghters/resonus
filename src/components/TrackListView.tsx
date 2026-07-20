@@ -38,7 +38,8 @@ import { haptic } from '@/lib/haptics';
 import { listPerf } from '@/lib/listPerf';
 import { useArtistPicker } from '@/store/artistPicker';
 import { usePlayerStore } from '@/store/player';
-import { colors, fontSize, radius, spacing, SCREEN_BOTTOM_PADDING } from '@/theme';
+import { colors, fontSize, radius, spacing } from '@/theme';
+import { useScreenBottomPadding } from '@/hooks/useScreenBottomPadding';
 import { Cover } from './Cover';
 import { FavoriteButton } from './FavoriteButton';
 import { TrackRow } from './TrackRow';
@@ -163,6 +164,7 @@ export function TrackListView({
   const router = useRouter();
   const t = useT();
   const insets = useSafeAreaInsets();
+  const bottomPad = useScreenBottomPadding();
   const dominant = useDominantColor(coverUri);
   const headerColor = accentColor ?? dominant;
   const shuffle = usePlayerStore((s) => s.shuffle);
@@ -369,7 +371,7 @@ export function TrackListView({
         keyboardDismissMode="on-drag"
         contentContainerStyle={[
           styles.list,
-          { paddingTop: insets.top + TOPBAR_H + spacing.md },
+          { paddingTop: insets.top + TOPBAR_H + spacing.md, paddingBottom: bottomPad },
         ]}
         scrollEventThrottle={16}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
@@ -817,7 +819,6 @@ const styles = StyleSheet.create({
   addLabel: { color: colors.text, fontSize: fontSize.md, fontWeight: '700' },
   list: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: SCREEN_BOTTOM_PADDING,
   },
   header: {
     paddingBottom: spacing.lg,

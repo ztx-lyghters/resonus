@@ -44,7 +44,8 @@ import { usePins } from '@/store/pins';
 import { useSettings, type LibrarySort } from '@/store/settings';
 import { useAccent } from '@/hooks/useAccent';
 import { useToast } from '@/store/toast';
-import { colors, fontSize, radius, spacing, SCREEN_BOTTOM_PADDING } from '@/theme';
+import { colors, fontSize, radius, spacing } from '@/theme';
+import { useScreenBottomPadding } from '@/hooks/useScreenBottomPadding';
 import { listPerf } from '@/lib/listPerf';
 import { haptic } from '@/lib/haptics';
 
@@ -202,6 +203,7 @@ function PlaylistsTab({ onNew }: { onNew?: () => void }) {
   const pins = usePins((s) => s.pins);
   const openMenu = useMediaMenu((s) => s.open);
   const grid = useSettings((s) => s.libraryLayout) === 'grid';
+  const bottomPad = useScreenBottomPadding();
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['playlists'],
     queryFn: () => getPlaylists(),
@@ -228,7 +230,7 @@ function PlaylistsTab({ onNew }: { onNew?: () => void }) {
     <FlatList
       key={grid ? 'grid' : 'list'}
       {...listPerf}
-      {...gridListProps(grid)}
+      {...gridListProps(grid, bottomPad)}
       data={listData}
       keyExtractor={(item) => item.id}
       refreshControl={
@@ -289,6 +291,7 @@ function ArtistsTab() {
   const times = useLastPlayed((s) => s.times);
   const { byArtist } = useHistoryTimes();
   const grid = useSettings((s) => s.libraryLayout) === 'grid';
+  const bottomPad = useScreenBottomPadding();
   // Solo artistas favoritos (lo explorable está en Inicio).
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['starred'],
@@ -309,7 +312,7 @@ function ArtistsTab() {
     <FlatList
       key={grid ? 'grid' : 'list'}
       {...listPerf}
-      {...gridListProps(grid)}
+      {...gridListProps(grid, bottomPad)}
       data={artists}
       keyExtractor={(item) => item.id}
       refreshControl={
@@ -343,6 +346,7 @@ function ArtistsTab() {
 function FoldersTab() {
   const t = useT();
   const router = useRouter();
+  const bottomPad = useScreenBottomPadding();
   const canFetch = useAuthStore((s) => !!s.auth);
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['musicFolders'],
@@ -356,7 +360,7 @@ function FoldersTab() {
   return (
     <FlatList
       {...listPerf}
-      contentContainerStyle={styles.list}
+      contentContainerStyle={[styles.list, { paddingBottom: bottomPad }]}
       data={folders}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => (
@@ -391,6 +395,7 @@ function AlbumsTab() {
   const { byAlbum } = useHistoryTimes();
   const openMenu = useMediaMenu((s) => s.open);
   const grid = useSettings((s) => s.libraryLayout) === 'grid';
+  const bottomPad = useScreenBottomPadding();
   // Solo álbumes favoritos (lo explorable está en Inicio).
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['starred'],
@@ -415,7 +420,7 @@ function AlbumsTab() {
     <FlatList
       key={grid ? 'grid' : 'list'}
       {...listPerf}
-      {...gridListProps(grid)}
+      {...gridListProps(grid, bottomPad)}
       data={albums}
       keyExtractor={(item) => item.id}
       refreshControl={
@@ -519,14 +524,14 @@ function GridCard({
  * directo en cada lista para forzar el remonte: FlatList no admite cambiar
  * `numColumns` en caliente (y `key` no puede ir en un spread).
  */
-function gridListProps(grid: boolean) {
+function gridListProps(grid: boolean, bottomPad: number) {
   return grid
     ? {
         numColumns: GRID_COLUMNS,
         columnWrapperStyle: { gap: GRID_GAP },
-        contentContainerStyle: styles.gridList,
+        contentContainerStyle: [styles.gridList, { paddingBottom: bottomPad }],
       }
-    : { contentContainerStyle: styles.list };
+    : { contentContainerStyle: [styles.list, { paddingBottom: bottomPad }] };
 }
 
 export default function LibraryScreen() {
@@ -658,12 +663,10 @@ const styles = StyleSheet.create({
   segmentTextActive: { color: '#000' },
   list: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: SCREEN_BOTTOM_PADDING,
     gap: spacing.md,
   },
   gridList: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: SCREEN_BOTTOM_PADDING,
     gap: spacing.lg,
   },
   card: { width: GRID_CARD, gap: spacing.xs },

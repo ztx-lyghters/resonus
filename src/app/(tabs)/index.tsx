@@ -38,7 +38,8 @@ import { checkAutoUrlNow } from '@/store/autoUrl';
 import { useLastPlayed } from '@/store/lastPlayed';
 import { useScanProgress } from '@/store/scanProgress';
 import { useSettings, type ExploreChipKey, type HomeSectionKey } from '@/store/settings';
-import { colors, fontSize, radius, spacing, SCREEN_BOTTOM_PADDING } from '@/theme';
+import { colors, fontSize, radius, spacing } from '@/theme';
+import { useScreenBottomPadding } from '@/hooks/useScreenBottomPadding';
 import { listPerf } from '@/lib/listPerf';
 import { playShuffle } from '@/lib/playShuffle';
 
@@ -454,6 +455,7 @@ const HOME_ALBUM_CONFIG: Record<
 export default function HomeScreen() {
   const auth = useAuthStore((s) => s.auth);
   const offline = useAuthStore((s) => s.offline);
+  const bottomPad = useScreenBottomPadding();
   const scanning = useScanProgress((s) => s.phase !== 'idle');
   const queryClient = useQueryClient();
   const t = useT();
@@ -514,7 +516,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: bottomPad }]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -622,7 +624,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  content: { paddingVertical: spacing.md, paddingBottom: SCREEN_BOTTOM_PADDING },
+  content: { paddingVertical: spacing.md },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

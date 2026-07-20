@@ -69,8 +69,16 @@ export const fontSize = {
 /** Altura de la barra de pestañas (sin contar el safe-area inferior). */
 export const TAB_BAR_HEIGHT = 60;
 
+/** Altura aproximada del MiniPlayer flotante (carátula de 44 + padding). */
+export const MINI_PLAYER_HEIGHT = 60;
+
 /**
- * Espacio inferior que dejan las listas para no quedar tapadas por el
- * MiniPlayer flotante + la barra de pestañas.
+ * Espacio inferior fijo para listas de pantallas SIN barra de pestañas: el
+ * MiniPlayer flota al fondo y este hueco lo despeja con margen de sobra.
+ *
+ * En las pantallas de pestañas (Inicio, Buscar, Biblioteca) el MiniPlayer se
+ * apila encima de la barra, así que necesitan además el safe-area inferior
+ * real (que varía según gestos vs. 3 botones); esas usan
+ * `useScreenBottomPadding()`, no esta constante.
  */
 export const SCREEN_BOTTOM_PADDING = 140;

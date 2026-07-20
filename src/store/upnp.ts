@@ -11,6 +11,7 @@ import { create } from 'zustand';
 
 import { streamUrl, type Song } from '@/api/backend';
 import { useAuthStore } from './auth';
+import { castStop } from './castMedia';
 import { useSettings } from './settings';
 
 /** Eventos que el player registra para reaccionar a la salida remota (UPnP). */
@@ -67,6 +68,10 @@ let lastDurationSec = 0;
 let finishedFired = false;
 /** Ignora STOPPED transitorios mientras el renderer carga otra pista. */
 let loading = false;
+/** Hemos visto PLAYING desde la última carga/pausa (para deducir el fin). */
+let wasPlaying = false;
+/** La pausa la pedimos nosotros: un STOPPED tras esto no es un fin de pista. */
+let pausedByUs = false;
 
 export function isUpnpConnected(): boolean {
   return useUpnp.getState().connected;
@@ -87,6 +92,8 @@ function onNativeState(e: NativeState) {
     case 'PLAYING':
       loading = false;
       finishedFired = false;
+      wasPlaying = true;
+      pausedByUs = false;
       events?.onProgress(pos, dur || lastDurationSec);
       events?.onPlayingChanged(true, false);
       break;
@@ -94,15 +101,27 @@ function onNativeState(e: NativeState) {
       events?.onPlayingChanged(true, true);
       break;
     case 'PAUSED':
+      wasPlaying = false;
       events?.onProgress(pos, dur || lastDurationSec);
       events?.onPlayingChanged(false, false);
       break;
     case 'STOPPED':
     case 'IDLE':
-      // Fin natural: el renderer paró estando ya cerca del final.
-      if (!finishedFired && !loading && lastDurationSec > 0 && lastPositionSec >= lastDurationSec - 3) {
-        finishedFired = true;
-        events?.onFinished();
+      // UPnP no distingue "terminó" de "lo pararon": deducimos el fin natural
+      // de un STOPPED que llega tras haber estado reproduciendo (no una pausa
+      // nuestra). Ventana amplia hasta el final (10% de la pista, mínimo 5 s):
+      // el sondeo es de 1 s y algunos renderers dejan de reportar la posición
+      // en los últimos segundos, así que un umbral fijo de 3 s se quedaba corto
+      // y la cola no avanzaba. Sin duración conocida, nos fiamos de que veníamos
+      // reproduciendo (mejor avanzar que quedarse clavado).
+      if (!finishedFired && !loading && wasPlaying && !pausedByUs) {
+        const window = Math.max(5, lastDurationSec * 0.1);
+        const nearEnd = lastDurationSec <= 0 || lastPositionSec >= lastDurationSec - window;
+        if (nearEnd) {
+          finishedFired = true;
+          wasPlaying = false;
+          events?.onFinished();
+        }
       }
       break;
     default:
@@ -131,6 +150,8 @@ export async function upnpConnect(device: UpnpDevice): Promise<boolean> {
   lastPositionSec = 0;
   lastDurationSec = 0;
   finishedFired = false;
+  wasPlaying = false;
+  pausedByUs = false;
   stateSub?.remove();
   stateSub = native.addListener('state', onNativeState);
   useUpnp.setState({ connected: true, deviceId: device.id, deviceName: device.name });
@@ -143,6 +164,9 @@ export async function upnpDisconnect(silent = false): Promise<void> {
   if (!isUpnpConnected()) return;
   stateSub?.remove();
   stateSub = undefined;
+  // Cierra la sesión de medios del casting en cualquier vía de desconexión
+  // (incluidas las silenciosas: cambio de salida, reset), no solo la normal.
+  castStop();
   useUpnp.setState({ connected: false, deviceId: null, deviceName: null });
   try {
     await native?.disconnect();
@@ -166,6 +190,8 @@ export async function upnpLoad(song: Song, autoplay: boolean, startTimeSec = 0):
   if (!url) return false;
   loading = true;
   finishedFired = false;
+  wasPlaying = false;
+  pausedByUs = false;
   lastPositionSec = startTimeSec;
   lastDurationSec = song.duration ?? 0;
   const title = [song.title, song.artist].filter(Boolean).join(' — ');
@@ -182,6 +208,7 @@ export async function upnpLoad(song: Song, autoplay: boolean, startTimeSec = 0):
 }
 
 export async function upnpPlay(): Promise<void> {
+  pausedByUs = false;
   try {
     await native?.play();
   } catch {
@@ -190,6 +217,9 @@ export async function upnpPlay(): Promise<void> {
 }
 
 export async function upnpPause(): Promise<void> {
+  // Marca la pausa como nuestra: si el renderer reporta STOPPED en vez de
+  // PAUSED, no lo confundimos con un fin de pista (no avanzaría la cola).
+  pausedByUs = true;
   try {
     await native?.pause();
   } catch {

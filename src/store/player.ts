@@ -66,6 +66,7 @@ import {
   jukeboxSeek,
   jukeboxSetVolume,
 } from './jukebox';
+import { castSetState, castUpdate, initCastMedia } from './castMedia';
 import { useDownloads } from './downloads';
 import { useNetworkType } from './networkType';
 import { usePlayCounts } from './playCounts';
@@ -377,6 +378,27 @@ function remoteSetVolume(volume: number) {
   else upnpSetVolume(volume);
 }
 
+/**
+ * Sincroniza la sesión de medios del casting (notificación de bloqueo + botones
+ * de volumen) con la pista/estado actual. Solo para UPnP: el Jukebox suena en el
+ * propio servidor y no necesita una sesión local en el teléfono.
+ */
+function syncCastMedia(): void {
+  if (!isUpnpConnected()) return;
+  const st = usePlayerStore.getState();
+  const song = currentSong(st);
+  if (!song) return;
+  castUpdate({
+    title: song.title,
+    artist: song.artist ?? undefined,
+    album: song.album ?? undefined,
+    artworkUrl: artworkUrlFor(song),
+    durationMs: (song.duration ?? st.durationSec) * 1000,
+    positionMs: st.positionSec * 1000,
+    isPlaying: st.isPlaying,
+  });
+}
+
 /** Carga la pista en `index` en la salida remota y sincroniza el estado. */
 async function remoteLoadIndex(index: number, autoplay: boolean, startSec = 0) {
   const song = usePlayerStore.getState().queue[index];
@@ -542,6 +564,8 @@ function onTrackChanged(song: Song) {
   scheduleSync();
   warmUpcoming();
   void maybeQueueAutoplay();
+  // Casting: refleja la nueva pista en la sesión de medios (bloqueo/volumen).
+  syncCastMedia();
 }
 
 // ── Precarga de próximas pistas (calienta el stream por adelantado) ──────────
@@ -1328,7 +1352,8 @@ export function initRemoteIntegration() {
       if (queue[index]) void remoteLoadIndex(index, isPlaying, positionSec);
     },
     onDisconnected: (lastPositionSec) => {
-      // Vuelve al player local, en pausa, donde se quedó el cast.
+      // La sesión de medios del casting ya la cierra `upnpDisconnect` (cubre
+      // también los cortes silenciosos). Aquí solo volvemos al player local.
       const { queue, index } = usePlayerStore.getState();
       if (!queue[index]) return;
       void (async () => {
@@ -1346,6 +1371,8 @@ export function initRemoteIntegration() {
         durationSec: durationSec || usePlayerStore.getState().durationSec,
       });
       maybeScrobbleThreshold(positionSec);
+      // Mueve el scrubber de la notificación/bloqueo del casting.
+      if (isUpnpConnected()) castSetState(usePlayerStore.getState().isPlaying, positionSec * 1000);
     },
     onPlayingChanged: (isPlaying, isBuffering) => {
       usePlayerStore.setState({ isPlaying, isBuffering });
@@ -1354,6 +1381,8 @@ export function initRemoteIntegration() {
         stopPeriodicSync();
         scheduleSync();
       }
+      // Refleja play/pausa en la sesión de medios del casting.
+      if (isUpnpConnected()) castSetState(isPlaying, usePlayerStore.getState().positionSec * 1000);
     },
     onFinished: () => {
       if (handleSleepAtSongEnd()) return;
@@ -1369,6 +1398,36 @@ export function initRemoteIntegration() {
   };
   initUpnp(events);
   initJukebox(events);
+  // Controles pulsados en la notificación/bloqueo o botones de volumen durante
+  // el casting: las acciones del store ya se enrutan al renderer (remoteKind()).
+  initCastMedia((action, value) => {
+    if (!isUpnpConnected()) return;
+    const st = usePlayerStore.getState();
+    switch (action) {
+      case 'play':
+        if (!st.isPlaying) st.toggle();
+        break;
+      case 'pause':
+      case 'stop':
+        if (st.isPlaying) st.toggle();
+        break;
+      case 'next':
+        st.next();
+        break;
+      case 'previous':
+        st.previous();
+        break;
+      case 'seek':
+        if (value != null) st.seekTo(value / 1000);
+        break;
+      case 'volume':
+        // El sistema manda +1 / -1 por pulsación; movemos el volumen a pasos.
+        st.setVolume(st.volume + (value ?? 0) * 0.05);
+        break;
+      default:
+        break;
+    }
+  });
 }
 
 interface PlayerState {

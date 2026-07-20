@@ -21,6 +21,7 @@ import { create } from 'zustand';
 import {
   coverArtUrl,
   downloadUrl,
+  getAlbum,
   getLyrics,
   getLyricsBySongId,
   streamUrl,
@@ -38,6 +39,7 @@ import { siblingLrcUri } from '@/lib/localLyrics';
 import { queryClient } from '@/lib/query';
 import { primaryUrl } from '@/lib/serverUrls';
 import { useAuthStore } from './auth';
+import { useLibraryMirror } from './libraryMirror';
 import { useSettings } from './settings';
 import { useToast } from './toast';
 
@@ -268,6 +270,27 @@ function toLocalAlbum(album: Album, coverUri?: string): DlAlbum {
   };
 }
 
+/**
+ * Guarda en el espejo de biblioteca el tracklist COMPLETO de cada álbum de estas
+ * canciones (best-effort, en segundo plano, estando online). Así, offline, un
+ * álbum del que solo bajaste alguna canción se ve entero con las no descargadas
+ * en gris. Salta los que ya estén en el espejo para no repetir peticiones.
+ */
+async function mirrorAlbumTracklists(auth: SubsonicAuth, songs: Song[]): Promise<void> {
+  const mirror = useLibraryMirror.getState();
+  const have = mirror.data.albums ?? {};
+  const ids = [...new Set(songs.map((s) => s.albumId).filter((id): id is string => !!id))];
+  for (const id of ids) {
+    if (have[id]) continue;
+    try {
+      const res = await getAlbum(auth, id);
+      mirror.saveAlbum(id, res.album, res.songs);
+    } catch {
+      // best-effort: si el álbum no se puede pedir, se queda sin espejar.
+    }
+  }
+}
+
 /** Álbum sintetizado desde una canción (playlists con álbumes no descargados enteros). */
 function albumFromSong(song: Song): Album {
   return {
@@ -470,6 +493,9 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       await Promise.all(workers);
 
       invalidate();
+      // En segundo plano: espeja el tracklist completo de los álbumes tocados,
+      // para verlos enteros (con grises) offline aunque solo bajaras una canción.
+      if (!cancelling.has(groupKey)) void mirrorAlbumTracklists(auth, pending);
       if (cancelling.has(groupKey)) {
         useToast.getState().show(tg('Download stopped'));
       } else if (failed > 0) {

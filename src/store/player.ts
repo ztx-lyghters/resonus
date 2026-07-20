@@ -569,7 +569,6 @@ function warmUpcoming() {
   if (!auth || useAuthStore.getState().offline) return;
   const { queue, index, repeat } = usePlayerStore.getState();
   if (queue.length <= 1) return;
-  const max = effectiveMaxBitRate();
   for (let i = 1; i <= PRELOAD_AHEAD; i++) {
     // 'one' no cambia de pista; con 'all' la cola da la vuelta, si no se corta.
     const ni = repeat === 'all' ? (index + i) % queue.length : index + i;
@@ -579,7 +578,13 @@ function warmUpcoming() {
     if (!song || song.url || song.localUri || downloadedUri(song)) continue;
     if (warmedIds.has(song.id)) continue;
     warmedIds.add(song.id);
-    void warmStream(streamUrl(auth, song.id, max));
+    // Sin `maxBitRate`: se calienta el ORIGEN, no la transcodificación. En un
+    // proxy tipo Octo Fiesta esto dispara igual la bajada del proveedor (que es
+    // lo lento), pero NO deja fijada la sesión transcodificada que luego usa la
+    // reproducción, que así conserva el seek (con la URL de stream idéntica, esa
+    // primera petición la volvía no-buscable y el arrastre reiniciaba la pista).
+    // En un servidor normal, además, evita transcodes de más.
+    void warmStream(streamUrl(auth, song.id));
   }
 }
 

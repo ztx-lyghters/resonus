@@ -14,6 +14,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { type Song } from '@/api/subsonic';
 import { SheetModal } from '@/components/SheetModal';
 import { useT } from '@/i18n';
+import { useDownloads } from '@/store/downloads';
 import {
   DEFAULT_SORT,
   useSortPrefs,
@@ -29,10 +30,11 @@ const SORT_LABEL: Record<SortField, string> = {
   alpha: 'Alphabetical',
   artist: 'Artist',
   album: 'Album',
+  downloaded: 'Downloaded',
 };
 
 /** Campos ofrecidos por defecto (favoritos): 'recent' = orden del servidor. */
-const DEFAULT_FIELDS: SortField[] = ['recent', 'alpha', 'artist', 'album'];
+const DEFAULT_FIELDS: SortField[] = ['recent', 'alpha', 'artist', 'album', 'downloaded'];
 
 interface SortOptions {
   /** Qué campos ofrecer y en qué orden (el primero es el equivalente a "sin ordenar"). */
@@ -151,6 +153,8 @@ export function useSongSort(
   const openRef = useRef<() => void>(() => {});
 
   const { field, dir } = persistKey ? (stored ?? fallback) : local;
+  // Para el orden 'downloaded' (agrupar las descargadas juntas).
+  const files = useDownloads((s) => s.files);
   function update(next: SortPref) {
     if (persistKey) setPref(persistKey, next, fallback);
     else setLocal(next);
@@ -179,9 +183,13 @@ export function useSongSort(
           (a.song.track ?? 0) - (b.song.track ?? 0) ||
           cmp(a.song.title, b.song.title),
       );
+    // 'downloaded' agrupa las descargadas arriba conservando el orden original
+    // dentro de cada grupo (sort estable en Hermes). Con dir 'desc' pasan abajo.
+    if (field === 'downloaded')
+      arr.sort((a, b) => (files[a.song.id] ? 0 : 1) - (files[b.song.id] ? 0 : 1));
     if (dir === 'desc') arr.reverse();
     return arr;
-  }, [source, field, dir]);
+  }, [source, field, dir, files]);
 
   const sortSheet = (
     <SortSheet

@@ -6,7 +6,14 @@ import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
-import { coverArtUrl, deletePlaylist, getPlaylist, removeFromPlaylist, reorderPlaylist, updatePlaylist } from '@/api/data';
+import {
+  coverArtUrl,
+  deletePlaylist,
+  getPlaylist,
+  removeFromPlaylist,
+  reorderPlaylist,
+  updatePlaylist,
+} from '@/api/data';
 import { type Song } from '@/api/subsonic';
 import { CoverViewer } from '@/components/CoverViewer';
 import { Dialog } from '@/components/Dialog';
@@ -175,7 +182,7 @@ export default function PlaylistScreen() {
     const drop = new Set(indices);
     // Optimista: desaparecen ya de la vista; el borrado real se difiere hasta
     // que caduca el toast. «Deshacer» lo cancela y las restaura en su sitio.
-    const prev = queryClient.getQueryData<{ playlist: unknown; songs: unknown[] }>(key);
+    const prev = queryClient.getQueryData<{ playlist: unknown; songs: Song[] }>(key);
     // Conteo optimista en la Biblioteca ('{n} canciones'): sin esto el subtítulo
     // de la lista no cambia hasta recargar esa pantalla.
     const prevList = queryClient.getQueryData<{ id: string; songCount?: number }[]>(['playlists']);
@@ -195,9 +202,20 @@ export default function PlaylistScreen() {
         commit: () => {
           void (async () => {
             try {
-              // De mayor a menor: así los índices no se desplazan entre borrados.
-              for (const i of [...indices].sort((a, b) => b - a)) {
-                await removeFromPlaylist(id, i);
+              // Reescribimos la lista al estado final (la original menos las
+              // quitadas) en vez de quitar por índice: es un "set", idéntico
+              // online y offline, así que no hay desfase de índices ni doble
+              // borrado si el commit diferido cae ya en modo offline. Si el
+              // resultado es vaciar la lista, el método por índice es lo probado.
+              if (prev) {
+                const finalIds = prev.songs.filter((_, i) => !drop.has(i)).map((s) => s.id);
+                if (finalIds.length > 0) {
+                  await reorderPlaylist(id, finalIds);
+                } else {
+                  for (const i of [...indices].sort((a, b) => b - a)) {
+                    await removeFromPlaylist(id, i);
+                  }
+                }
               }
             } catch {
               useToast.getState().show(t("Couldn't complete the action"));

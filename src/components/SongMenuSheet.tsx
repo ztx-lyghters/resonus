@@ -25,8 +25,10 @@ import {
   getPlaylist,
   getPlaylists,
   removeFromPlaylist,
+  reorderPlaylist,
   star,
   unstar,
+  type Song,
 } from '@/api/data';
 import { useFavoriteIds } from '@/hooks/useFavoriteIds';
 import { artistTargets } from '@/lib/artistNav';
@@ -194,25 +196,40 @@ export function SongMenuSheet() {
     // Optimista: la canción desaparece ya de la lista; el borrado real se
     // difiere hasta que el toast caduca. «Deshacer» lo cancela y la restaura
     // en su posición (el servidor no llegó a enterarse).
-    const prev = queryClient.getQueryData<{ playlist: unknown; songs: unknown[] }>(key);
+    const prev = queryClient.getQueryData<{ playlist: unknown; songs: Song[] }>(key);
+    const prevList = queryClient.getQueryData<{ id: string; songCount?: number }[]>(['playlists']);
     if (prev) {
-      queryClient.setQueryData(key, { ...prev, songs: prev.songs.filter((_, i) => i !== index) });
+      const nextSongs = prev.songs.filter((_, i) => i !== index);
+      queryClient.setQueryData(key, { ...prev, songs: nextSongs });
+      // Conteo optimista en la Biblioteca ('{n} canciones').
+      queryClient.setQueryData<{ id: string; songCount?: number }[]>(['playlists'], (list) =>
+        list?.map((p) => (p.id === playlistId ? { ...p, songCount: nextSongs.length } : p)),
+      );
     }
     showUndoToast(t('Removed from playlist'), t('Undo'), {
       commit: () => {
-        removeFromPlaylist(playlistId, index)
-          .then(() => {
-            queryClient.invalidateQueries({ queryKey: key });
-            queryClient.invalidateQueries({ queryKey: ['playlists'] });
-          })
-          .catch(() => {
+        void (async () => {
+          try {
+            // Reescribimos la lista al estado final (sin la quitada) en vez de
+            // quitar por índice: es un "set", idéntico online y offline, así que
+            // no hay doble borrado si el commit diferido cae ya en offline. Si
+            // era la última canción (lista a 0), el método por índice es lo probado.
+            if (prev) {
+              const finalIds = prev.songs.filter((_, i) => i !== index).map((s) => s.id);
+              if (finalIds.length > 0) await reorderPlaylist(playlistId, finalIds);
+              else await removeFromPlaylist(playlistId, index);
+            }
+          } catch {
             useToast.getState().show(t("Couldn't complete the action"));
-            queryClient.invalidateQueries({ queryKey: key });
-          });
+          }
+          queryClient.invalidateQueries({ queryKey: key });
+          queryClient.invalidateQueries({ queryKey: ['playlists'] });
+        })();
       },
       undo: () => {
         if (prev) queryClient.setQueryData(key, prev);
         else queryClient.invalidateQueries({ queryKey: key });
+        if (prevList) queryClient.setQueryData(['playlists'], prevList);
       },
     });
   }

@@ -1478,6 +1478,16 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   playQueue: async (songs, startIndex = 0, source, sourceHref) => {
     if (songs.length === 0) return;
+    // Descarta las no disponibles offline (no descargadas): no se pueden
+    // reproducir. Se remapea el índice inicial a la canción tocada dentro de la
+    // lista ya filtrada. Online nunca se marca `unavailable`, así que no cambia.
+    if (songs.some((s) => s.unavailable)) {
+      const tapped = songs[startIndex];
+      const playable = songs.filter((s) => !s.unavailable);
+      if (playable.length === 0) return;
+      startIndex = tapped && !tapped.unavailable ? Math.max(0, playable.indexOf(tapped)) : 0;
+      songs = playable;
+    }
     attachAppState();
     autoplayFetchedFor = null;
     resetWarmed();

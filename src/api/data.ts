@@ -4,28 +4,72 @@
  * si leer del servidor o del catálogo local según el modo (online/offline).
  */
 import { useAuthStore } from '@/store/auth';
+import { getDownloadsCatalog, useDownloads } from '@/store/downloads';
 import {
   enabledFolderIds,
   profileKeyOf,
   readAlbumCache,
   writeAlbumCache,
 } from '@/store/libraries';
+import { useLibraryMirror } from '@/store/libraryMirror';
 import * as Subsonic from './backend';
 import * as Local from '@/lib/localQueries';
+import type { Song } from './subsonic';
 
 function isOffline() { return useAuthStore.getState().offline; }
 function auth() { return useAuthStore.getState().auth!; }
+
+/** Modo offline CON cuenta de servidor (no el perfil local de solo-ficheros):
+ *  aquí la Biblioteca es un espejo del servidor (ver store/libraryMirror). */
+function serverOffline(): boolean {
+  const s = useAuthStore.getState();
+  return s.offline && !!s.auth;
+}
+
+/**
+ * Marca cada canción del espejo como disponible o no según las descargas: las
+ * descargadas reciben su `localUri` (se reproducen desde disco); el resto quedan
+ * `unavailable` (se pintan en gris y no suenan). En offline el conjunto de
+ * descargas no cambia, así que la marca es estable durante la sesión.
+ *
+ * Carátulas: la descargada re-clava `coverArt` a `albumId` (el índice local va
+ * por albumId). La NO descargada conserva el `coverArt` del servidor, para que
+ * la URL offline coincida con la de online y expo-image la sirva de su caché
+ * (o la baje si el offline es manual con red); si no, queda el placeholder.
+ */
+function annotate(songs: Song[]): Song[] {
+  const files = useDownloads.getState().files;
+  return songs.map((s) => {
+    const uri = files[s.id];
+    return uri
+      ? { ...s, coverArt: s.albumId ?? s.coverArt, localUri: uri, unavailable: false }
+      : { ...s, unavailable: true };
+  });
+}
+
+/** Carga el espejo del perfil y registra en el índice local las carátulas de las
+ *  descargas (sin esto, las carátulas offline no aparecen). */
+async function loadMirror(): Promise<void> {
+  await Promise.all([useLibraryMirror.getState().load(), getDownloadsCatalog()]);
+}
 
 export type { Album, AlbumListType, Artist, ArtistInfo, FolderContents, FolderEntry, MusicFolder, Playlist, RadioStation, SearchResult, Song, StarType, Starred, SubsonicAuth } from './subsonic';
 export { normalizeUrl } from './subsonic';
 
 export function coverArtUrl(id: string | undefined, _size?: number): string | undefined {
-  if (isOffline()) return Local.coverUrl(id);
   // Si la carátula está descargada (álbum/artista en disco), úsala aunque
   // estemos en modo servidor: funciona sin conexión y no gasta datos, igual
-  // que el audio suena desde el fichero descargado. Si no, va al servidor.
+  // que el audio suena desde el fichero descargado.
   const local = Local.coverUrl(id);
   if (local) return local;
+  if (isOffline()) {
+    // Offline de servidor: la URL del servidor como respaldo. expo-image la sirve
+    // de su caché si ya se vio online (o la baja si el offline es manual con red);
+    // si no, queda el placeholder. Así las canciones/álbumes no descargados
+    // enseñan carátula aunque no se puedan reproducir. El perfil local (sin
+    // cuenta) no tiene servidor, así que ahí no hay respaldo.
+    return serverOffline() ? Subsonic.coverArtUrl(auth(), id, _size) : undefined;
+  }
   return Subsonic.coverArtUrl(auth(), id, _size);
 }
 
@@ -41,8 +85,23 @@ export function getAlbumList(type: Subsonic.AlbumListType = 'newest', size?: num
 }
 
 export function getAlbum(id: string): Promise<{ album: Subsonic.Album; songs: Subsonic.Song[] }> {
-  if (isOffline()) return Local.getAlbum(id);
-  return Subsonic.getAlbum(auth(), id);
+  if (isOffline()) {
+    if (serverOffline()) return mirrorAlbum(id);
+    return Local.getAlbum(id);
+  }
+  return Subsonic.getAlbum(auth(), id).then((res) => {
+    useLibraryMirror.getState().saveAlbum(id, res.album, res.songs);
+    return res;
+  });
+}
+
+async function mirrorAlbum(
+  id: string,
+): Promise<{ album: Subsonic.Album; songs: Subsonic.Song[] }> {
+  await loadMirror();
+  const d = useLibraryMirror.getState().data.albums?.[id];
+  if (!d) return Local.getAlbum(id);
+  return { album: { ...d.album, coverArt: d.album.id }, songs: annotate(d.songs) };
 }
 
 export function getArtists(): Promise<Subsonic.Artist[]> {
@@ -106,8 +165,24 @@ export function getMusicDirectory(id: string): Promise<Subsonic.FolderContents> 
 }
 
 export function getArtist(id: string): Promise<{ artist: Subsonic.Artist; albums: Subsonic.Album[] }> {
-  if (isOffline()) return Local.getArtist(id);
-  return Subsonic.getArtist(auth(), id);
+  if (isOffline()) {
+    if (serverOffline()) return mirrorArtist(id);
+    return Local.getArtist(id);
+  }
+  return Subsonic.getArtist(auth(), id).then((res) => {
+    useLibraryMirror.getState().saveArtist(id, res.artist, res.albums);
+    return res;
+  });
+}
+
+async function mirrorArtist(
+  id: string,
+): Promise<{ artist: Subsonic.Artist; albums: Subsonic.Album[] }> {
+  await loadMirror();
+  const d = useLibraryMirror.getState().data.artists?.[id];
+  if (!d) return Local.getArtist(id);
+  // Carátulas de los álbumes por su id (así resuelven offline).
+  return { artist: d.artist, albums: d.albums.map((al) => ({ ...al, coverArt: al.id })) };
 }
 
 export function getArtistInfo(id: string): Promise<Subsonic.ArtistInfo> {
@@ -171,21 +246,78 @@ export function getRandomSongs(size = 200, genre?: string): Promise<Subsonic.Son
 }
 
 export function getPlaylists(): Promise<Subsonic.Playlist[]> {
-  if (isOffline()) return Local.getPlaylists();
-  return Subsonic.getPlaylists(auth());
+  if (isOffline()) {
+    if (serverOffline()) return mirrorPlaylists();
+    return Local.getPlaylists();
+  }
+  return Subsonic.getPlaylists(auth()).then((list) => {
+    useLibraryMirror.getState().savePlaylists(list);
+    return list;
+  });
+}
+
+/** Listas del espejo: solo las que tienen alguna canción descargada (según su
+ *  tracklist guardado). La carátula se toma del primer tema descargado, que sí
+ *  resuelve offline. Sin copia aún, cae al comportamiento local. */
+async function mirrorPlaylists(): Promise<Subsonic.Playlist[]> {
+  await loadMirror();
+  const data = useLibraryMirror.getState().data;
+  const list = data.playlists;
+  if (!list) return Local.getPlaylists();
+  const files = useDownloads.getState().files;
+  const out: Subsonic.Playlist[] = [];
+  for (const p of list) {
+    const tracks = data.playlistTracks?.[p.id]?.songs;
+    const firstDownloaded = tracks?.find((s) => files[s.id]);
+    if (!firstDownloaded) continue; // sin canciones disponibles: no se muestra
+    out.push({ ...p, coverArt: firstDownloaded.albumId ?? p.coverArt });
+  }
+  return out;
 }
 
 export function getStarred(): Promise<Subsonic.Starred> {
-  if (isOffline()) return Local.getStarred();
+  if (isOffline()) {
+    if (serverOffline()) return mirrorStarred();
+    return Local.getStarred();
+  }
   const a = auth();
   const ids = enabledFolderIds(a);
-  if (!ids) return Subsonic.getStarred(a);
-  if (ids.length === 1) return Subsonic.getStarred(a, ids[0]);
-  return Promise.all(ids.map((id) => Subsonic.getStarred(a, id))).then((parts) => ({
-    songs: dedupeById(parts.flatMap((p) => p.songs)),
-    albums: dedupeById(parts.flatMap((p) => p.albums)),
-    artists: dedupeById(parts.flatMap((p) => p.artists)),
-  }));
+  const p = !ids
+    ? Subsonic.getStarred(a)
+    : ids.length === 1
+      ? Subsonic.getStarred(a, ids[0])
+      : Promise.all(ids.map((id) => Subsonic.getStarred(a, id))).then((parts) => ({
+          songs: dedupeById(parts.flatMap((x) => x.songs)),
+          albums: dedupeById(parts.flatMap((x) => x.albums)),
+          artists: dedupeById(parts.flatMap((x) => x.artists)),
+        }));
+  // Copia para el modo offline (Biblioteca como espejo del servidor).
+  return p.then((s) => {
+    useLibraryMirror.getState().saveStarred(s);
+    return s;
+  });
+}
+
+/** Favoritos desde el espejo (offline de servidor); si aún no hay copia, cae al
+ *  comportamiento local de siempre (derivado de las descargas).
+ *
+ *  Canciones favoritas: todas, con las no descargadas en gris. Álbumes: solo los
+ *  que tienen alguna canción descargada (los vacíos no se muestran, para no
+ *  recargar). Artistas: todos los favoriteados. */
+async function mirrorStarred(): Promise<Subsonic.Starred> {
+  await loadMirror();
+  const s = useLibraryMirror.getState().data.starred;
+  if (!s) return Local.getStarred();
+  const catalog = await getDownloadsCatalog();
+  const downloadedAlbumIds = new Set(catalog.albums.map((a) => a.id));
+  const albums = (s.albums ?? [])
+    .filter((al) => downloadedAlbumIds.has(al.id))
+    .map((al) => ({ ...al, coverArt: al.id }));
+  return {
+    songs: annotate(s.songs ?? []),
+    albums,
+    artists: s.artists ?? [],
+  };
 }
 
 export function star(id: string, type?: Subsonic.StarType): Promise<void> {
@@ -255,8 +387,28 @@ export function deletePlaylist(id: string): Promise<void> {
 }
 
 export function getPlaylist(id: string): Promise<{ playlist: Subsonic.Playlist; songs: Subsonic.Song[] }> {
-  if (isOffline()) return Local.getPlaylist(id);
-  return Subsonic.getPlaylist(auth(), id);
+  if (isOffline()) {
+    if (serverOffline()) return mirrorPlaylist(id);
+    return Local.getPlaylist(id);
+  }
+  return Subsonic.getPlaylist(auth(), id).then((res) => {
+    useLibraryMirror.getState().savePlaylistDetail(id, res.playlist, res.songs);
+    return res;
+  });
+}
+
+async function mirrorPlaylist(
+  id: string,
+): Promise<{ playlist: Subsonic.Playlist; songs: Subsonic.Song[] }> {
+  await loadMirror();
+  const data = useLibraryMirror.getState().data;
+  const d = data.playlistTracks?.[id];
+  if (d) return { playlist: d.playlist, songs: annotate(d.songs) };
+  // Sin tracklist guardado: al menos usa el nombre real de la lista (si está en
+  // la copia de la lista) para no mostrar el id como título.
+  const meta = data.playlists?.find((p) => p.id === id);
+  if (meta) return { playlist: meta, songs: [] };
+  return Local.getPlaylist(id);
 }
 
 export function updatePlaylist(

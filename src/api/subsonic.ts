@@ -101,6 +101,12 @@ export interface Song {
   hasCover?: boolean;
   /** URI de fichero local (modo sin conexión); si está, se reproduce sin servidor. */
   localUri?: string;
+  /**
+   * Marcada como no disponible sin conexión: aparece en la lista (espejo de la
+   * biblioteca del servidor) pero no está descargada, así que se pinta en gris
+   * y no se puede reproducir. Solo se rellena en el modo offline de servidor.
+   */
+  unavailable?: boolean;
   /** Año de la canción (desde ID3, modo sin conexión). */
   year?: number;
   /** Fecha de modificación del fichero en ms (modo sin conexión). */

@@ -25,6 +25,7 @@ import { useDownloads } from '@/store/downloads';
 import { useEqualizer } from '@/store/equalizer';
 import { useLastPlayed } from '@/store/lastPlayed';
 import { useLibraries } from '@/store/libraries';
+import { useLibraryMirror } from '@/store/libraryMirror';
 import { checkAutoUrlNow, initAutoUrl } from '@/store/autoUrl';
 import { initNetworkType } from '@/store/networkType';
 import { usePins } from '@/store/pins';
@@ -74,6 +75,8 @@ export default function RootLayout() {
     void usePins.getState().hydrate();
     void useRadioCovers.getState().hydrate();
     void useDownloads.getState().hydrate();
+    // Espejo de biblioteca para el offline (se recarga al cambiar de perfil).
+    void useLibraryMirror.getState().load();
     // Ecualizador: lee las capacidades del móvil y aplica lo guardado.
     void useEqualizer.getState().hydrate();
     initNetworkType();

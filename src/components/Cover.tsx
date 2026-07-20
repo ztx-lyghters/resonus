@@ -1,6 +1,7 @@
 /** Carátula cuadrada con marcador de posición cuando no hay imagen. */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image, type ImageStyle } from 'expo-image';
+import { useEffect, useState } from 'react';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { colors, radius } from '@/theme';
@@ -24,8 +25,15 @@ export function Cover({
   placeholderIcon = 'musical-notes',
   style,
 }: Props) {
+  // Si la imagen no carga (p. ej. offline sin caché ni descarga), caemos al
+  // marcador de posición en vez de dejar un hueco. Se resetea al cambiar de
+  // `uri` porque las listas reciclan la misma instancia con otra canción.
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setFailed(false);
+  }, [uri]);
   const borderRadius = rounded ? size / 2 : radius.md;
-  if (!uri) {
+  if (!uri || failed) {
     return (
       <View
         style={[
@@ -50,6 +58,8 @@ export function Cover({
       style={[{ width: size, height: size, borderRadius }, style as StyleProp<ImageStyle>]}
       contentFit="cover"
       transition={transition}
+      recyclingKey={uri}
+      onError={() => setFailed(true)}
     />
   );
 }

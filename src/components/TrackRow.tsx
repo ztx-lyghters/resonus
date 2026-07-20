@@ -126,6 +126,8 @@ export function TrackRow({
   const favIds = useFavoriteIds(showFavorite);
   const favorited = showFavorite && (favIds ? favIds.has(song.id) : !!song.starred);
   const downloaded = useDownloads((s) => !!s.files[song.id]);
+  // No descargada en el espejo offline: se ve pero en gris y no se reproduce.
+  const unavailable = !!song.unavailable;
 
   // Swipe a la derecha = acción configurable (gesto estilo Spotify). La fila
   // vuelve sola a su sitio; la franja de fondo solo asoma durante el gesto.
@@ -191,7 +193,7 @@ export function TrackRow({
       friction={1}
       overshootLeft={false}
       overshootRight={false}
-      enabled={!selecting && (swipeAction !== 'off' || swipeLeftAction !== 'off')}
+      enabled={!selecting && !unavailable && (swipeAction !== 'off' || swipeLeftAction !== 'off')}
       onSwipeableWillOpen={(direction) => {
         // `direction` es la dirección del GESTO (no el lado del panel):
         // deslizar a la derecha (abre la franja izquierda) llega como RIGHT.
@@ -202,10 +204,10 @@ export function TrackRow({
     <Pressable
       // Sin feedback visual al pulsar (como Spotify): el "pressed" saltaba con
       // el dedo al scrollear y parecía que se estaban pulsando las filas.
-      style={styles.row}
-      onPressIn={onPressIn}
-      onPress={onPress}
-      onLongPress={onLongPress}
+      style={[styles.row, unavailable && styles.dimmed]}
+      onPressIn={unavailable ? undefined : onPressIn}
+      onPress={unavailable ? () => toast(t('Not available offline')) : onPress}
+      onLongPress={unavailable ? undefined : onLongPress}
     >
       {selecting ? (
         <Ionicons
@@ -244,7 +246,9 @@ export function TrackRow({
         ) : null}
       </View>
 
-      {favorited && !selecting ? <FavoriteButton id={song.id} starred size={20} /> : null}
+      {favorited && !selecting && !unavailable ? (
+        <FavoriteButton id={song.id} starred size={20} />
+      ) : null}
       {showRating && song.userRating ? (
         <View style={styles.rating} accessibilityLabel={t('Rate {n} stars', { n: song.userRating })}>
           {Array.from({ length: song.userRating }).map((_, i) => (
@@ -253,7 +257,7 @@ export function TrackRow({
         </View>
       ) : null}
       {showDuration ? <Text style={styles.duration}>{formatDuration(song.duration)}</Text> : null}
-      {showMenu && !selecting ? (
+      {showMenu && !selecting && !unavailable ? (
         <Pressable
           hitSlop={8}
           style={styles.menuButton}
@@ -332,5 +336,9 @@ const styles = StyleSheet.create({
   rating: {
     flexDirection: 'row',
     gap: 1,
+  },
+  // Canción no disponible sin conexión (espejo): atenuada y no pulsable.
+  dimmed: {
+    opacity: 0.4,
   },
 });

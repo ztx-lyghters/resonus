@@ -141,6 +141,7 @@ export default function PlayerScreen() {
   const seekButtonsSec = useSettings((s) => s.seekButtonsSec);
   const offline = useAuthStore((s) => s.offline);
   const serverType = useAuthStore((s) => s.auth?.serverType);
+  const hasAccount = useAuthStore((s) => !!s.auth);
   const upnpDevice = useUpnp((s) => (s.connected ? s.deviceName : null));
   const jukeboxActive = useJukebox((s) => s.active);
   const remoteDevice = upnpDevice ?? (jukeboxActive ? t('Server speakers (Jukebox)') : null);
@@ -324,10 +325,10 @@ export default function PlayerScreen() {
   // cualquier sitio); `song.starred` de la cola queda obsoleto, así que solo
   // sirve de reserva para canciones locales o mientras carga.
   const favorited = favIds ? favIds.has(song.id) : !!song.starred;
-  // Las estrellas (setRating) son cosa de Subsonic: se activan en Ajustes y no
-  // aplican en Jellyfin, offline, radio (url directa) ni pistas locales.
-  const canRate =
-    showRating && !offline && serverType !== 'jellyfin' && !song.localUri && !song.url;
+  // Las estrellas (setRating) son cosa de Subsonic: se activan en Ajustes y
+  // necesitan cuenta de servidor no-Jellyfin; no aplican en radio (url directa)
+  // ni en el perfil local (sin cuenta). Offline se apunta y sube al reconectar.
+  const canRate = showRating && hasAccount && serverType !== 'jellyfin' && !song.url;
   const duration = durationSec || song.duration || 0;
   const repeatActive = repeat !== 'off';
 

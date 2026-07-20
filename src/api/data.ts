@@ -11,7 +11,9 @@ import {
   readAlbumCache,
   writeAlbumCache,
 } from '@/store/libraries';
+import { queryClient } from '@/lib/query';
 import { useLibraryMirror } from '@/store/libraryMirror';
+import { useOfflineQueue, type QueuePlaylist } from '@/store/offlineQueue';
 import * as Subsonic from './backend';
 import * as Local from '@/lib/localQueries';
 import type { Song } from './subsonic';
@@ -39,7 +41,11 @@ function serverOffline(): boolean {
  */
 function annotate(songs: Song[]): Song[] {
   const files = useDownloads.getState().files;
-  return songs.map((s) => {
+  // Valoraciones hechas offline (outbox): pisan la nota del espejo para que se
+  // vean al momento y persistan tras refrescar o reiniciar, hasta que sincronicen.
+  const ratings = useOfflineQueue.getState().data.ratings ?? {};
+  return songs.map((s0) => {
+    const s = ratings[s0.id] !== undefined ? { ...s0, userRating: ratings[s0.id] } : s0;
     const uri = files[s.id];
     return uri
       ? { ...s, coverArt: s.albumId ?? s.coverArt, localUri: uri, unavailable: false }
@@ -47,10 +53,43 @@ function annotate(songs: Song[]): Song[] {
   });
 }
 
-/** Carga el espejo del perfil y registra en el índice local las carátulas de las
- *  descargas (sin esto, las carátulas offline no aparecen). */
+/** Carga el espejo y el outbox del perfil, y registra en el índice local las
+ *  carátulas de las descargas (sin esto, las carátulas offline no aparecen). */
 async function loadMirror(): Promise<void> {
-  await Promise.all([useLibraryMirror.getState().load(), getDownloadsCatalog()]);
+  await Promise.all([
+    useLibraryMirror.getState().load(),
+    useOfflineQueue.getState().load(),
+    getDownloadsCatalog(),
+  ]);
+}
+
+/** Busca la metadata de una canción por id en lo disponible offline: outbox
+ *  (canciones añadidas a listas), espejo (listas/álbumes/favoritos) y descargas. */
+function resolveSong(id: string, catalog: { songs: Song[] }): Song | undefined {
+  const meta = useOfflineQueue.getState().data.songMeta?.[id];
+  if (meta) return meta;
+  const mirror = useLibraryMirror.getState().data;
+  for (const d of Object.values(mirror.playlistTracks ?? {})) {
+    const f = d.songs.find((s) => s.id === id);
+    if (f) return f;
+  }
+  for (const d of Object.values(mirror.albums ?? {})) {
+    const f = d.songs.find((s) => s.id === id);
+    if (f) return f;
+  }
+  const st = mirror.starred?.songs?.find((s) => s.id === id);
+  if (st) return st;
+  return catalog.songs.find((s) => s.id === id);
+}
+
+/** Tracklist final deseado de una lista offline: la edición del outbox si la hay,
+ *  o el tracklist del espejo. */
+async function currentPlaylistSongIds(id: string): Promise<string[]> {
+  await loadMirror();
+  const edited = useOfflineQueue.getState().data.playlists?.[id]?.songIds;
+  if (edited) return edited;
+  const d = useLibraryMirror.getState().data.playlistTracks?.[id];
+  return (d?.songs ?? []).map((s) => s.id);
 }
 
 export type { Album, AlbumListType, Artist, ArtistInfo, FolderContents, FolderEntry, MusicFolder, Playlist, RadioStation, SearchResult, Song, StarType, Starred, SubsonicAuth } from './subsonic';
@@ -261,16 +300,41 @@ export function getPlaylists(): Promise<Subsonic.Playlist[]> {
  *  resuelve offline. Sin copia aún, cae al comportamiento local. */
 async function mirrorPlaylists(): Promise<Subsonic.Playlist[]> {
   await loadMirror();
-  const data = useLibraryMirror.getState().data;
-  const list = data.playlists;
-  if (!list) return Local.getPlaylists();
+  const mirror = useLibraryMirror.getState().data;
+  const qpls = useOfflineQueue.getState().data.playlists ?? {};
+  const catalog = await getDownloadsCatalog();
   const files = useDownloads.getState().files;
+  if (!mirror.playlists && Object.keys(qpls).length === 0) return Local.getPlaylists();
+
   const out: Subsonic.Playlist[] = [];
-  for (const p of list) {
-    const tracks = data.playlistTracks?.[p.id]?.songs;
-    const firstDownloaded = tracks?.find((s) => files[s.id]);
-    if (!firstDownloaded) continue; // sin canciones disponibles: no se muestra
-    out.push({ ...p, coverArt: firstDownloaded.albumId ?? p.coverArt });
+  // Listas creadas offline (aún con id temporal).
+  for (const [id, edit] of Object.entries(qpls)) {
+    if (!edit.created || edit.deleted) continue;
+    const songIds = edit.songIds ?? [];
+    const firstDl = songIds.find((sid) => files[sid]);
+    out.push({
+      id,
+      name: edit.name ?? '',
+      songCount: songIds.length,
+      coverArt: firstDl ? resolveSong(firstDl, catalog)?.albumId : undefined,
+      comment: edit.comment,
+      public: edit.public,
+    });
+  }
+  // Listas del servidor con overlay (renombrado/tracklist), menos las borradas.
+  for (const p of mirror.playlists ?? []) {
+    const edit = qpls[p.id];
+    if (edit?.deleted) continue;
+    const songIds = edit?.songIds ?? mirror.playlistTracks?.[p.id]?.songs.map((s) => s.id) ?? [];
+    const firstDl = songIds.find((sid) => files[sid]);
+    // Se muestra si tiene alguna canción descargada o si la has editado offline.
+    if (!firstDl && !edit) continue;
+    out.push({
+      ...p,
+      name: edit?.name ?? p.name,
+      songCount: songIds.length,
+      coverArt: firstDl ? resolveSong(firstDl, catalog)?.albumId ?? p.coverArt : p.coverArt,
+    });
   }
   return out;
 }
@@ -306,33 +370,196 @@ export function getStarred(): Promise<Subsonic.Starred> {
  *  recargar). Artistas: todos los favoriteados. */
 async function mirrorStarred(): Promise<Subsonic.Starred> {
   await loadMirror();
-  const s = useLibraryMirror.getState().data.starred;
-  if (!s) return Local.getStarred();
+  const mirror = useLibraryMirror.getState().data;
   const catalog = await getDownloadsCatalog();
+  await useOfflineQueue.getState().load();
+  const favs = useOfflineQueue.getState().data.favs ?? {};
+  const hasQueue = Object.keys(favs).length > 0;
+
+  // Base: la foto del servidor. Si aún no hay copia pero hay cambios offline,
+  // partimos de lo local para no perder los favoritos hechos sin conexión.
+  const base = mirror.starred ?? (hasQueue ? await Local.getStarred() : null);
+  if (!base) return Local.getStarred();
+
+  let songs = base.songs ?? [];
+  let albums = base.albums ?? [];
+  let artists = base.artists ?? [];
+
+  // Overlay del outbox: quitar los desmarcados y añadir los marcados offline.
+  const unstarred = new Set(
+    Object.entries(favs).filter(([, v]) => !v.starred).map(([id]) => id),
+  );
+  songs = songs.filter((x) => !unstarred.has(x.id));
+  albums = albums.filter((x) => !unstarred.has(x.id));
+  artists = artists.filter((x) => !unstarred.has(x.id));
+
+  for (const [id, v] of Object.entries(favs)) {
+    if (!v.starred) continue;
+    if (v.type === 'album') {
+      if (!albums.some((x) => x.id === id)) {
+        const a = mirror.albums?.[id]?.album ?? catalog.albums.find((x) => x.id === id);
+        if (a) albums = [a, ...albums];
+      }
+    } else if (v.type === 'artist') {
+      if (!artists.some((x) => x.id === id)) {
+        const a = mirror.artists?.[id]?.artist;
+        if (a) artists = [a, ...artists];
+      }
+    } else if (!songs.some((x) => x.id === id)) {
+      const song = resolveSong(id, catalog);
+      if (song) songs = [song, ...songs];
+    }
+  }
+
+  // Álbumes favoriteados: solo los que tienen alguna canción descargada.
   const downloadedAlbumIds = new Set(catalog.albums.map((a) => a.id));
-  const albums = (s.albums ?? [])
+  albums = albums
     .filter((al) => downloadedAlbumIds.has(al.id))
     .map((al) => ({ ...al, coverArt: al.id }));
-  return {
-    songs: annotate(s.songs ?? []),
-    albums,
-    artists: s.artists ?? [],
-  };
+
+  return { songs: annotate(songs), albums, artists };
 }
 
 export function star(id: string, type?: Subsonic.StarType): Promise<void> {
-  if (isOffline()) return Local.starLocal(id, type);
+  if (isOffline()) {
+    // Offline de servidor: se apunta en el outbox y se sube al reconectar.
+    if (serverOffline()) {
+      useOfflineQueue.getState().setFav(id, type ?? 'song', true);
+      return Promise.resolve();
+    }
+    return Local.starLocal(id, type);
+  }
   return Subsonic.star(auth(), id, type);
 }
 
 export function unstar(id: string, type?: Subsonic.StarType): Promise<void> {
-  if (isOffline()) return Local.unstarLocal(id, type);
+  if (isOffline()) {
+    if (serverOffline()) {
+      useOfflineQueue.getState().setFav(id, type ?? 'song', false);
+      return Promise.resolve();
+    }
+    return Local.unstarLocal(id, type);
+  }
   return Subsonic.unstar(auth(), id, type);
 }
 
-/** Valora una canción (1-5; 0 quita la valoración). Solo online. */
+/**
+ * Vuelca la cola de acciones offline al servidor (al reconectar). Best-effort:
+ * lo que falle se conserva para la próxima reconexión. Fase 1: favoritos.
+ */
+export async function flushOfflineQueue(auth: Subsonic.SubsonicAuth): Promise<void> {
+  const q = useOfflineQueue.getState();
+  await q.load();
+
+  // Favoritos.
+  const favs = q.data.favs ?? {};
+  const favFailed: [string, { type: Subsonic.StarType; starred: boolean }][] = [];
+  for (const [id, op] of Object.entries(favs)) {
+    try {
+      if (op.starred) await Subsonic.star(auth, id, op.type);
+      else await Subsonic.unstar(auth, id, op.type);
+    } catch {
+      favFailed.push([id, op]);
+    }
+  }
+  if (Object.keys(favs).length > 0) {
+    q.clearFavs();
+    for (const [id, op] of favFailed) q.setFav(id, op.type, op.starred);
+  }
+
+  // Valoraciones.
+  const ratings = q.data.ratings ?? {};
+  const ratingFailed: [string, number][] = [];
+  for (const [id, rating] of Object.entries(ratings)) {
+    try {
+      await Subsonic.setRating(auth, id, rating);
+    } catch {
+      ratingFailed.push([id, rating]);
+    }
+  }
+  if (Object.keys(ratings).length > 0) {
+    q.clearRatings();
+    for (const [id, rating] of ratingFailed) q.setRating(id, rating);
+  }
+
+  // Listas. Se reescribe el estado final de cada una (crear/borrar/renombrar +
+  // tracklist entero con reorderPlaylist, que evita el lío de índices).
+  const playlists = q.data.playlists ?? {};
+  const plFailed: [string, QueuePlaylist][] = [];
+  for (const [id, edit] of Object.entries(playlists)) {
+    try {
+      if (edit.created) {
+        if (edit.deleted) continue; // creada y borrada offline: no se sube nada
+        const realId = await Subsonic.createPlaylist(auth, edit.name ?? '');
+        if (edit.songIds?.length) await Subsonic.reorderPlaylist(auth, realId, edit.songIds);
+        if (edit.comment !== undefined || edit.public !== undefined) {
+          await Subsonic.updatePlaylist(auth, realId, {
+            comment: edit.comment,
+            public: edit.public,
+          });
+        }
+      } else if (edit.deleted) {
+        await Subsonic.deletePlaylist(auth, id);
+      } else {
+        if (edit.name !== undefined || edit.comment !== undefined || edit.public !== undefined) {
+          await Subsonic.updatePlaylist(auth, id, {
+            name: edit.name,
+            comment: edit.comment,
+            public: edit.public,
+          });
+        }
+        if (edit.songIds) await Subsonic.reorderPlaylist(auth, id, edit.songIds);
+      }
+    } catch {
+      plFailed.push([id, edit]);
+    }
+  }
+  if (Object.keys(playlists).length > 0) {
+    q.clearPlaylists();
+    for (const [id, edit] of plFailed) q.setPlaylist(id, edit);
+  }
+}
+
+/**
+ * Vuelca al espejo el estado actual de la caché de React Query (listas,
+ * favoritos, álbumes) justo antes de pasar a offline. Así, si editas algo online
+ * (p. ej. quitas una canción de una lista) y luego te vas offline sin que esa
+ * query se re-consultara, el espejo refleja lo último visto en vez de quedarse
+ * con la copia vieja del servidor.
+ */
+export function snapshotCachesToMirror(): void {
+  const mirror = useLibraryMirror.getState();
+  const playlists = queryClient.getQueryData<Subsonic.Playlist[]>(['playlists']);
+  if (playlists) mirror.savePlaylists(playlists);
+  for (const [key, data] of queryClient.getQueriesData<{
+    playlist: Subsonic.Playlist;
+    songs: Song[];
+  }>({ queryKey: ['playlist'] })) {
+    const id = key[1];
+    if (typeof id === 'string' && data?.playlist && Array.isArray(data.songs)) {
+      mirror.savePlaylistDetail(id, data.playlist, data.songs);
+    }
+  }
+  const starred = queryClient.getQueryData<Subsonic.Starred>(['starred']);
+  if (starred) mirror.saveStarred(starred);
+  for (const [key, data] of queryClient.getQueriesData<{
+    album: Subsonic.Album;
+    songs: Song[];
+  }>({ queryKey: ['album'] })) {
+    const id = key[1];
+    if (typeof id === 'string' && data?.album && Array.isArray(data.songs)) {
+      mirror.saveAlbum(id, data.album, data.songs);
+    }
+  }
+}
+
+/** Valora una canción (1-5; 0 quita la valoración). */
 export function setRating(id: string, rating: number): Promise<void> {
-  if (isOffline()) return Promise.resolve();
+  if (isOffline()) {
+    // Offline de servidor: se apunta en el outbox y se sube al reconectar.
+    if (serverOffline()) useOfflineQueue.getState().setRating(id, rating);
+    return Promise.resolve();
+  }
   return Subsonic.setRating(auth(), id, rating);
 }
 
@@ -370,19 +597,42 @@ export function scrobble(id: string): Promise<void> {
   return Subsonic.scrobble(auth(), id);
 }
 
-export function addToPlaylist(playlistId: string, songId: string): Promise<void> {
-  if (isOffline()) return Local.addToPlaylist(playlistId, songId);
+export async function addToPlaylist(playlistId: string, songId: string): Promise<void> {
+  if (isOffline()) {
+    if (!serverOffline()) return Local.addToPlaylist(playlistId, songId);
+    const ids = await currentPlaylistSongIds(playlistId);
+    useOfflineQueue.getState().setPlaylist(playlistId, { songIds: [...ids, songId] });
+    // Guarda la metadata de la canción para poder mostrarla en la lista offline.
+    const catalog = await getDownloadsCatalog();
+    const song = resolveSong(songId, catalog);
+    if (song) useOfflineQueue.getState().rememberSongs([song]);
+    return;
+  }
   return Subsonic.addToPlaylist(auth(), playlistId, songId);
 }
 
-/** Crea una playlist vacía y devuelve su id. */
+/** Crea una playlist vacía y devuelve su id (temporal si es offline). */
 export function createPlaylist(name: string): Promise<string> {
-  if (isOffline()) return Local.createPlaylist(name);
+  if (isOffline()) {
+    if (!serverOffline()) return Local.createPlaylist(name);
+    // Id temporal: al reconectar se crea en el servidor y recibe su id real.
+    const tmpId = `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    useOfflineQueue.getState().setPlaylist(tmpId, { created: true, name, songIds: [] });
+    return Promise.resolve(tmpId);
+  }
   return Subsonic.createPlaylist(auth(), name);
 }
 
-export function deletePlaylist(id: string): Promise<void> {
-  if (isOffline()) return Local.deletePlaylist(id);
+export async function deletePlaylist(id: string): Promise<void> {
+  if (isOffline()) {
+    if (!serverOffline()) return Local.deletePlaylist(id);
+    await useOfflineQueue.getState().load();
+    const entry = useOfflineQueue.getState().data.playlists?.[id];
+    // Creada offline (nunca llegó al servidor): se descarta sin más.
+    if (entry?.created) useOfflineQueue.getState().removePlaylistEntry(id);
+    else useOfflineQueue.getState().setPlaylist(id, { deleted: true });
+    return;
+  }
   return Subsonic.deletePlaylist(auth(), id);
 }
 
@@ -401,32 +651,69 @@ async function mirrorPlaylist(
   id: string,
 ): Promise<{ playlist: Subsonic.Playlist; songs: Subsonic.Song[] }> {
   await loadMirror();
-  const data = useLibraryMirror.getState().data;
-  const d = data.playlistTracks?.[id];
-  if (d) return { playlist: d.playlist, songs: annotate(d.songs) };
-  // Sin tracklist guardado: al menos usa el nombre real de la lista (si está en
-  // la copia de la lista) para no mostrar el id como título.
-  const meta = data.playlists?.find((p) => p.id === id);
-  if (meta) return { playlist: meta, songs: [] };
-  return Local.getPlaylist(id);
+  const mirror = useLibraryMirror.getState().data;
+  const catalog = await getDownloadsCatalog();
+  const edit = useOfflineQueue.getState().data.playlists?.[id];
+  const detail = mirror.playlistTracks?.[id];
+
+  // Metadatos de la lista: creada offline / espejo / al menos su nombre.
+  let playlist: Subsonic.Playlist;
+  if (edit?.created) {
+    playlist = { id, name: edit.name ?? '', comment: edit.comment, public: edit.public };
+  } else if (detail) {
+    playlist = { ...detail.playlist };
+  } else {
+    playlist = mirror.playlists?.find((p) => p.id === id) ?? { id, name: id };
+  }
+  if (edit?.name !== undefined) playlist = { ...playlist, name: edit.name };
+  if (edit?.comment !== undefined) playlist = { ...playlist, comment: edit.comment };
+  if (edit?.public !== undefined) playlist = { ...playlist, public: edit.public };
+
+  // Tracklist: la edición del outbox, o el del espejo.
+  const songIds = edit?.songIds ?? detail?.songs.map((s) => s.id);
+  if (!songIds) {
+    // Sin tracklist guardado ni edición: no hay canciones offline.
+    return { playlist: { ...playlist, songCount: 0 }, songs: [] };
+  }
+  const songs = songIds
+    .map((sid) => resolveSong(sid, catalog))
+    .filter((s): s is Subsonic.Song => !!s);
+  return { playlist: { ...playlist, songCount: songs.length }, songs: annotate(songs) };
 }
 
-export function updatePlaylist(
+export async function updatePlaylist(
   id: string,
   changes: { name?: string; comment?: string; public?: boolean },
 ): Promise<void> {
-  if (isOffline()) return Local.updatePlaylist(id, changes);
+  if (isOffline()) {
+    if (!serverOffline()) return Local.updatePlaylist(id, changes);
+    const patch: { name?: string; comment?: string; public?: boolean } = {};
+    if (changes.name !== undefined) patch.name = changes.name;
+    if (changes.comment !== undefined) patch.comment = changes.comment;
+    if (changes.public !== undefined) patch.public = changes.public;
+    useOfflineQueue.getState().setPlaylist(id, patch);
+    return;
+  }
   return Subsonic.updatePlaylist(auth(), id, changes);
 }
 
-export function removeFromPlaylist(id: string, index: number): Promise<void> {
-  if (isOffline()) return Local.removeFromPlaylist(id, index);
+export async function removeFromPlaylist(id: string, index: number): Promise<void> {
+  if (isOffline()) {
+    if (!serverOffline()) return Local.removeFromPlaylist(id, index);
+    const ids = await currentPlaylistSongIds(id);
+    useOfflineQueue.getState().setPlaylist(id, { songIds: ids.filter((_, i) => i !== index) });
+    return;
+  }
   return Subsonic.removeFromPlaylist(auth(), id, index);
 }
 
 /** Reescribe el orden de una lista (arrastrar y soltar). */
-export function reorderPlaylist(id: string, songIds: string[]): Promise<void> {
-  if (isOffline()) return Local.reorderPlaylist(id, songIds);
+export async function reorderPlaylist(id: string, songIds: string[]): Promise<void> {
+  if (isOffline()) {
+    if (!serverOffline()) return Local.reorderPlaylist(id, songIds);
+    useOfflineQueue.getState().setPlaylist(id, { songIds });
+    return;
+  }
   return Subsonic.reorderPlaylist(auth(), id, songIds);
 }
 

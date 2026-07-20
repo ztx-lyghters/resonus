@@ -444,9 +444,10 @@ export function SongMenuSheet() {
                 }}
               />
             ) : null}
-            {/* Valorar (setRating de Subsonic): solo online, servidor no-Jellyfin
-                y no en local/descargadas/radio, donde no aplica. */}
-            {menu.rating && !offline && serverType !== 'jellyfin' && !song.localUri && !song.url ? (
+            {/* Valorar (setRating de Subsonic): cuenta de servidor no-Jellyfin y
+                no radio. Offline se apunta y se sube al reconectar (el perfil
+                local no tiene cuenta, así que ahí no aparece). */}
+            {menu.rating && !!auth && serverType !== 'jellyfin' && !song.url ? (
               <Action icon="star-outline" label={t('Rate')} onPress={() => setMode('rating')} />
             ) : null}
             {menu.download && downloaded ? (

@@ -176,11 +176,15 @@ export default function PlaylistScreen() {
     // Optimista: desaparecen ya de la vista; el borrado real se difiere hasta
     // que caduca el toast. «Deshacer» lo cancela y las restaura en su sitio.
     const prev = queryClient.getQueryData<{ playlist: unknown; songs: unknown[] }>(key);
+    // Conteo optimista en la Biblioteca ('{n} canciones'): sin esto el subtítulo
+    // de la lista no cambia hasta recargar esa pantalla.
+    const prevList = queryClient.getQueryData<{ id: string; songCount?: number }[]>(['playlists']);
     if (prev) {
-      queryClient.setQueryData(key, {
-        ...prev,
-        songs: prev.songs.filter((_, i) => !drop.has(i)),
-      });
+      const nextSongs = prev.songs.filter((_, i) => !drop.has(i));
+      queryClient.setQueryData(key, { ...prev, songs: nextSongs });
+      queryClient.setQueryData<{ id: string; songCount?: number }[]>(['playlists'], (list) =>
+        list?.map((p) => (p.id === id ? { ...p, songCount: nextSongs.length } : p)),
+      );
     }
     showUndoToast(
       indices.length === 1
@@ -205,6 +209,7 @@ export default function PlaylistScreen() {
         undo: () => {
           if (prev) queryClient.setQueryData(key, prev);
           else queryClient.invalidateQueries({ queryKey: key });
+          if (prevList) queryClient.setQueryData(['playlists'], prevList);
         },
       },
     );

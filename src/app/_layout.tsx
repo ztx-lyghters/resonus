@@ -26,6 +26,7 @@ import { useEqualizer } from '@/store/equalizer';
 import { useLastPlayed } from '@/store/lastPlayed';
 import { useLibraries } from '@/store/libraries';
 import { useLibraryMirror } from '@/store/libraryMirror';
+import { useOfflineQueue } from '@/store/offlineQueue';
 import { checkAutoUrlNow, initAutoUrl } from '@/store/autoUrl';
 import { initNetworkType } from '@/store/networkType';
 import { usePins } from '@/store/pins';
@@ -75,8 +76,19 @@ export default function RootLayout() {
     void usePins.getState().hydrate();
     void useRadioCovers.getState().hydrate();
     void useDownloads.getState().hydrate();
-    // Espejo de biblioteca para el offline (se recarga al cambiar de perfil).
-    void useLibraryMirror.getState().load();
+    // Espejo + outbox para el offline (se recargan al cambiar de perfil). Al
+    // terminar de cargar de disco, si estamos offline refrescamos la Biblioteca:
+    // cubre el arranque en frío donde una query pudo resolverse antes de tener
+    // el espejo en memoria y se quedaba vacía hasta recargar a mano.
+    void Promise.all([
+      useLibraryMirror.getState().load(),
+      useOfflineQueue.getState().load(),
+    ]).then(() => {
+      if (useAuthStore.getState().offline) {
+        void queryClient.invalidateQueries({ queryKey: ['playlists'] });
+        void queryClient.invalidateQueries({ queryKey: ['starred'] });
+      }
+    });
     // Ecualizador: lee las capacidades del móvil y aplica lo guardado.
     void useEqualizer.getState().hydrate();
     initNetworkType();

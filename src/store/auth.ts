@@ -359,6 +359,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // `offline` en el player. Vaciar la caché hace que las vistas se recalculen
     // contra el catálogo local.
     if (get().offline) return;
+    // Antes de vaciar la caché: vuelca al espejo lo último visto online (listas,
+    // favoritos, álbumes), para que offline no muestre una copia vieja.
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require('@/api/data').snapshotCachesToMirror();
+    } catch {
+      // No bloquea el paso a offline.
+    }
     await setItem(OFFLINE_KEY, '1');
     if (auto) await setItem(OFFLINE_AUTO_KEY, '1');
     else await deleteItem(OFFLINE_AUTO_KEY);
@@ -369,7 +377,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   goOnline: async () => {
     // Vuelta instantánea a la misma cuenta (auth intacto). La reproducción no se
     // toca; las vistas se recalculan contra el servidor al vaciar la caché.
-    if (!get().offline || !get().auth) return;
+    const current = get().auth;
+    if (!get().offline || !current) return;
+    // Antes de volver: vuelca al servidor lo que se hizo offline (favoritos…).
+    // Best-effort; lo que falle se conserva para la próxima reconexión.
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      await require('@/api/data').flushOfflineQueue(current);
+    } catch {
+      // No bloquea la vuelta online.
+    }
     await deleteItem(OFFLINE_KEY);
     await deleteItem(OFFLINE_AUTO_KEY);
     queryClient.clear();

@@ -61,6 +61,13 @@ export function PlaylistPickerSheet({
     close();
     try {
       for (const s of songs) await addToPlaylist(playlistId, s.id);
+      // Conteo optimista en la Biblioteca ('{n} canciones'): sin esto el
+      // subtítulo no cambia hasta recargar esa pantalla.
+      queryClient.setQueryData<{ id: string; songCount?: number }[]>(['playlists'], (list) =>
+        list?.map((p) =>
+          p.id === playlistId ? { ...p, songCount: (p.songCount ?? 0) + songs.length } : p,
+        ),
+      );
       queryClient.invalidateQueries({ queryKey: ['playlist', playlistId] });
       queryClient.invalidateQueries({ queryKey: ['playlists'] });
       toast(

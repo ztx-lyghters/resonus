@@ -4,7 +4,8 @@ import { create } from 'zustand';
 import { hashKey } from '@/lib/localLibrary';
 import { getItem, setItem } from '@/lib/storage';
 import { applyAccent, DEFAULT_ACCENT } from '@/theme';
-import { profileScopeId } from './auth';
+import { profileScopeId, useAuthStore } from './auth';
+import { queryClient } from '@/lib/query';
 
 // El campo se llama `color` (no `value`) a propósito: Reanimated warnea de más
 // al ver cualquier `.value` dentro de un estilo inline, aunque no sea un shared
@@ -357,6 +358,12 @@ interface SettingsState {
    * (Ajustes → "Offline mode" / "Back online") y la app nunca lo cambia sola.
    */
   autoOfflineSwitch: boolean;
+  /**
+   * En el modo offline de servidor, ocultar las canciones no descargadas en vez
+   * de mostrarlas en gris. Apagado por defecto (se ven en gris, como hasta
+   * ahora); si se activa, la biblioteca offline solo muestra lo reproducible.
+   */
+  hideUnavailableOffline: boolean;
   /** Normalización de volumen (ReplayGain): apagada, por canción o por álbum. */
   replayGain: ReplayGainMode;
   /** Mantener la pantalla encendida mientras la app está en primer plano. */
@@ -454,6 +461,7 @@ interface SettingsState {
   setCrossfadeSec: (value: number) => void;
   setPreloadUpcoming: (value: boolean) => void;
   setAutoOfflineSwitch: (value: boolean) => void;
+  setHideUnavailableOffline: (value: boolean) => void;
   setReplayGain: (value: ReplayGainMode) => void;
   setKeepScreenAwake: (value: boolean) => void;
   setHapticsEnabled: (value: boolean) => void;
@@ -522,6 +530,7 @@ function snapshot(get: () => SettingsState) {
     crossfadeSec: s.crossfadeSec,
     preloadUpcoming: s.preloadUpcoming,
     autoOfflineSwitch: s.autoOfflineSwitch,
+    hideUnavailableOffline: s.hideUnavailableOffline,
     replayGain: s.replayGain,
     keepScreenAwake: s.keepScreenAwake,
     hapticsEnabled: s.hapticsEnabled,
@@ -578,6 +587,7 @@ const DEFAULTS = {
   crossfadeSec: 0,
   preloadUpcoming: false,
   autoOfflineSwitch: true,
+  hideUnavailableOffline: false,
   replayGain: 'off' as ReplayGainMode,
   keepScreenAwake: false,
   hapticsEnabled: false,
@@ -695,6 +705,14 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setAutoOfflineSwitch: (autoOfflineSwitch) => {
     set({ autoOfflineSwitch });
     persist(snapshot(get));
+  },
+
+  setHideUnavailableOffline: (hideUnavailableOffline) => {
+    set({ hideUnavailableOffline });
+    persist(snapshot(get));
+    // Cambia lo que devuelven las queries offline (filtra o no las no
+    // descargadas): refresca las listas para que el cambio se vea al momento.
+    if (useAuthStore.getState().offline) queryClient.invalidateQueries();
   },
 
   setReplayGain: (replayGain) => {

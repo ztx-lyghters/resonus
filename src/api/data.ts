@@ -14,6 +14,7 @@ import {
 import { queryClient } from '@/lib/query';
 import { useLibraryMirror } from '@/store/libraryMirror';
 import { useOfflineQueue, type QueuePlaylist } from '@/store/offlineQueue';
+import { useSettings } from '@/store/settings';
 import * as Subsonic from './backend';
 import * as Local from '@/lib/localQueries';
 import type { Song } from './subsonic';
@@ -44,13 +45,16 @@ function annotate(songs: Song[]): Song[] {
   // Valoraciones hechas offline (outbox): pisan la nota del espejo para que se
   // vean al momento y persistan tras refrescar o reiniciar, hasta que sincronicen.
   const ratings = useOfflineQueue.getState().data.ratings ?? {};
-  return songs.map((s0) => {
+  // Preferencia: esconder las no descargadas en vez de pintarlas en gris.
+  const hideUnavailable = useSettings.getState().hideUnavailableOffline;
+  const annotated = songs.map((s0) => {
     const s = ratings[s0.id] !== undefined ? { ...s0, userRating: ratings[s0.id] } : s0;
     const uri = files[s.id];
     return uri
       ? { ...s, coverArt: s.albumId ?? s.coverArt, localUri: uri, unavailable: false }
       : { ...s, unavailable: true };
   });
+  return hideUnavailable ? annotated.filter((s) => !s.unavailable) : annotated;
 }
 
 /** Carga el espejo y el outbox del perfil, y registra en el índice local las
@@ -678,7 +682,9 @@ async function mirrorPlaylist(
   const songs = songIds
     .map((sid) => resolveSong(sid, catalog))
     .filter((s): s is Subsonic.Song => !!s);
-  return { playlist: { ...playlist, songCount: songs.length }, songs: annotate(songs) };
+  // El conteo refleja lo que se muestra (annotate puede ocultar las no descargadas).
+  const annotated = annotate(songs);
+  return { playlist: { ...playlist, songCount: annotated.length }, songs: annotated };
 }
 
 export async function updatePlaylist(

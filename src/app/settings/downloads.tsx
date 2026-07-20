@@ -66,6 +66,8 @@ export default function DownloadsSettings() {
   const setDownloadWifiOnly = useSettings((s) => s.setDownloadWifiOnly);
   const autoOfflineSwitch = useSettings((s) => s.autoOfflineSwitch);
   const setAutoOfflineSwitch = useSettings((s) => s.setAutoOfflineSwitch);
+  const hideUnavailableOffline = useSettings((s) => s.hideUnavailableOffline);
+  const setHideUnavailableOffline = useSettings((s) => s.setHideUnavailableOffline);
   const files = useDownloads((s) => s.files);
   const usageBytes = useDownloads((s) => s.usageBytes);
   const clearAll = useDownloads((s) => s.clearAll);
@@ -125,6 +127,14 @@ export default function DownloadsSettings() {
               ),
               value: autoOfflineSwitch,
               onChange: setAutoOfflineSwitch,
+            },
+            {
+              label: t('Hide unavailable songs'),
+              description: t(
+                'In offline mode, hide songs that aren’t downloaded instead of showing them greyed out.',
+              ),
+              value: hideUnavailableOffline,
+              onChange: setHideUnavailableOffline,
             },
           ]}
         />

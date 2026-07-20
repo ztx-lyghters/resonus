@@ -1885,7 +1885,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   cycleRepeat: () => {
-    const order: RepeatMode[] = ['off', 'all', 'one'];
+    // Primer toque: repetir la canción actual ('one'); segundo: toda la cola
+    // ('all'); tercero: apagado. Como Feishin.
+    const order: RepeatMode[] = ['off', 'one', 'all'];
     const repeat = order[(order.indexOf(get().repeat) + 1) % order.length];
     set({ repeat });
     const p = activePlayer();

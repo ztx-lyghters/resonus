@@ -9,6 +9,64 @@ Releases before 0.2.1 are only listed on the
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-20
+
+### Added
+
+- Offline mode now mirrors your whole server library, not just downloads:
+  favorites, playlists, starred albums and artists all appear. Songs you haven't
+  downloaded show greyed out, with their cover, and can still be selected in
+  multi-select, so you see everything and play what's on the device.
+- Offline edits sync back when you reconnect: favorites, star ratings and
+  playlist changes (add, remove, reorder, create, delete, rename) you make
+  offline are pushed to the server the next time it is reachable.
+- Radio stations can be managed from the app — add, edit and delete — with a
+  radio-aware player and custom station artwork stored on the device.
+- Quick grid customization: choose its sources (favorites, albums, playlists),
+  its size (4, 6 or 8 cards), and turn it off, all from its own settings.
+- Choose which tab the app opens on (Home, Search or Library), returning there
+  when you reopen the app after a few minutes away.
+- Playlists can now appear as a Home section (off by default).
+- Star ratings in song lists, with an optional Rate action in a song's ⋯ menu to
+  rate without opening the player.
+- Subsonic Jukebox mode, to play through the server's own audio output.
+- Previous-button behavior setting.
+- "Recently added" sort when browsing Albums and Artists.
+- "Downloaded" sort that groups downloaded songs together in playlists and
+  favorites.
+- Optional Favorites explore chip, and a hidden-by-default "Recently played"
+  chip on Home.
+- Server accounts now go offline automatically and seamlessly when the server
+  can't be reached, including falling back to offline when a saved profile is
+  unreachable at login; the auto-switch has a toggle.
+
+### Changed
+
+- Downloads and settings are now per account/profile, and offline behavior is
+  sturdier.
+- The offline indicator is a single subtle crossed-cloud icon next to the
+  greeting; the offline toast just says "Offline"; and the switch-to-offline and
+  sign-out pills are lighter.
+- Discover shows first among the default Home sections.
+- The Recent chip on Albums sorts by recently played and refreshes when you
+  enter the screen.
+- The repeat button now cycles off → repeat one → repeat all, so the first tap
+  repeats the current song.
+- Switching server address refreshes the library and hands off the currently
+  playing track seamlessly.
+- Delete is separated from the other playlist-menu actions by a divider.
+- The Downloads settings section is hidden in the local profile.
+
+### Fixed
+
+- Playlist song removal is hardened against index drift, so the right song is
+  removed even if you go offline mid-edit.
+- Random artists and Discover reshuffle on pull-to-refresh on Home.
+- The password field no longer forces an uppercase keyboard, and revealing
+  search gives a single haptic.
+
+## [0.4.0] - 2026-07-17
+
 ### Added
 
 - Built-in equalizer, with the device's presets, a slider per band and a reset
@@ -148,6 +206,10 @@ Releases before 0.2.1 are only listed on the
   is enabled.
 - The keyboard no longer covers the search bar on the add-to-favorites screen.
 - Centered the sort chip labels on the Albums screen.
+
+[0.5.0]: https://github.com/juananzzz/resonus/releases/tag/v0.5.0
+
+[0.4.0]: https://github.com/juananzzz/resonus/releases/tag/v0.4.0
 
 [0.3.1]: https://github.com/juananzzz/resonus/releases/tag/v0.3.1
 

@@ -50,6 +50,8 @@ interface MirrorState {
   saveStarred: (s: Starred) => void;
   savePlaylists: (list: Playlist[]) => void;
   savePlaylistDetail: (id: string, playlist: Playlist, songs: Song[]) => void;
+  /** Guarda varios detalles de una vez (una sola escritura a disco). */
+  savePlaylistDetails: (entries: { id: string; playlist: Playlist; songs: Song[] }[]) => void;
   saveAlbum: (id: string, album: Album, songs: Song[]) => void;
   saveArtist: (id: string, artist: Artist, albums: Album[]) => void;
 }
@@ -120,6 +122,13 @@ export const useLibraryMirror = create<MirrorState>((set, get) => {
           playlistTracks: { ...get().data.playlistTracks, [id]: { playlist, songs } },
         },
       });
+      persist();
+    },
+    savePlaylistDetails: (entries) => {
+      if (entries.length === 0) return;
+      const next = { ...get().data.playlistTracks };
+      for (const e of entries) next[e.id] = { playlist: e.playlist, songs: e.songs };
+      set({ data: { ...get().data, playlistTracks: next } });
       persist();
     },
     saveAlbum: (id, album, songs) => {

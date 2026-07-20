@@ -295,13 +295,58 @@ export function getPlaylists(): Promise<Subsonic.Playlist[]> {
   }
   return Subsonic.getPlaylists(auth()).then((list) => {
     useLibraryMirror.getState().savePlaylists(list);
+    // Cachea en segundo plano el tracklist de cada lista para que estén
+    // disponibles offline sin abrirlas una a una (no bloquea la respuesta).
+    void prefetchPlaylistDetails(list);
     return list;
   });
 }
 
-/** Listas del espejo: solo las que tienen alguna canción descargada (según su
- *  tracklist guardado). La carátula se toma del primer tema descargado, que sí
- *  resuelve offline. Sin copia aún, cae al comportamiento local. */
+/** Evita solapar dos prefetch (getPlaylists puede dispararse varias veces). */
+let prefetchingPlaylists = false;
+
+/**
+ * En segundo plano, cachea el tracklist de las listas del servidor para el modo
+ * offline. Salta las que ya tienen detalle con el mismo `changed` (barato tras
+ * la primera sincronización) y limita la concurrencia. Best-effort: ignora
+ * fallos y escribe el espejo una sola vez al terminar.
+ */
+async function prefetchPlaylistDetails(list: Subsonic.Playlist[]): Promise<void> {
+  if (prefetchingPlaylists) return;
+  const a = useAuthStore.getState().auth;
+  if (!a) return;
+  prefetchingPlaylists = true;
+  try {
+    await loadMirror();
+    const cached = useLibraryMirror.getState().data.playlistTracks ?? {};
+    // Solo las que faltan o cambiaron en el servidor (por `changed`).
+    const stale = list.filter((p) => {
+      const prev = cached[p.id]?.playlist;
+      return !prev || (p.changed != null && prev.changed !== p.changed);
+    });
+    const results: { id: string; playlist: Subsonic.Playlist; songs: Subsonic.Song[] }[] = [];
+    const CONCURRENCY = 4;
+    for (let i = 0; i < stale.length; i += CONCURRENCY) {
+      const batch = stale.slice(i, i + CONCURRENCY);
+      const settled = await Promise.all(
+        batch.map((p) =>
+          Subsonic.getPlaylist(a, p.id)
+            .then((res) => ({ id: p.id, playlist: res.playlist, songs: res.songs }))
+            .catch(() => null),
+        ),
+      );
+      for (const r of settled) if (r) results.push(r);
+    }
+    useLibraryMirror.getState().savePlaylistDetails(results);
+  } finally {
+    prefetchingPlaylists = false;
+  }
+}
+
+/** Listas del espejo: TODAS las del servidor que se hayan visto online (aunque
+ *  no tengan nada descargado); dentro, las descargadas suenan y el resto salen
+ *  en gris. La carátula usa el primer tema descargado (resuelve offline) o la de
+ *  la lista. Sin copia aún, cae al comportamiento local. */
 async function mirrorPlaylists(): Promise<Subsonic.Playlist[]> {
   await loadMirror();
   const mirror = useLibraryMirror.getState().data;
@@ -329,14 +374,16 @@ async function mirrorPlaylists(): Promise<Subsonic.Playlist[]> {
   for (const p of mirror.playlists ?? []) {
     const edit = qpls[p.id];
     if (edit?.deleted) continue;
-    const songIds = edit?.songIds ?? mirror.playlistTracks?.[p.id]?.songs.map((s) => s.id) ?? [];
+    const detailIds = mirror.playlistTracks?.[p.id]?.songs.map((s) => s.id);
+    const songIds = edit?.songIds ?? detailIds ?? [];
     const firstDl = songIds.find((sid) => files[sid]);
-    // Se muestra si tiene alguna canción descargada o si la has editado offline.
-    if (!firstDl && !edit) continue;
+    // Con tracklist conocido (detalle cacheado o edición offline) el conteo
+    // real; si no, el que trae la lista del servidor.
+    const haveTracks = edit?.songIds != null || detailIds != null;
     out.push({
       ...p,
       name: edit?.name ?? p.name,
-      songCount: songIds.length,
+      songCount: haveTracks ? songIds.length : p.songCount,
       coverArt: firstDl ? resolveSong(firstDl, catalog)?.albumId ?? p.coverArt : p.coverArt,
     });
   }

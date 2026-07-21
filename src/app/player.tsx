@@ -133,6 +133,7 @@ export default function PlayerScreen() {
   const t = useT();
   const showQualityBadge = useSettings((s) => s.showAudioQuality);
   const showRating = useSettings((s) => s.showRating);
+  const showAlbumInfo = useSettings((s) => s.showAlbumInfo);
   const showLyricsCard = useSettings((s) => s.showLyricsCard);
   const coverTapAction = useSettings((s) => s.coverTapAction);
   const marqueeTitles = useSettings((s) => s.marqueeTitles);
@@ -329,6 +330,8 @@ export default function PlayerScreen() {
   // necesitan cuenta de servidor no-Jellyfin; no aplican en radio (url directa)
   // ni en el perfil local (sin cuenta). Offline se apunta y sube al reconectar.
   const canRate = showRating && hasAccount && serverType !== 'jellyfin' && !song.url;
+  // Álbum · año bajo el título (opcional). Radio no tiene: solo si hay algo.
+  const albumLine = [song.album, song.year].filter(Boolean).join(' · ');
   const duration = durationSec || song.duration || 0;
   const repeatActive = repeat !== 'off';
 
@@ -488,9 +491,22 @@ export default function PlayerScreen() {
             {(isLocal && !offline) ? null : <FavoriteButton id={song.id} starred={favorited} size={26} />}
           </View>
 
-          {showQualityBadge ? (
-            <View style={styles.belowMeta}>
-              <AudioQualityBadge song={song} />
+          {(showAlbumInfo && albumLine) || showQualityBadge ? (
+            <View style={styles.subInfo}>
+              {showAlbumInfo && albumLine ? (
+                song.albumId ? (
+                  <Pressable
+                    style={styles.tapText}
+                    hitSlop={6}
+                    onPress={() => router.push(`/album/${song.albumId}` as never)}
+                  >
+                    <MarqueeText text={albumLine} style={styles.albumInfo} enabled={marqueeTitles} />
+                  </Pressable>
+                ) : (
+                  <MarqueeText text={albumLine} style={styles.albumInfo} enabled={marqueeTitles} />
+                )
+              ) : null}
+              {showQualityBadge ? <AudioQualityBadge song={song} /> : null}
             </View>
           ) : null}
 
@@ -749,10 +765,13 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     marginTop: spacing.xs,
   },
-  // Info de calidad bajo el título/artista, en versión compacta: es un elemento
-  // opcional y la primera página va justa con todo activado — cada píxel
-  // vertical cuenta (el slider ya trae aire propio debajo).
-  belowMeta: { marginTop: -spacing.sm, marginBottom: spacing.xs },
+  // Líneas de info bajo el título/artista (álbum·año y/o calidad), en versión
+  // compacta: son opcionales y la primera página va justa con todo activado —
+  // cada píxel vertical cuenta (el slider ya trae aire propio debajo). Un único
+  // tirón hacia arriba para todo el grupo y un gap pequeño entre líneas, así no
+  // se solapan cuando se muestran las dos.
+  subInfo: { marginTop: -spacing.sm, marginBottom: spacing.xs, gap: 2 },
+  albumInfo: { color: colors.textSecondary, fontSize: fontSize.sm },
   progress: { marginBottom: spacing.md },
   // Compensa el margen interno del slider (~15px, donde centra el pulgar en
   // los extremos): la pista visible va de borde a borde del contenido, como

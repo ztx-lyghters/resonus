@@ -349,6 +349,8 @@ interface SettingsState {
   showAudioQuality: boolean;
   /** Barra de estrellas para valorar la canción en el reproductor. */
   showRating: boolean;
+  /** Mostrar álbum y año bajo el título/artista en el reproductor. */
+  showAlbumInfo: boolean;
   /** Mostrar la mini carátula del álbum en las listas (playlists/favoritos). */
   showListArtwork: boolean;
   /** Duración de cada canción en las listas (Spotify no la muestra). */
@@ -477,6 +479,7 @@ interface SettingsState {
   setLanguage: (language: Language) => void;
   setShowAudioQuality: (value: boolean) => void;
   setShowRating: (value: boolean) => void;
+  setShowAlbumInfo: (value: boolean) => void;
   setShowListArtwork: (value: boolean) => void;
   setShowSongDuration: (value: boolean) => void;
   setShowListRating: (value: boolean) => void;
@@ -549,6 +552,7 @@ function snapshot(get: () => SettingsState) {
     // `language` no va en el blob del perfil: es global (ver LANG_KEY).
     showAudioQuality: s.showAudioQuality,
     showRating: s.showRating,
+    showAlbumInfo: s.showAlbumInfo,
     showListArtwork: s.showListArtwork,
     showSongDuration: s.showSongDuration,
     showListRating: s.showListRating,
@@ -609,6 +613,7 @@ const DEFAULTS = {
   language: 'en' as Language,
   showAudioQuality: false,
   showRating: false,
+  showAlbumInfo: false,
   showListArtwork: true,
   showSongDuration: false,
   showListRating: false,
@@ -704,6 +709,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
 
   setShowAudioQuality: (showAudioQuality) => {
     set({ showAudioQuality });
+    persist(snapshot(get));
+  },
+
+  setShowAlbumInfo: (showAlbumInfo) => {
+    set({ showAlbumInfo });
     persist(snapshot(get));
   },
 
@@ -989,6 +999,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
           language: Language;
           showAudioQuality: string | boolean;
           showRating: boolean;
+          showAlbumInfo: boolean;
           showListArtwork: boolean;
           showSongDuration: boolean;
           showListRating: boolean;
@@ -1075,6 +1086,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
         }
         if (typeof parsed.showRating === 'boolean') {
           set({ showRating: parsed.showRating });
+        }
+        if (typeof parsed.showAlbumInfo === 'boolean') {
+          set({ showAlbumInfo: parsed.showAlbumInfo });
         }
         if (typeof parsed.showListArtwork === 'boolean') {
           set({ showListArtwork: parsed.showListArtwork });

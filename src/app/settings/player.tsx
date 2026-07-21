@@ -20,6 +20,8 @@ export default function PlayerSettings() {
   const setShowAudioQuality = useSettings((s) => s.setShowAudioQuality);
   const showRating = useSettings((s) => s.showRating);
   const setShowRating = useSettings((s) => s.setShowRating);
+  const showAlbumInfo = useSettings((s) => s.showAlbumInfo);
+  const setShowAlbumInfo = useSettings((s) => s.setShowAlbumInfo);
   const playerColorBackground = useSettings((s) => s.playerColorBackground);
   const setPlayerColorBackground = useSettings((s) => s.setPlayerColorBackground);
   const miniPlayerColorBackground = useSettings((s) => s.miniPlayerColorBackground);
@@ -72,6 +74,12 @@ export default function PlayerSettings() {
         <Text style={settingsStyles.sectionTitle}>{t('Elements')}</Text>
         <SwitchList
           options={[
+            {
+              label: t('Show album & year'),
+              description: t('Show the album name and release year under the title.'),
+              value: showAlbumInfo,
+              onChange: setShowAlbumInfo,
+            },
             {
               label: t('Show quality label'),
               description: t('Show format, bitrate and Lossless / Hi-Res in the player.'),

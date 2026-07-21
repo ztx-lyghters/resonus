@@ -429,9 +429,14 @@ export default function PlayerScreen() {
               <CoverLyrics size={COVER} onClose={() => setInlineLyrics(false)} />
             </View>
           ) : null}
-          {showQualityBadge ? (
-            <View style={styles.qualityWrap}>
-              <AudioQualityBadge song={song} />
+          {canRate ? (
+            <View style={styles.belowCover}>
+              <StarRating
+                id={song.id}
+                rating={song.userRating}
+                size={18}
+                onRated={(r) => rateSong(song.id, r)}
+              />
             </View>
           ) : null}
         </View>
@@ -483,14 +488,9 @@ export default function PlayerScreen() {
             {(isLocal && !offline) ? null : <FavoriteButton id={song.id} starred={favorited} size={26} />}
           </View>
 
-          {canRate ? (
-            <View style={styles.rating}>
-              <StarRating
-                id={song.id}
-                rating={song.userRating}
-                size={18}
-                onRated={(r) => rateSong(song.id, r)}
-              />
+          {showQualityBadge ? (
+            <View style={styles.belowMeta}>
+              <AudioQualityBadge song={song} />
             </View>
           ) : null}
 
@@ -749,10 +749,10 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     marginTop: spacing.xs,
   },
-  // Fila de estrellas bajo el título, en versión compacta: es un elemento
+  // Info de calidad bajo el título/artista, en versión compacta: es un elemento
   // opcional y la primera página va justa con todo activado — cada píxel
   // vertical cuenta (el slider ya trae aire propio debajo).
-  rating: { marginTop: -spacing.sm, marginBottom: spacing.xs },
+  belowMeta: { marginTop: -spacing.sm, marginBottom: spacing.xs },
   progress: { marginBottom: spacing.md },
   // Compensa el margen interno del slider (~15px, donde centra el pulgar en
   // los extremos): la pista visible va de borde a borde del contenido, como
@@ -779,7 +779,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  qualityWrap: { alignItems: 'center', marginTop: spacing.md },
+  // Estrellas centradas bajo la carátula (elemento opcional).
+  belowCover: { alignItems: 'center', marginTop: spacing.md },
   bottomRow: {
     flexDirection: 'row',
     alignItems: 'center',

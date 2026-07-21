@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 
+import { useAutoDownloads } from '@/store/autoDownloads';
 import { useSettings, type DefaultTab } from '@/store/settings';
 
 const TAB_HREF: Record<DefaultTab, '/' | '/search' | '/library'> = {
@@ -54,6 +55,9 @@ export function AppStartupTab() {
         const since = backgroundedAt.current;
         backgroundedAt.current = null;
         if (since !== null && Date.now() - since > RESET_AFTER_MS) goToDefaultTab();
+        // Al volver, sincroniza las playlists de auto-descarga (pilla lo que se
+        // añadiera desde otro cliente mientras la app estaba en 2º plano).
+        void useAutoDownloads.getState().reconcileAll();
       }
     });
     return () => sub.remove();

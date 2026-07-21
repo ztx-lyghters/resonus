@@ -2,7 +2,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -31,6 +31,7 @@ import { useSongSort } from '@/hooks/useSongSort';
 import { songsLabel, useT } from '@/i18n';
 import { formatTotalDuration } from '@/lib/format';
 import { useAuthStore } from '@/store/auth';
+import { useAutoDownloads } from '@/store/autoDownloads';
 import { groupDownloadState, useDownloads } from '@/store/downloads';
 import { currentSong, usePlayerStore } from '@/store/player';
 import { useSettings } from '@/store/settings';
@@ -82,6 +83,17 @@ export default function PlaylistScreen() {
     useShallow((s) => groupDownloadState(s, `playlist:${id}`, songIds)),
   );
   const downloadPlaylist = useDownloads((s) => s.downloadPlaylist);
+  // Auto-descarga: solo tiene sentido en playlists de servidor (no en el perfil
+  // local ni en las playlists locales `dl_` que ya son el espejo de descargas).
+  const canAutoDownload = !!auth && !id.startsWith('dl_');
+  const autoDownload = useAutoDownloads((s) => !!s.ids[id]);
+  // Al abrir/refrescar la playlist marcada, reconcilia con lo que ya tenemos en
+  // mano (sin re-pedir): descarga lo que falte, pilla cambios de otros clientes.
+  useEffect(() => {
+    if (autoDownload && data) {
+      void useAutoDownloads.getState().reconcileKnown(data.playlist, data.songs, true);
+    }
+  }, [autoDownload, data]);
   const cancelDownload = useDownloads((s) => s.cancelDownload);
   const deleteSongs = useDownloads((s) => s.deleteSongs);
   const downloadSongs = useDownloads((s) => s.downloadSongs);
@@ -386,6 +398,37 @@ export default function PlaylistScreen() {
               <Ionicons name="create-outline" size={24} color={colors.text} />
               <Text style={styles.actionText}>{t('Edit playlist')}</Text>
             </Pressable>
+            {canAutoDownload ? (
+              <Pressable
+                style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
+                onPress={() => {
+                  close();
+                  const wasOn = !!useAutoDownloads.getState().ids[id];
+                  useAutoDownloads.getState().toggle(id);
+                  if (wasOn) {
+                    toast(t('Auto-download off'));
+                  } else {
+                    toast(t('Auto-download on'));
+                    // Descarga ya con los datos en mano (no en 2º plano: si toca
+                    // Wi-Fi y hay datos, el flujo avisa con su toast).
+                    if (data) {
+                      void useAutoDownloads
+                        .getState()
+                        .reconcileKnown(data.playlist, data.songs, false);
+                    }
+                  }
+                }}
+              >
+                <Ionicons
+                  name={autoDownload ? 'cloud-done' : 'cloud-download-outline'}
+                  size={24}
+                  color={autoDownload ? colors.accent : colors.text}
+                />
+                <Text style={[styles.actionText, autoDownload && { color: colors.accent }]}>
+                  {t('Auto-download')}
+                </Text>
+              </Pressable>
+            ) : null}
             <View style={styles.actionDivider} />
             <Pressable
               style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}

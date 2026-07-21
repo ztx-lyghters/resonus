@@ -15,6 +15,7 @@ import { addToPlaylist, coverArtUrl, createPlaylist, getPlaylist, getPlaylists }
 import { type Song } from '@/api/subsonic';
 import { useBottomSheetAnim } from '@/hooks/useBottomSheetAnim';
 import { useT } from '@/i18n';
+import { useAutoDownloads } from '@/store/autoDownloads';
 import { useToast } from '@/store/toast';
 import { colors, fontSize, radius, spacing } from '@/theme';
 import { Cover } from './Cover';
@@ -70,6 +71,8 @@ export function PlaylistPickerSheet({
       );
       queryClient.invalidateQueries({ queryKey: ['playlist', playlistId] });
       queryClient.invalidateQueries({ queryKey: ['playlists'] });
+      // Si la lista es de auto-descarga, baja ya las canciones recién añadidas.
+      void useAutoDownloads.getState().reconcile(playlistId, true);
       toast(
         songs.length === 1
           ? t('Added to “{name}”', { name })

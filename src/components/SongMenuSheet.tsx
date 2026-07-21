@@ -35,6 +35,7 @@ import { artistTargets } from '@/lib/artistNav';
 import { normKey } from '@/lib/localLibrary';
 import { useArtistPicker } from '@/store/artistPicker';
 import { useAuthStore } from '@/store/auth';
+import { useAutoDownloads } from '@/store/autoDownloads';
 import { useDownloads } from '@/store/downloads';
 import { usePlayerStore } from '@/store/player';
 import { useSettings } from '@/store/settings';
@@ -152,6 +153,8 @@ export function SongMenuSheet() {
     try {
       await addToPlaylist(playlistId, song.id);
       queryClient.invalidateQueries({ queryKey: ['playlist', playlistId] });
+      // Si la lista es de auto-descarga, baja ya la canción recién añadida.
+      void useAutoDownloads.getState().reconcile(playlistId, true);
       toast(t('Added to “{name}”', { name: playlistName }));
     } catch {
       toast(t("Couldn't add to the playlist"));

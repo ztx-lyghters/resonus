@@ -21,6 +21,7 @@ import { Toast } from '@/components/Toast';
 import { installAppFont, setAppFont } from '@/lib/appFont';
 import { queryClient } from '@/lib/query';
 import { useAuthStore } from '@/store/auth';
+import { useAutoDownloads } from '@/store/autoDownloads';
 import { useDownloads } from '@/store/downloads';
 import { useEqualizer } from '@/store/equalizer';
 import { useLastPlayed } from '@/store/lastPlayed';
@@ -76,6 +77,7 @@ export default function RootLayout() {
     void usePins.getState().hydrate();
     void useRadioCovers.getState().hydrate();
     void useDownloads.getState().hydrate();
+    void useAutoDownloads.getState().hydrate();
     // Espejo + outbox para el offline (se recargan al cambiar de perfil). Al
     // terminar de cargar de disco, si estamos offline refrescamos la Biblioteca:
     // cubre el arranque en frío donde una query pudo resolverse antes de tener

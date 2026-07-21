@@ -12,7 +12,8 @@ import { queryClient } from '@/lib/query';
 // value. Con `color` se evita ese falso positivo en el picker de Theme.
 /** Colores de acento elegibles (misma paleta viva; verde por defecto). */
 export const ACCENT_OPTIONS: { name: string; color: string }[] = [
-  // Ordenados por tono (arcoíris), con el verde por defecto el primero.
+  // Ordenados por tono (arcoíris), con el verde por defecto el primero; el
+  // blanco (neutro, sin tono) cierra la lista.
   { name: 'Green', color: DEFAULT_ACCENT },
   { name: 'Teal', color: '#1FC7B6' },
   { name: 'Cyan', color: '#2CC4E0' },
@@ -22,9 +23,12 @@ export const ACCENT_OPTIONS: { name: string; color: string }[] = [
   { name: 'Magenta', color: '#D65AE0' },
   { name: 'Pink', color: '#F25D94' },
   { name: 'Red', color: '#F2555A' },
+  { name: 'Coral', color: '#FF7043' },
   { name: 'Orange', color: '#F58C3C' },
   { name: 'Yellow', color: '#F5C53C' },
   { name: 'Lime', color: '#A6D93C' },
+  { name: 'Spring', color: '#5CD65C' },
+  { name: 'White', color: '#FFFFFF' },
 ];
 
 // Base de la clave de ajustes. Los ajustes son POR PERFIL: cada uno guarda bajo

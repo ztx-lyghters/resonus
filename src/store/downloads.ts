@@ -235,19 +235,33 @@ function isErrorBody(headers: Record<string, string> | undefined): boolean {
   );
 }
 
-function songFileUrl(auth: SubsonicAuth, song: Song): { url: string; ext: string } {
-  const bitrate = useSettings.getState().downloadBitRate;
+// Extensión del fichero que devuelve el servidor al transcodificar a cada
+// códec. '' = transcoder por defecto (MP3 en Navidrome).
+const FORMAT_EXT: Record<string, string> = { '': 'mp3', mp3: 'mp3', opus: 'opus' };
+
+function songFileUrl(
+  auth: SubsonicAuth,
+  song: Song,
+): { url: string; ext: string; bitRate?: number } {
+  const { downloadBitRate: bitrate, downloadFormat: format } = useSettings.getState();
   if (bitrate > 0) {
-    return { url: streamUrl(auth, song.id, bitrate), ext: 'mp3' };
+    return {
+      url: streamUrl(auth, song.id, bitrate, 0, format),
+      ext: FORMAT_EXT[format] ?? 'mp3',
+      bitRate: bitrate,
+    };
   }
   return { url: downloadUrl(auth, song.id), ext: song.suffix || 'mp3' };
 }
 
 /** Canción tal y como entra al catálogo local: id de servidor + fichero local. */
-function toLocalSong(song: Song, fileUri: string): Song {
+function toLocalSong(song: Song, fileUri: string, dlBitRate?: number): Song {
   return {
     ...song,
     localUri: fileUri,
+    // Bitrate del transcode al descargar (si lo hubo): el fichero en disco no lo
+    // lleva y así la etiqueta de calidad puede mostrarlo offline.
+    dlBitRate,
     // Id de artista local (por nombre) para fusionar con los artistas del escaneo.
     artistId: normKey(song.artist || 'Artista desconocido'),
     // Los ids de servidor no valen offline: re-clavamos cada artista por nombre.
@@ -351,6 +365,13 @@ async function downloadCover(auth: SubsonicAuth, dir: string, album: Album): Pro
 interface DownloadsState {
   /** id de canción (de servidor) → uri del fichero descargado. */
   files: Record<string, string>;
+  /**
+   * id de canción → bitrate (kbps) al que se transcodificó al descargar, si se
+   * transcodificó. Se consulta por id (no por el objeto canción) porque offline
+   * el reproductor puede mostrar la canción del espejo del servidor, no la del
+   * catálogo. Solo lo tienen las descargas nuevas transcodificadas.
+   */
+  dlBitRates: Record<string, number>;
   /** Progreso por grupo en curso: `album:<id>` / `playlist:<id>` / `artist:<id>`. */
   active: Record<string, GroupProgress>;
   hydrate: () => Promise<void>;
@@ -448,7 +469,7 @@ export const useDownloads = create<DownloadsState>((set, get) => {
           const song = pending[next++];
           await ensureAlbum(song);
           if (cancelling.has(groupKey)) break; // pudo pararse durante la carátula
-          const { url, ext } = songFileUrl(auth, song);
+          const { url, ext, bitRate: dlBitRate } = songFileUrl(auth, song);
           const file = `${dir}files/${hashKey(song.id)}.${ext}`;
           const task = FileSystem.createDownloadResumable(url, file, {}, (p) => {
             if (p.totalBytesExpectedToWrite > 0) {
@@ -470,11 +491,15 @@ export const useDownloads = create<DownloadsState>((set, get) => {
             await cacheLyricsForDownload(auth, song, file);
             // Cada canción se persiste al completarse: si la app muere a mitad
             // de un álbum, lo ya bajado sobrevive al reinicio.
-            await commitToCatalog(dir, { songs: [toLocalSong(song, file)] });
+            await commitToCatalog(dir, { songs: [toLocalSong(song, file, dlBitRate)] });
             set((st) => {
               const cur = st.active[groupKey];
               return {
                 files: { ...st.files, [song.id]: file },
+                dlBitRates:
+                  dlBitRate != null
+                    ? { ...st.dlBitRates, [song.id]: dlBitRate }
+                    : st.dlBitRates,
                 active: cur
                   ? { ...st.active, [groupKey]: { ...cur, done: cur.done + 1, fraction: 0 } }
                   : st.active,
@@ -523,17 +548,20 @@ export const useDownloads = create<DownloadsState>((set, get) => {
 
   return {
     files: {},
+    dlBitRates: {},
     active: {},
 
     hydrate: async () => {
       const files: Record<string, string> = {};
+      const dlBitRates: Record<string, number> = {};
       for (const dir of await serverDirs()) {
         const cat = await readServerCatalog(dir);
         for (const s of cat?.songs ?? []) {
           if (s.localUri) files[s.id] = s.localUri;
+          if (s.dlBitRate) dlBitRates[s.id] = s.dlBitRate;
         }
       }
-      set({ files });
+      set({ files, dlBitRates });
     },
 
     downloadAlbum: async (album, songs) => {
@@ -629,8 +657,12 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       });
       set((st) => {
         const files = { ...st.files };
-        for (const id of songIds) delete files[id];
-        return { files };
+        const dlBitRates = { ...st.dlBitRates };
+        for (const id of songIds) {
+          delete files[id];
+          delete dlBitRates[id];
+        }
+        return { files, dlBitRates };
       });
       invalidate();
     },
@@ -641,7 +673,7 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       // se eliminan para no dejar listas vacías.
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       await require('@/lib/localQueries').deleteLocalPlaylistsByPrefix('dl_');
-      set({ files: {}, active: {} });
+      set({ files: {}, dlBitRates: {}, active: {} });
       invalidate();
     },
 

@@ -266,7 +266,8 @@ function sourceFor(song: Song, timeOffsetSec = 0): { uri: string } {
   const dl = downloadedUri(song);
   if (dl) return { uri: dl };
   const auth = useAuthStore.getState().auth!;
-  return { uri: streamUrl(auth, song.id, effectiveMaxBitRate(), timeOffsetSec) };
+  const format = useSettings.getState().streamFormat;
+  return { uri: streamUrl(auth, song.id, effectiveMaxBitRate(), timeOffsetSec, format) };
 }
 
 // ── Seek en streams transcodificados ────────────────────────────────────────

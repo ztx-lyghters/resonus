@@ -17,7 +17,7 @@ import {
 } from '@/components/SettingsUI';
 import { useT } from '@/i18n';
 import { useAuthStore } from '@/store/auth';
-import { BITRATE_OPTIONS, useSettings } from '@/store/settings';
+import { BITRATE_OPTIONS, TRANSCODE_FORMATS, useSettings } from '@/store/settings';
 
 export default function PlaybackSettings() {
   const t = useT();
@@ -27,6 +27,8 @@ export default function PlaybackSettings() {
   const setMaxBitRate = useSettings((s) => s.setMaxBitRate);
   const maxBitRateCellular = useSettings((s) => s.maxBitRateCellular);
   const setMaxBitRateCellular = useSettings((s) => s.setMaxBitRateCellular);
+  const streamFormat = useSettings((s) => s.streamFormat);
+  const setStreamFormat = useSettings((s) => s.setStreamFormat);
   const autoplaySimilar = useSettings((s) => s.autoplaySimilar);
   const setAutoplaySimilar = useSettings((s) => s.setAutoplaySimilar);
   const crossfadeSec = useSettings((s) => s.crossfadeSec);
@@ -41,6 +43,10 @@ export default function PlaybackSettings() {
   const setKeepScreenAwake = useSettings((s) => s.setKeepScreenAwake);
 
   const bitrateOptions = BITRATE_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }));
+  const codecOptions = TRANSCODE_FORMATS.map((v) => ({
+    value: v,
+    label: v === '' ? t('Server default') : v.toUpperCase(),
+  }));
 
   return (
     <SettingsPage title={t('Quality & playback')}>
@@ -49,6 +55,13 @@ export default function PlaybackSettings() {
           <>
             {/* El primer título va pegado a la cabecera (sin el margen de sección). */}
             <Text style={[settingsStyles.sectionTitle, { marginTop: 0 }]}>{t('Streaming')}</Text>
+            <SelectList
+              label={t('Streaming codec')}
+              description={t('Codec to transcode to. Only used at a set bitrate (not “Original”), and your server must support it.')}
+              options={codecOptions}
+              value={streamFormat}
+              onChange={setStreamFormat}
+            />
             <SelectList
               label={t('Streaming quality (Wi-Fi)')}
               description={t('“Original” uses the highest quality; a lower bitrate saves data.')}

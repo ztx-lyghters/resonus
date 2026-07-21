@@ -94,6 +94,10 @@ export interface Song {
   suffix?: string;
   /** Bitrate en kbps. */
   bitRate?: number;
+  /** Bitrate (kbps) al que Resonus transcodificó al DESCARGAR, si aplica. Solo
+   *  se fija en canciones descargadas transcodificadas; alimenta la etiqueta de
+   *  calidad (el fichero en disco no lleva esta info a mano). */
+  dlBitRate?: number;
   /** Profundidad de bits (16, 24…). */
   bitDepth?: number;
   /** Frecuencia de muestreo en Hz (44100, 48000, 96000…). */
@@ -1076,17 +1080,22 @@ export function downloadUrl(auth: SubsonicAuth, id: string): string {
 
 /**
  * URL de streaming de una canción. Si `maxBitRate` > 0, el servidor
- * transcodifica a ese bitrate (kbps) para ahorrar datos.
+ * transcodifica a ese bitrate (kbps) para ahorrar datos. `format` fuerza el
+ * códec de salida (p. ej. `opus`); vacío deja el transcoder por defecto del
+ * servidor. Solo tiene efecto cuando de verdad se transcodifica (con
+ * `maxBitRate` a 0 el servidor sirve el fichero original y lo ignora).
  */
 export function streamUrl(
   auth: SubsonicAuth,
   id: string,
   maxBitRate = 0,
   timeOffset = 0,
+  format = '',
 ): string {
   return buildUrl(auth, 'stream.view', {
     id,
     maxBitRate: maxBitRate > 0 ? maxBitRate : undefined,
+    format: maxBitRate > 0 && format ? format : undefined,
     // Arrancar la transcodificación en este segundo (extensión OpenSubsonic
     // `transcodeOffset`): así se puede "buscar" en streams transcodificados.
     timeOffset: timeOffset > 0 ? Math.floor(timeOffset) : undefined,

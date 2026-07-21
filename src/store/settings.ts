@@ -47,10 +47,22 @@ export const BITRATE_OPTIONS = [
   { label: 'Original', value: 0 },
   { label: '320 kbps', value: 320 },
   { label: '192 kbps', value: 192 },
+  { label: '160 kbps', value: 160 },
   { label: '128 kbps', value: 128 },
   { label: '96 kbps', value: 96 },
   { label: '64 kbps', value: 64 },
 ] as const;
+
+/**
+ * Códec al que pedir la transcodificación (parámetro `format` de Subsonic).
+ * '' = el transcoder por defecto del servidor (MP3 en Navidrome). Solo entra en
+ * juego cuando hay bitrate elegido (con "Original" se sirve el fichero crudo).
+ */
+export type TranscodeFormat = '' | 'mp3' | 'opus';
+
+/** Opciones del selector de códec. Las etiquetas de códec son nombres propios;
+ *  la de "por defecto" la traduce cada pantalla con `t('Server default')`. */
+export const TRANSCODE_FORMATS: TranscodeFormat[] = ['', 'mp3', 'opus'];
 
 export type Language = 'es' | 'en' | 'de' | 'ca';
 
@@ -326,6 +338,10 @@ interface SettingsState {
   maxBitRateCellular: number;
   /** Calidad de descarga: 0 = fichero original; resto, bitrate transcodificado. */
   downloadBitRate: number;
+  /** Códec de transcodificación en streaming ('' = el del servidor). */
+  streamFormat: TranscodeFormat;
+  /** Códec de transcodificación en descargas ('' = el del servidor). */
+  downloadFormat: TranscodeFormat;
   /** Descargar solo con Wi-Fi (bloquea descargas con datos móviles). */
   downloadWifiOnly: boolean;
   language: Language;
@@ -455,6 +471,8 @@ interface SettingsState {
   setMaxBitRate: (value: number) => void;
   setMaxBitRateCellular: (value: number) => void;
   setDownloadBitRate: (value: number) => void;
+  setStreamFormat: (value: TranscodeFormat) => void;
+  setDownloadFormat: (value: TranscodeFormat) => void;
   setDownloadWifiOnly: (value: boolean) => void;
   setLanguage: (language: Language) => void;
   setShowAudioQuality: (value: boolean) => void;
@@ -525,6 +543,8 @@ function snapshot(get: () => SettingsState) {
     maxBitRate: s.maxBitRate,
     maxBitRateCellular: s.maxBitRateCellular,
     downloadBitRate: s.downloadBitRate,
+    streamFormat: s.streamFormat,
+    downloadFormat: s.downloadFormat,
     downloadWifiOnly: s.downloadWifiOnly,
     // `language` no va en el blob del perfil: es global (ver LANG_KEY).
     showAudioQuality: s.showAudioQuality,
@@ -583,6 +603,8 @@ const DEFAULTS = {
   maxBitRate: 0,
   maxBitRateCellular: 0,
   downloadBitRate: 0,
+  streamFormat: '' as TranscodeFormat,
+  downloadFormat: '' as TranscodeFormat,
   downloadWifiOnly: false,
   language: 'en' as Language,
   showAudioQuality: false,
@@ -652,6 +674,16 @@ export const useSettings = create<SettingsState>((set, get) => ({
 
   setMaxBitRateCellular: (maxBitRateCellular) => {
     set({ maxBitRateCellular });
+    persist(snapshot(get));
+  },
+
+  setStreamFormat: (streamFormat) => {
+    set({ streamFormat });
+    persist(snapshot(get));
+  },
+
+  setDownloadFormat: (downloadFormat) => {
+    set({ downloadFormat });
     persist(snapshot(get));
   },
 
@@ -951,6 +983,8 @@ export const useSettings = create<SettingsState>((set, get) => ({
           maxBitRate: number;
           maxBitRateCellular: number;
           downloadBitRate: number;
+          streamFormat: TranscodeFormat;
+          downloadFormat: TranscodeFormat;
           downloadWifiOnly: boolean;
           language: Language;
           showAudioQuality: string | boolean;
@@ -1018,6 +1052,12 @@ export const useSettings = create<SettingsState>((set, get) => ({
         }
         if (typeof parsed.downloadBitRate === 'number') {
           set({ downloadBitRate: parsed.downloadBitRate });
+        }
+        if (TRANSCODE_FORMATS.includes(parsed.streamFormat as TranscodeFormat)) {
+          set({ streamFormat: parsed.streamFormat as TranscodeFormat });
+        }
+        if (TRANSCODE_FORMATS.includes(parsed.downloadFormat as TranscodeFormat)) {
+          set({ downloadFormat: parsed.downloadFormat as TranscodeFormat });
         }
         if (typeof parsed.downloadWifiOnly === 'boolean') {
           set({ downloadWifiOnly: parsed.downloadWifiOnly });

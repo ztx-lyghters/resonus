@@ -798,7 +798,15 @@ export function downloadUrl(auth: SubsonicAuth, id: string): string {
  * tal cual si el contenedor está soportado y cabe en el bitrate máximo, y si
  * no transcodifica a mp3. `maxBitRate` en kbps, como en Subsonic.
  */
-export function streamUrl(auth: SubsonicAuth, id: string, maxBitRate = 0, _timeOffset = 0): string {
+// `_format` (códec Subsonic) no aplica en Jellyfin: su endpoint `universal`
+// negocia contenedor/códec con sus propios parámetros. Se acepta por firma.
+export function streamUrl(
+  auth: SubsonicAuth,
+  id: string,
+  maxBitRate = 0,
+  _timeOffset = 0,
+  _format = '',
+): string {
   return buildUrl(auth, `/Audio/${id}/universal`, {
     UserId: auth.jfUserId,
     DeviceId: auth.jfDeviceId,

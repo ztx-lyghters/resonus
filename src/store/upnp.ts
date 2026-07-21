@@ -186,7 +186,10 @@ export async function upnpLoad(song: Song, autoplay: boolean, startTimeSec = 0):
   let url: string | undefined;
   if (song.url) url = song.url;
   // Calidad Wi-Fi a propósito: castear por UPnP exige estar en la misma LAN.
-  else if (!song.localUri && auth) url = streamUrl(auth, song.id, useSettings.getState().maxBitRate);
+  else if (!song.localUri && auth) {
+    const s = useSettings.getState();
+    url = streamUrl(auth, song.id, s.maxBitRate, 0, s.streamFormat);
+  }
   if (!url) return false;
   loading = true;
   finishedFired = false;

@@ -21,7 +21,7 @@ import { songsLabel, useT } from '@/i18n';
 import { formatBytes } from '@/lib/format';
 import { useAuthStore } from '@/store/auth';
 import { useDownloads } from '@/store/downloads';
-import { BITRATE_OPTIONS, useSettings } from '@/store/settings';
+import { BITRATE_OPTIONS, TRANSCODE_FORMATS, useSettings } from '@/store/settings';
 import { useToast } from '@/store/toast';
 import { colors, fontSize, spacing } from '@/theme';
 
@@ -62,6 +62,8 @@ export default function DownloadsSettings() {
   const accent = useSettings((s) => s.accentColor);
   const downloadBitRate = useSettings((s) => s.downloadBitRate);
   const setDownloadBitRate = useSettings((s) => s.setDownloadBitRate);
+  const downloadFormat = useSettings((s) => s.downloadFormat);
+  const setDownloadFormat = useSettings((s) => s.setDownloadFormat);
   const downloadWifiOnly = useSettings((s) => s.downloadWifiOnly);
   const setDownloadWifiOnly = useSettings((s) => s.setDownloadWifiOnly);
   const autoOfflineSwitch = useSettings((s) => s.autoOfflineSwitch);
@@ -95,6 +97,16 @@ export default function DownloadsSettings() {
             <Text style={[settingsStyles.sectionTitle, { marginTop: 0 }]}>
               {t('Downloading')}
             </Text>
+            <SelectList
+              label={t('Download codec')}
+              description={t('Codec to transcode to. Only used at a set bitrate (not “Original”), and your server must support it.')}
+              options={TRANSCODE_FORMATS.map((v) => ({
+                value: v,
+                label: v === '' ? t('Server default') : v.toUpperCase(),
+              }))}
+              value={downloadFormat}
+              onChange={setDownloadFormat}
+            />
             <SelectList
               label={t('Download quality')}
               description={t('Applies to new downloads only.')}

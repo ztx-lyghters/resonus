@@ -72,6 +72,33 @@ function NowPlayingRow({ song }: { song: Song }) {
   );
 }
 
+/** Fila ya reproducida (ajuste opcional): atenuada, tocar → vuelve a esa pista. */
+function PlayedRow({ item, absIndex }: { item: Song; absIndex: number }) {
+  const jumpTo = usePlayerStore((s) => s.jumpTo);
+  const showListArtwork = useSettings((s) => s.showListArtwork);
+  return (
+    <Pressable style={[styles.row, styles.played]} onPress={() => jumpTo(absIndex)}>
+      <View style={styles.main}>
+        {showListArtwork ? (
+          <View style={styles.artwork}>
+            <Cover uri={coverArtUrl(item.coverArt ?? item.albumId, 100)} size={44} />
+          </View>
+        ) : null}
+        <View style={styles.info}>
+          <Text style={styles.title} numberOfLines={1}>
+            {item.title}
+          </Text>
+          {item.artist ? (
+            <Text style={styles.artist} numberOfLines={1}>
+              {item.artist}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
 /** Fila de lo que viene: se puede tocar (saltar), arrastrar y quitar. */
 function UpcomingRow({ item, absIndex }: { item: Song; absIndex: number }) {
   const jumpTo = usePlayerStore((s) => s.jumpTo);
@@ -139,8 +166,11 @@ export default function QueueScreen() {
   // Menú ⋯ (imperativo: abrir/cerrar no re-renderiza la pantalla).
   const menuRef = useRef<() => void>(() => {});
 
+  const showPlayed = useSettings((s) => s.showPlayedInQueue);
   const current = queue[index] ?? null;
   const upcoming = queue.slice(index + 1);
+  // Ya reproducidas (ajuste): su índice absoluto es su propia posición 0..index-1.
+  const played = showPlayed ? queue.slice(0, index) : [];
   const totalSec = upcoming.reduce((acc, s) => acc + (s.duration ?? 0), 0);
 
   // Etiqueta del origen para la sección "Siguiente de:"; los centinelas de
@@ -225,7 +255,15 @@ export default function QueueScreen() {
           keyExtractor={(item, i) => `${item.id}-${i}`}
           ListHeaderComponent={
             <View>
-              <SectionHeader title={t('Now playing')} />
+              {played.length > 0 ? (
+                <View>
+                  <SectionHeader title={t('Played')} />
+                  {played.map((s, i) => (
+                    <PlayedRow key={`${s.id}-${i}`} item={s} absIndex={i} />
+                  ))}
+                </View>
+              ) : null}
+              <SectionHeader title={t('Now playing')} gap={played.length > 0} />
               <NowPlayingRow song={current} />
             </View>
           }
@@ -331,6 +369,8 @@ const styles = StyleSheet.create({
     // Fondo opaco para que la fila arrastrada tape a las demás al pasar.
     backgroundColor: colors.background,
   },
+  // Filas ya reproducidas: atenuadas para leerse como "pasado" sin desaparecer.
+  played: { opacity: 0.55 },
   main: {
     flex: 1,
     flexDirection: 'row',

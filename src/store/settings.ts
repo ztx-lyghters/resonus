@@ -351,6 +351,8 @@ interface SettingsState {
   showRating: boolean;
   /** Mostrar álbum y año bajo el título/artista en el reproductor. */
   showAlbumInfo: boolean;
+  /** Mostrar en la cola las pistas ya reproducidas (atenuadas, tocables). */
+  showPlayedInQueue: boolean;
   /** Mostrar la mini carátula del álbum en las listas (playlists/favoritos). */
   showListArtwork: boolean;
   /** Duración de cada canción en las listas (Spotify no la muestra). */
@@ -480,6 +482,7 @@ interface SettingsState {
   setShowAudioQuality: (value: boolean) => void;
   setShowRating: (value: boolean) => void;
   setShowAlbumInfo: (value: boolean) => void;
+  setShowPlayedInQueue: (value: boolean) => void;
   setShowListArtwork: (value: boolean) => void;
   setShowSongDuration: (value: boolean) => void;
   setShowListRating: (value: boolean) => void;
@@ -553,6 +556,7 @@ function snapshot(get: () => SettingsState) {
     showAudioQuality: s.showAudioQuality,
     showRating: s.showRating,
     showAlbumInfo: s.showAlbumInfo,
+    showPlayedInQueue: s.showPlayedInQueue,
     showListArtwork: s.showListArtwork,
     showSongDuration: s.showSongDuration,
     showListRating: s.showListRating,
@@ -614,6 +618,7 @@ const DEFAULTS = {
   showAudioQuality: false,
   showRating: false,
   showAlbumInfo: false,
+  showPlayedInQueue: false,
   showListArtwork: true,
   showSongDuration: false,
   showListRating: false,
@@ -714,6 +719,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
 
   setShowAlbumInfo: (showAlbumInfo) => {
     set({ showAlbumInfo });
+    persist(snapshot(get));
+  },
+
+  setShowPlayedInQueue: (showPlayedInQueue) => {
+    set({ showPlayedInQueue });
     persist(snapshot(get));
   },
 
@@ -1000,6 +1010,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
           showAudioQuality: string | boolean;
           showRating: boolean;
           showAlbumInfo: boolean;
+          showPlayedInQueue: boolean;
           showListArtwork: boolean;
           showSongDuration: boolean;
           showListRating: boolean;
@@ -1089,6 +1100,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
         }
         if (typeof parsed.showAlbumInfo === 'boolean') {
           set({ showAlbumInfo: parsed.showAlbumInfo });
+        }
+        if (typeof parsed.showPlayedInQueue === 'boolean') {
+          set({ showPlayedInQueue: parsed.showPlayedInQueue });
         }
         if (typeof parsed.showListArtwork === 'boolean') {
           set({ showListArtwork: parsed.showListArtwork });

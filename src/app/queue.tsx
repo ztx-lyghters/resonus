@@ -9,7 +9,7 @@
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ReorderableList, {
@@ -22,8 +22,10 @@ import { type Song } from '@/api/subsonic';
 import { Cover } from '@/components/Cover';
 import { Dialog } from '@/components/Dialog';
 import { EmptyState } from '@/components/EmptyState';
+import { SheetModal } from '@/components/SheetModal';
 import { formatTotalDuration } from '@/lib/format';
 import { SOURCE_FAVORITES, SOURCE_HISTORY, usePlayerStore } from '@/store/player';
+import { usePlaylistPicker } from '@/store/playlistPicker';
 import { useSettings } from '@/store/settings';
 import { useToast } from '@/store/toast';
 import { useT } from '@/i18n';
@@ -134,6 +136,8 @@ export default function QueueScreen() {
   const accent = useSettings((s) => s.accentColor);
   const toast = useToast((s) => s.show);
   const [confirmClear, setConfirmClear] = useState(false);
+  // Menú ⋯ (imperativo: abrir/cerrar no re-renderiza la pantalla).
+  const menuRef = useRef<() => void>(() => {});
 
   const current = queue[index] ?? null;
   const upcoming = queue.slice(index + 1);
@@ -200,6 +204,17 @@ export default function QueueScreen() {
               <Ionicons name="trash-outline" size={22} color={colors.textSecondary} />
             </Pressable>
           ) : null}
+          {queue.length > 0 ? (
+            <Pressable
+              style={styles.headerAction}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={t('More options')}
+              onPress={() => menuRef.current()}
+            >
+              <Ionicons name="ellipsis-horizontal" size={22} color={colors.text} />
+            </Pressable>
+          ) : null}
         </View>
       </View>
 
@@ -251,12 +266,31 @@ export default function QueueScreen() {
           if (undo) toast(t('Queue cleared'), { label: t('Undo'), run: undo });
         }}
       />
+
+      <SheetModal openRef={menuRef}>
+        {(close) => (
+          <Pressable
+            style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
+            onPress={() => {
+              close();
+              const q = usePlayerStore.getState().queue;
+              if (q.length > 0) usePlaylistPicker.getState().open(q);
+            }}
+          >
+            <Ionicons name="add" size={24} color={colors.text} />
+            <Text style={styles.actionText}>{t('Add to a playlist')}</Text>
+          </Pressable>
+        )}
+      </SheetModal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
+  // Fila del menú ⋯ (mismo aspecto que el de la playlist / menú multimedia).
+  action: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, paddingVertical: spacing.md },
+  actionText: { color: colors.text, fontSize: fontSize.md },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

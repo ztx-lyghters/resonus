@@ -144,6 +144,12 @@ export interface Album {
   starred?: string;
   /** Sellos discográficos (extensión OpenSubsonic; Navidrome los envía). */
   recordLabels?: { name: string }[];
+  /**
+   * Títulos de disco por número (extensión OpenSubsonic; opcional). En álbumes
+   * multi-disco permite mostrar el nombre de cada disco (tag `discsubtitle`);
+   * el fallback es "Disc N". Puede faltar o traer solo algunos discos.
+   */
+  discTitles?: { disc: number; title: string; coverArt?: string }[];
 }
 
 export interface Artist {

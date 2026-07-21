@@ -37,6 +37,8 @@ export default function AppearanceSettings() {
   const setShowListRating = useSettings((s) => s.setShowListRating);
   const showArtistPhoto = useSettings((s) => s.showArtistPhoto);
   const setShowArtistPhoto = useSettings((s) => s.setShowArtistPhoto);
+  const showDiscHeaders = useSettings((s) => s.showDiscHeaders);
+  const setShowDiscHeaders = useSettings((s) => s.setShowDiscHeaders);
   const showHistoryButton = useSettings((s) => s.showHistoryButton);
   const setShowHistoryButton = useSettings((s) => s.setShowHistoryButton);
   const showProfileButton = useSettings((s) => s.showProfileButton);
@@ -163,6 +165,12 @@ export default function AppearanceSettings() {
               description: t('Show a round artist photo next to the name on album screens.'),
               value: showArtistPhoto,
               onChange: setShowArtistPhoto,
+            },
+            {
+              label: t('Show disc titles'),
+              description: t('Separate discs with a header on multi-disc albums.'),
+              value: showDiscHeaders,
+              onChange: setShowDiscHeaders,
             },
             ...(canBrowseFolders
               ? [

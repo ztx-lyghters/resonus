@@ -380,6 +380,11 @@ interface SettingsState {
   lyricsOnlineFallback: boolean;
   /** Foto circular del artista junto a su nombre en la pantalla de álbum. */
   showArtistPhoto: boolean;
+  /**
+   * Cabeceras de disco en álbumes multi-disco (separador + título del disco, o
+   * "Disc N" si no tiene título). Activado por defecto.
+   */
+  showDiscHeaders: boolean;
   /** Fondo del reproductor teñido con el color dominante de la carátula. */
   playerColorBackground: boolean;
   /** Mini-reproductor teñido con el color dominante de la carátula. */
@@ -468,6 +473,7 @@ interface SettingsState {
   setLyricsColorBackground: (value: boolean) => void;
   setLyricsOnlineFallback: (value: boolean) => void;
   setShowArtistPhoto: (value: boolean) => void;
+  setShowDiscHeaders: (value: boolean) => void;
   setPlayerColorBackground: (value: boolean) => void;
   setMiniPlayerColorBackground: (value: boolean) => void;
   setShowLyricsCard: (value: boolean) => void;
@@ -537,6 +543,7 @@ function snapshot(get: () => SettingsState) {
     lyricsColorBackground: s.lyricsColorBackground,
     lyricsOnlineFallback: s.lyricsOnlineFallback,
     showArtistPhoto: s.showArtistPhoto,
+    showDiscHeaders: s.showDiscHeaders,
     playerColorBackground: s.playerColorBackground,
     miniPlayerColorBackground: s.miniPlayerColorBackground,
     showLyricsCard: s.showLyricsCard,
@@ -594,6 +601,7 @@ const DEFAULTS = {
   lyricsColorBackground: true,
   lyricsOnlineFallback: true,
   showArtistPhoto: true,
+  showDiscHeaders: true,
   playerColorBackground: true,
   miniPlayerColorBackground: true,
   showLyricsCard: true,
@@ -737,6 +745,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
 
   setLyricsOnlineFallback: (lyricsOnlineFallback) => {
     set({ lyricsOnlineFallback });
+    persist(snapshot(get));
+  },
+
+  setShowDiscHeaders: (showDiscHeaders) => {
+    set({ showDiscHeaders });
     persist(snapshot(get));
   },
 
@@ -948,12 +961,15 @@ export const useSettings = create<SettingsState>((set, get) => ({
           autoplaySimilar: boolean;
           crossfadeSec: number;
           preloadUpcoming: boolean;
+          autoOfflineSwitch: boolean;
+          hideUnavailableOffline: boolean;
           replayGain: ReplayGainMode;
           keepScreenAwake: boolean;
           hapticsEnabled: boolean;
           lyricsColorBackground: boolean;
           lyricsOnlineFallback: boolean;
           showArtistPhoto: boolean;
+          showDiscHeaders: boolean;
           playerColorBackground: boolean;
           miniPlayerColorBackground: boolean;
           showLyricsCard: boolean;
@@ -1038,6 +1054,12 @@ export const useSettings = create<SettingsState>((set, get) => ({
         if (typeof parsed.preloadUpcoming === 'boolean') {
           set({ preloadUpcoming: parsed.preloadUpcoming });
         }
+        if (typeof parsed.autoOfflineSwitch === 'boolean') {
+          set({ autoOfflineSwitch: parsed.autoOfflineSwitch });
+        }
+        if (typeof parsed.hideUnavailableOffline === 'boolean') {
+          set({ hideUnavailableOffline: parsed.hideUnavailableOffline });
+        }
         if (
           parsed.replayGain === 'off' ||
           parsed.replayGain === 'auto' ||
@@ -1060,6 +1082,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
         }
         if (typeof parsed.showArtistPhoto === 'boolean') {
           set({ showArtistPhoto: parsed.showArtistPhoto });
+        }
+        if (typeof parsed.showDiscHeaders === 'boolean') {
+          set({ showDiscHeaders: parsed.showDiscHeaders });
         }
         if (typeof parsed.playerColorBackground === 'boolean') {
           set({ playerColorBackground: parsed.playerColorBackground });

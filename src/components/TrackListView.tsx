@@ -79,6 +79,12 @@ interface Props {
   currentId?: string;
   /** Numera las pistas (útil en álbumes). */
   numbered?: boolean;
+  /**
+   * Cabecera de disco a pintar ENCIMA de la fila en ese índice (álbumes
+   * multi-disco): mapa índice → etiqueta ("Disc 2", título del disco…). Solo se
+   * usa sin filtro de búsqueda activo (con resultados filtrados no hay discos).
+   */
+  discHeaders?: Record<number, string>;
   /** Si se indica, muestra un corazón para marcar el álbum como favorito. */
   favorite?: { id: string; type: StarType; starred: boolean };
   /** Botón de descarga sin conexión (cabecera de álbum/playlist). */
@@ -146,6 +152,7 @@ export function TrackListView({
   songs,
   currentId,
   numbered,
+  discHeaders,
   favorite,
   download,
   onMenu,
@@ -578,7 +585,9 @@ export function TrackListView({
           // Con filtro activo, `index` es la posición en los resultados; todo
           // lo demás (reproducir, quitar, numerar) usa la posición original.
           const origIndex = filtered ? filtered[index].index : index;
-          return (
+          // Cabecera de disco (solo sin búsqueda, donde origIndex === index).
+          const discLabel = filtered ? undefined : discHeaders?.[origIndex];
+          const row = (
             <TrackRow
               song={item}
               // Con carátula visible se omite el número: el álbum queda como
@@ -613,6 +622,13 @@ export function TrackListView({
                 else onPlay(origIndex);
               }}
             />
+          );
+          if (!discLabel) return row;
+          return (
+            <>
+              <DiscHeader label={discLabel} />
+              {row}
+            </>
           );
         }}
         ListEmptyComponent={
@@ -715,6 +731,17 @@ export function TrackListView({
           ) : null}
         </View>
       ) : null}
+    </View>
+  );
+}
+
+/** Cabecera de disco (separador fino + etiqueta) en álbumes multi-disco. */
+function DiscHeader({ label }: { label: string }) {
+  return (
+    <View style={styles.discHeader}>
+      <Text style={styles.discHeaderText} numberOfLines={1}>
+        {label}
+      </Text>
     </View>
   );
 }
@@ -822,6 +849,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   addLabel: { color: colors.text, fontSize: fontSize.md, fontWeight: '700' },
+  discHeader: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  discHeaderText: {
+    color: colors.textSecondary,
+    fontSize: fontSize.xs,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
   list: {
     paddingHorizontal: spacing.lg,
   },

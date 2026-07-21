@@ -1,7 +1,7 @@
 /** Detalle de un álbum con sus canciones. */
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -26,6 +26,60 @@ import { useSettings } from '@/store/settings';
 import { useToast } from '@/store/toast';
 import { colors, fontSize, spacing } from '@/theme';
 
+/**
+ * Cabeceras de disco por índice de canción (álbumes multi-disco). Etiqueta cada
+ * disco con su título (`discTitles`) o "Disc N" de fallback, en la primera pista
+ * de cada disco. Solo si hay 2+ discos, o uno solo con título explícito (imita a
+ * Navidrome).
+ *
+ * `discNumber` es opcional en Subsonic y muchos álbumes no lo traen (los números
+ * de pista reinician por el tag `track`, no por `discnumber`). Por eso: si
+ * `discNumber` distingue discos, se usa; si no, se infieren los cortes por el
+ * reinicio del número de pista (una pista con `track` menor que la anterior
+ * abre disco nuevo). Los discos inferidos se numeran 1, 2, 3… que suele coincidir
+ * con `discTitles` si el álbum los trae.
+ */
+function discHeadersFor(
+  songs: Song[],
+  discTitles: { disc: number; title: string }[] | undefined,
+  enabled: boolean,
+  fallbackLabel: (disc: number) => string,
+): Record<number, string> | undefined {
+  if (!enabled || songs.length === 0) return undefined;
+  // Navidrome manda `discTitles` con `title: ""` cuando el disco no tiene
+  // subtítulo real; tratamos el vacío como ausente para caer en "Disc N".
+  const titleOf = (disc: number) => {
+    const title = discTitles?.find((d) => d.disc === disc)?.title?.trim();
+    return title ? title : undefined;
+  };
+
+  const firstIndex = new Map<number, number>();
+  const variedDisc = new Set(songs.map((s) => s.discNumber ?? 1)).size >= 2;
+  if (variedDisc) {
+    songs.forEach((s, i) => {
+      const disc = s.discNumber ?? 1;
+      if (!firstIndex.has(disc)) firstIndex.set(disc, i);
+    });
+  } else {
+    // Sin discNumber útil: cada reinicio del número de pista abre un disco.
+    let disc = 1;
+    let prevTrack = -Infinity;
+    songs.forEach((s, i) => {
+      const track = s.track;
+      if (i > 0 && track != null && track > 0 && track < prevTrack) disc += 1;
+      if (!firstIndex.has(disc)) firstIndex.set(disc, i);
+      if (track != null && track > 0) prevTrack = track;
+    });
+  }
+
+  const discs = [...firstIndex.keys()];
+  const singleTitled = discs.length === 1 && titleOf(discs[0]) != null;
+  if (discs.length < 2 && !singleTitled) return undefined;
+  const headers: Record<number, string> = {};
+  for (const disc of discs) headers[firstIndex.get(disc)!] = titleOf(disc) ?? fallbackLabel(disc);
+  return headers;
+}
+
 export default function AlbumScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -34,6 +88,7 @@ export default function AlbumScreen() {
   const t = useT();
   const lang = useSettings((s) => s.language);
   const showArtistPhoto = useSettings((s) => s.showArtistPhoto);
+  const showDiscHeaders = useSettings((s) => s.showDiscHeaders);
   const playing = usePlayerStore(currentSong);
   const playQueue = usePlayerStore((s) => s.playQueue);
   const openMediaMenu = useMediaMenu((s) => s.open);
@@ -74,6 +129,14 @@ export default function AlbumScreen() {
   const lastGood = useRef(fresh);
   if (fresh && fresh.songs.length > 0) lastGood.current = fresh;
   const data = vanished ? (lastGood.current ?? fresh) : fresh;
+
+  const discHeaders = useMemo(
+    () =>
+      discHeadersFor(data?.songs ?? [], data?.album.discTitles, showDiscHeaders, (n) =>
+        t('Disc {n}', { n }),
+      ),
+    [data?.songs, data?.album.discTitles, showDiscHeaders, t],
+  );
 
   const songIds = data?.songs.map((s) => s.id) ?? [];
   const downloadMsg = useDownloadMessage(data?.songs ?? []);
@@ -135,6 +198,7 @@ export default function AlbumScreen() {
         songs={data.songs}
         currentId={playing?.id}
         numbered
+        discHeaders={discHeaders}
         favorite={{
           id: data.album.id,
           type: 'album',

@@ -236,8 +236,11 @@ function isErrorBody(headers: Record<string, string> | undefined): boolean {
 }
 
 // Extensión del fichero que devuelve el servidor al transcodificar a cada
-// códec. '' = transcoder por defecto (MP3 en Navidrome).
-const FORMAT_EXT: Record<string, string> = { '': 'mp3', mp3: 'mp3', opus: 'opus' };
+// códec. '' = transcoder por defecto (MP3 en Navidrome). AAC: Navidrome saca
+// ADTS crudo (.aac); otros servidores podrían usar contenedor MP4 (.m4a), pero
+// suena igual (expo-audio detecta por contenido) y la etiqueta es lo único que
+// variaría.
+const FORMAT_EXT: Record<string, string> = { '': 'mp3', mp3: 'mp3', opus: 'opus', aac: 'aac' };
 
 function songFileUrl(
   auth: SubsonicAuth,

@@ -58,11 +58,11 @@ export const BITRATE_OPTIONS = [
  * '' = el transcoder por defecto del servidor (MP3 en Navidrome). Solo entra en
  * juego cuando hay bitrate elegido (con "Original" se sirve el fichero crudo).
  */
-export type TranscodeFormat = '' | 'mp3' | 'opus';
+export type TranscodeFormat = '' | 'mp3' | 'opus' | 'aac';
 
 /** Opciones del selector de códec. Las etiquetas de códec son nombres propios;
  *  la de "por defecto" la traduce cada pantalla con `t('Server default')`. */
-export const TRANSCODE_FORMATS: TranscodeFormat[] = ['', 'mp3', 'opus'];
+export const TRANSCODE_FORMATS: TranscodeFormat[] = ['', 'mp3', 'opus', 'aac'];
 
 export type Language = 'es' | 'en' | 'de' | 'ca';
 

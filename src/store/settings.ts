@@ -1,6 +1,7 @@
 /** Ajustes de la app (persistidos): calidad de streaming e idioma. */
 import { create } from 'zustand';
 
+import { LANGUAGE_NAMES, isLanguage, type Language } from '@/i18n/languages';
 import { hashKey } from '@/lib/localLibrary';
 import { getItem, setItem } from '@/lib/storage';
 import { applyAccent, DEFAULT_ACCENT } from '@/theme';
@@ -64,10 +65,10 @@ export type TranscodeFormat = '' | 'mp3' | 'opus' | 'aac';
  *  la de "por defecto" la traduce cada pantalla con `t('Server default')`. */
 export const TRANSCODE_FORMATS: TranscodeFormat[] = ['', 'mp3', 'opus', 'aac'];
 
-export type Language = 'es' | 'en' | 'de' | 'ca';
-
-/** Nombre de cada idioma en su propio idioma (para los selectores). */
-export const LANGUAGE_NAMES: Record<Language, string> = { es: 'Español', en: 'English', de: 'Deutsch', ca: 'Català' };
+// Los idiomas viven en un único sitio (`src/i18n/languages.ts`): añadir uno es
+// una sola fila allí. Se re-exportan aquí para no romper los imports existentes.
+export { LANGUAGE_NAMES, isLanguage };
+export type { Language };
 
 /** Orden de la Biblioteca, estilo Spotify. */
 export type LibrarySort = 'recent' | 'added' | 'alpha';
@@ -1296,7 +1297,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
           }
         }
       }
-      if (lang === 'es' || lang === 'en' || lang === 'de' || lang === 'ca') {
+      if (isLanguage(lang)) {
         set({ language: lang });
       }
     } catch {

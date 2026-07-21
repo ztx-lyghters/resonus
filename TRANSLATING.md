@@ -15,12 +15,18 @@ or ask on [Discord](https://discord.gg/hpDfszr8r).
 
 ## Adding a new language
 
-1. Add its code to `Language` in `src/store/settings.ts` (and to `hydrate`).
-2. Create `src/i18n/locales/<code>.json` and import it in `dictionaries` in
-   `src/i18n/index.ts`.
-3. Add its plural forms to `PLURALS` in `src/i18n/index.ts` (see
-   [Plurals](#plurals)).
-4. Add it to `LANGUAGES` in `src/app/settings/language.tsx`.
+1. Create `src/i18n/locales/<code>.json` (English key → your translation).
+2. Add one row to `LANGUAGES` in `src/i18n/languages.ts`: import your JSON and
+   add `{ code: '<code>', name: '<native name>', dict: <import> }`. That's the
+   single source of truth — the `Language` type, the display names, the settings
+   picker and the persistence all derive from it, so **nothing else needs
+   touching**.
+3. Only if your language needs **more than 2** plural forms (one / other): add
+   its forms to `PLURALS` and its rule to `PLURAL_RULE` in `src/i18n/index.ts`
+   (see [Plurals](#plurals)).
+
+Prefer not to touch the code? Just add the `.json` and open the PR — we'll add
+the one-line row for you.
 
 ## Adapt for what sounds natural
 

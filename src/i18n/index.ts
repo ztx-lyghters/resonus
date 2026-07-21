@@ -4,33 +4,20 @@
  * `useT()` devuelve una función `t` ligada al idioma actual (del store de
  * ajustes), por lo que cambiar el idioma re-renderiza y traduce al vuelo.
  *
- * Para añadir un idioma nuevo (p. ej. 'fr'): ver la guía en TRANSLATING.md. En
- * resumen:
- *   1. Añádelo a `Language` en src/store/settings.ts (y a su `hydrate`).
- *   2. Crea `locales/fr.json` (clave inglesa → traducción) e impórtalo en `dictionaries`.
- *   3. Añade sus formas plurales a `PLURALS`; si su regla no es binaria
- *      (uno/resto), registra su función en `PLURAL_RULE`.
- *   4. Añade su opción a `LANGUAGES` en src/app/settings/language.tsx.
- * El inglés no necesita diccionario (es la clave); lo no traducido cae a él.
+ * Para añadir un idioma nuevo: una sola fila en `src/i18n/languages.ts` (la
+ * fuente única de idiomas) más su `locales/<code>.json`. Si su regla de plural
+ * no es binaria, añade sus formas en `PLURALS` y su función en `PLURAL_RULE`.
+ * Ver la guía en TRANSLATING.md. El inglés es la clave; lo no traducido cae a él.
  */
 import { useCallback } from 'react';
 
-import { useSettings, type Language } from '@/store/settings';
-import ca from './locales/ca.json';
-import de from './locales/de.json';
-import es from './locales/es.json';
-
-/** Diccionarios por idioma. El inglés es la clave, así que no lleva tabla. */
-const dictionaries: Partial<Record<Language, Record<string, string>>> = {
-  ca,
-  de,
-  es,
-};
+import { useSettings } from '@/store/settings';
+import { DICTIONARIES, type Language } from './languages';
 
 type Vars = Record<string, string | number>;
 
 function translate(text: string, lang: Language, vars?: Vars): string {
-  const table = dictionaries[lang];
+  const table = DICTIONARIES[lang];
   let out = table?.[text] ?? text;
   if (vars) {
     for (const key of Object.keys(vars)) {

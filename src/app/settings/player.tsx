@@ -8,12 +8,14 @@ import { type CoverTapAction, type PreviousButtonMode, useSettings } from '@/sto
 
 export default function PlayerSettings() {
   const t = useT();
-  // Igual que en el player: la valoración es cosa de Subsonic (ni offline ni
-  // Jellyfin) y en offline no hay dispositivos a los que enviar. Sus toggles
-  // no se muestran donde no harían nada.
+  // La valoración es cosa de Subsonic: necesita cuenta de servidor y no aplica a
+  // Jellyfin. Sí funciona offline (se apunta en el outbox y sube al reconectar),
+  // así que su toggle se muestra también sin conexión, igual que en el player.
+  // El botón de dispositivos, en cambio, no tiene destino offline y se oculta.
   const offline = useAuthStore((s) => s.offline);
+  const hasAccount = useAuthStore((s) => !!s.auth);
   const serverType = useAuthStore((s) => s.auth?.serverType);
-  const canRate = !offline && serverType !== 'jellyfin';
+  const canRate = hasAccount && serverType !== 'jellyfin';
   const showAudioQuality = useSettings((s) => s.showAudioQuality);
   const setShowAudioQuality = useSettings((s) => s.setShowAudioQuality);
   const showRating = useSettings((s) => s.showRating);

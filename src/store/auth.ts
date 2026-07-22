@@ -386,8 +386,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await setItem(OFFLINE_KEY, '1');
     if (auto) await setItem(OFFLINE_AUTO_KEY, '1');
     else await deleteItem(OFFLINE_AUTO_KEY);
-    queryClient.clear();
+    // Flip primero para que el refetch lea ya el modo offline, y luego invalida
+    // (no `clear()`): las vistas se recalculan contra el espejo, pero se conserva
+    // la caché inactiva para que volver a una pantalla sea instantáneo. Vaciar
+    // toda la caché forzaba un refetch masivo simultáneo en cada transición.
     set({ offline: true, autoOffline: auto });
+    void queryClient.invalidateQueries();
   },
 
   goOnline: async () => {
@@ -405,8 +409,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     await deleteItem(OFFLINE_KEY);
     await deleteItem(OFFLINE_AUTO_KEY);
-    queryClient.clear();
+    // Ver goOffline: invalidación selectiva en vez de `clear()`, para no tirar
+    // toda la caché y refetchear todo de golpe al reconectar.
     set({ offline: false, autoOffline: false });
+    void queryClient.invalidateQueries();
   },
 
   setOfflineSource: async (source) => {

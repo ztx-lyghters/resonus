@@ -17,7 +17,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { coverArtUrl } from '@/api/data';
+import { coverArtUrl, type Song } from '@/api/data';
 import { useDominantColor } from '@/hooks/useDominantColor';
 import { useFavoriteIds } from '@/hooks/useFavoriteIds';
 import { useT } from '@/i18n';
@@ -38,13 +38,28 @@ const SCREEN_H = Dimensions.get('window').height;
 const SWIPE_X = SCREEN_W * 0.25;
 const DISMISS_Y = 80;
 
+/**
+ * Barra de progreso aislada: es lo único que se suscribe a `positionSec` (se
+ * actualiza cada 500ms), así el MiniPlayer entero (carátula, título, favorito,
+ * play) no se re-renderiza 2×/seg mientras suena algo — solo esta barrita.
+ */
+function MiniProgress({ song }: { song: Song }) {
+  const positionSec = usePlayerStore((s) => s.positionSec);
+  const durationSec = usePlayerStore((s) => s.durationSec);
+  const duration = durationSec || song.duration || 0;
+  const progress = duration > 0 ? Math.min(1, positionSec / duration) : 0;
+  return (
+    <View style={styles.progressTrack} pointerEvents="none">
+      <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+    </View>
+  );
+}
+
 export function MiniPlayer() {
   const router = useRouter();
   const song = usePlayerStore(currentSong);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const isBuffering = usePlayerStore((s) => s.isBuffering);
-  const positionSec = usePlayerStore((s) => s.positionSec);
-  const durationSec = usePlayerStore((s) => s.durationSec);
   const toggle = usePlayerStore((s) => s.toggle);
   const next = usePlayerStore((s) => s.next);
   const previous = usePlayerStore((s) => s.previous);
@@ -124,8 +139,6 @@ export function MiniPlayer() {
 
   if (!song) return null;
 
-  const duration = durationSec || song.duration || 0;
-  const progress = duration > 0 ? Math.min(1, positionSec / duration) : 0;
   // La lista central manda cuando está cargada; `song.starred` de la cola se
   // queda obsoleto (solo reserva para locales o mientras carga).
   const favorited = favIds ? favIds.has(song.id) : !!song.starred;
@@ -183,9 +196,7 @@ export function MiniPlayer() {
         )}
       </Pressable>
 
-          <View style={styles.progressTrack} pointerEvents="none">
-            <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-          </View>
+          <MiniProgress song={song} />
         </Pressable>
       </Animated.View>
     </GestureDetector>

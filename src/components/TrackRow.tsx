@@ -1,7 +1,7 @@
 /** Fila de una canción dentro de una lista (álbum, playlist, resultados). */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQueryClient } from '@tanstack/react-query';
-import { useRef } from 'react';
+import { memo, useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import ReanimatedSwipeable, {
   SwipeDirection,
@@ -92,7 +92,7 @@ function SwipeActionPanel({
   );
 }
 
-export function TrackRow({
+function TrackRowBase({
   song,
   position,
   isCurrent,
@@ -275,6 +275,40 @@ export function TrackRow({
     </ReanimatedSwipeable>
   );
 }
+
+function sameMenuContext(a?: SongMenuContext, b?: SongMenuContext): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return a.playlistId === b.playlistId && a.index === b.index;
+}
+
+/**
+ * Comparación para `memo`: re-renderiza solo si cambia algo que la fila pinta o
+ * cómo se comporta. Los callbacks (`onPress`/`onPressIn`) se recrean en cada
+ * render del padre, pero su conducta depende solo de `song` y del estado ya
+ * comparado aquí (selecting/selected), no de su identidad, así que esa se
+ * ignora a propósito; de `onLongPress` solo importa si está activo (permite
+ * entrar en selección) o no. Sin esto, cambiar de canción re-renderizaba TODAS
+ * las filas visibles (cada una recibe closures nuevas), no solo las dos que
+ * cambian de `isCurrent`. Las suscripciones internas (descargas, ajustes,
+ * favoritos) siguen re-renderizando su fila por su cuenta cuando toca.
+ */
+function propsEqual(a: Props, b: Props): boolean {
+  return (
+    a.song === b.song &&
+    a.position === b.position &&
+    a.isCurrent === b.isCurrent &&
+    a.showFavorite === b.showFavorite &&
+    a.showMenu === b.showMenu &&
+    a.showArtwork === b.showArtwork &&
+    a.selecting === b.selecting &&
+    a.selected === b.selected &&
+    !!a.onLongPress === !!b.onLongPress &&
+    sameMenuContext(a.menuContext, b.menuContext)
+  );
+}
+
+export const TrackRow = memo(TrackRowBase, propsEqual);
 
 const styles = StyleSheet.create({
   row: {

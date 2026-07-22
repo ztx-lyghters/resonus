@@ -606,6 +606,9 @@ export function snapshotCachesToMirror(): void {
       mirror.saveAlbum(id, data.album, data.songs);
     }
   }
+  // Pasar a offline es un momento deliberado: persiste ya (una sola escritura,
+  // gracias al debounce) en vez de esperar al temporizador.
+  mirror.flush();
 }
 
 /** Valora una canción (1-5; 0 quita la valoración). */

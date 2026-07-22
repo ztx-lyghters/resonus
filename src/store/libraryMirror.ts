@@ -10,6 +10,7 @@
  * es lo que muestra la pantalla Biblioteca. Lo que nunca se vio online no estará.
  */
 import * as FileSystem from 'expo-file-system/legacy';
+import { AppState } from 'react-native';
 import { create } from 'zustand';
 
 import type { Album, Artist, Playlist, Song, Starred, SubsonicAuth } from '@/api/subsonic';
@@ -54,15 +55,31 @@ interface MirrorState {
   savePlaylistDetails: (entries: { id: string; playlist: Playlist; songs: Song[] }[]) => void;
   saveAlbum: (id: string, album: Album, songs: Song[]) => void;
   saveArtist: (id: string, artist: Artist, albums: Album[]) => void;
+  /** Fuerza a disco de inmediato lo pendiente (al ir a segundo plano/offline). */
+  flush: () => void;
 }
 
 let loadingFile: string | null = null;
 let loadPromise: Promise<void> | null = null;
 // Serializa las escrituras: cada save reescribe el JSON entero.
 let writeLock: Promise<unknown> = Promise.resolve();
+// Guardar reescribe el JSON ENTERO con `JSON.stringify` (síncrono, bloquea el
+// hilo de JS), y el espejo crece con el uso (cada álbum/lista vista). Antes se
+// escribía en CADA navegación → abrir un álbum o pasar a offline congelaba la
+// UI, peor cuanto mayor la biblioteca. Ahora se acumula (`dirty`) y se vuelca
+// UNA vez tras un rato de calma, o de inmediato al ir a segundo plano/offline.
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
+let dirty = false;
+const PERSIST_DEBOUNCE_MS = 4000;
 
 export const useLibraryMirror = create<MirrorState>((set, get) => {
-  function persist() {
+  function flush() {
+    if (flushTimer) {
+      clearTimeout(flushTimer);
+      flushTimer = null;
+    }
+    if (!dirty) return;
+    dirty = false;
     const file = get().loadedFile;
     if (!file) return;
     const data = get().data;
@@ -76,6 +93,12 @@ export const useLibraryMirror = create<MirrorState>((set, get) => {
     });
   }
 
+  function persist() {
+    if (!get().loadedFile) return;
+    dirty = true;
+    if (!flushTimer) flushTimer = setTimeout(flush, PERSIST_DEBOUNCE_MS);
+  }
+
   return {
     data: {},
     loadedFile: null,
@@ -83,10 +106,14 @@ export const useLibraryMirror = create<MirrorState>((set, get) => {
     load: async () => {
       const file = activeFile();
       if (!file) {
-        if (get().loadedFile !== null) set({ data: {}, loadedFile: null });
+        if (get().loadedFile !== null) {
+          flush(); // vuelca lo pendiente del perfil que se cierra
+          set({ data: {}, loadedFile: null });
+        }
         return;
       }
       if (get().loadedFile === file) return;
+      flush(); // cambio de perfil: persiste lo pendiente del anterior antes de cargar
       if (loadPromise && loadingFile === file) return loadPromise;
       loadingFile = file;
       loadPromise = (async () => {
@@ -139,5 +166,12 @@ export const useLibraryMirror = create<MirrorState>((set, get) => {
       set({ data: { ...get().data, artists: { ...get().data.artists, [id]: { artist, albums } } } });
       persist();
     },
+    flush,
   };
+});
+
+// Al ir a segundo plano (o al cerrarse), vuelca lo pendiente ya: el debounce
+// podría no haber disparado y perderíamos los últimos cambios si matan la app.
+AppState.addEventListener('change', (s) => {
+  if (s !== 'active') useLibraryMirror.getState().flush();
 });

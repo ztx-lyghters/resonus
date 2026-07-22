@@ -9,6 +9,24 @@ Releases before 0.2.1 are only listed on the
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-07-22
+
+### Added
+
+- Russian translation.
+
+### Fixed
+
+- Big performance fix: opening an album, artist or playlist no longer freezes
+  the app while it saves a copy of your library for offline. This was the main
+  reason the app felt laggy or "stuck" on large libraries, and it got worse the
+  more you browsed — those writes are now batched instead of happening on every
+  screen. Going offline is much faster too.
+- Switching between online and offline no longer wipes the whole cache, so
+  screens you've already opened come back instantly.
+- The mini player and song lists re-render far less while music is playing,
+  cutting jank when the track changes while you're looking at a list.
+
 ## [0.5.1] - 2026-07-22
 
 ### Added
@@ -248,6 +266,8 @@ Releases before 0.2.1 are only listed on the
   is enabled.
 - The keyboard no longer covers the search bar on the add-to-favorites screen.
 - Centered the sort chip labels on the Albums screen.
+
+[0.5.2]: https://github.com/juananzzz/resonus/releases/tag/v0.5.2
 
 [0.5.1]: https://github.com/juananzzz/resonus/releases/tag/v0.5.1
 

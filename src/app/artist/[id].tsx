@@ -1,4 +1,4 @@
-/** Detalle de artista estilo Spotify: cabecera grande, acciones, secciones. */
+/** Artist detail, Spotify-style: large header, actions, sections. */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,8 +14,8 @@ import {
   Text,
   View,
 } from 'react-native';
-// ScrollView de gesture-handler: necesario para que el swipe-a-cola de las
-// filas de "Populares" conviva con el scroll (ver TrackRow).
+// gesture-handler ScrollView: needed so the "Popular" row swipe-to-queue
+// coexists with scrolling (see TrackRow).
 import { ScrollView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -51,7 +51,7 @@ const WIDTH = Dimensions.get('window').width;
 const HEADER_H = Math.min(WIDTH, 360);
 
 export default function ArtistScreen() {
-  useSettings((s) => s.accentColor); // re-render al cambiar el acento
+  useSettings((s) => s.accentColor); // re-render when accent changes
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -63,24 +63,24 @@ export default function ArtistScreen() {
   const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
   const [bioExpanded, setBioExpanded] = useState(false);
   const [songsExpanded, setSongsExpanded] = useState(false);
-  // Menú ⋯ (imperativo: abrir/cerrar no re-renderiza la pantalla).
+  // ⋯ menu (imperative: opening/closing doesn't re-render the screen).
   const menuRef = useRef<() => void>(() => {});
   const dominant = useDominantColor(canFetch ? coverArtUrl(id, 400) : undefined);
 
-  // ── Descargar la discografía ────────────────────────────────────────────
-  // Con `songIds` vacío a propósito: `groupDownloadState` solo puede decir
-  // "descargado" comparando ids contra el disco, y esta pantalla no tiene las
-  // canciones — solo los álbumes. Así que aquí el estado es de dos valores
-  // ('none' / 'active'), y las canciones se piden al pulsar.
+  // ── Download the discography ────────────────────────────────────────────
+  // With `songIds` intentionally empty: `groupDownloadState` can only say
+  // "downloaded" by comparing ids against disk, and this screen doesn't have
+  // the songs — only the albums. So here the state is two-valued ('none' /
+  // 'active'), and songs are fetched on press.
   const offline = useAuthStore((s) => s.offline);
   const download = useDownloads(useShallow((s) => groupDownloadState(s, `artist:${id}`, [])));
   const downloadArtist = useDownloads((s) => s.downloadArtist);
   const cancelDownload = useDownloads((s) => s.cancelDownload);
   const [confirmDownload, setConfirmDownload] = useState(false);
   const [confirmStop, setConfirmStop] = useState(false);
-  /** Mientras se piden las canciones de cada álbum, antes de bajar nada. */
+  /** While fetching each album's songs, before downloading anything. */
   const [gathering, setGathering] = useState(false);
-  /** Canciones ya recogidas, a la espera de que se confirme el diálogo. */
+  /** Songs already gathered, awaiting dialog confirmation. */
   const [pending, setPending] = useState<Song[] | null>(null);
   const downloadMsg = useDownloadMessage(pending ?? []);
   const queryClient = useQueryClient();
@@ -133,8 +133,8 @@ export default function ArtistScreen() {
     enabled: canFetch && !!id && !!name,
   });
 
-  // Como en el álbum: el corazón lee de la lista central de favoritos, que sí
-  // se refresca al marcar (el `starred` de getArtist se queda obsoleto).
+  // Like in the album: the heart reads from the central favorites list, which
+  // does refresh on starring (getArtist's `starred` becomes stale).
   const favArtistIds = useFavoriteIds(canFetch, 'artist');
 
   if (isLoading) {
@@ -155,7 +155,7 @@ export default function ArtistScreen() {
 
   const top = topSongs ?? [];
   const albums = [...data.albums].sort((a, b) => (b.year ?? 0) - (a.year ?? 0));
-  // Red de seguridad: fuera los álbumes propios (servidores sin `albumArtists`).
+  // Safety net: exclude own albums (servers without `albumArtists`).
   const ownAlbumIds = new Set(data.albums.map((a) => a.id));
   const guestAlbums = (appearsOn ?? [])
     .filter((a) => !ownAlbumIds.has(a.id))
@@ -165,29 +165,29 @@ export default function ArtistScreen() {
 
   async function shufflePlay() {
     if (top.length === 0) return;
-    // Pista inicial al azar y DESPUÉS el modo aleatorio, como el resto de
-    // pantallas: el modo aleatorio solo baraja lo que queda por sonar, así que
-    // arrancar en la 0 hacía que la nº 1 del top sonara siempre primero.
-    // Se espera a playQueue (resetea `shuffle`, de ahí leerlo fresco después).
+    // Random initial track and THEN shuffle mode, like the rest of the screens:
+    // shuffle mode only shuffles what's left to play, so starting at 0 made
+    // track #1 of the top songs always play first.
+    // We await playQueue (it resets `shuffle`, hence reading it fresh after).
     await playQueue(top, Math.floor(Math.random() * top.length), name, `/artist/${id}`);
     if (!usePlayerStore.getState().shuffle) toggleShuffle();
   }
 
   /**
-   * Pide las canciones de cada álbum de su discografía. No las de "Aparece en":
-   * esos álbumes son de otro artista, y bajar el disco entero de un tercero
-   * porque este cante en un tema no es lo que se ha pedido.
+   * Fetches the songs for each album in their discography. Not the "Appears on"
+   * ones: those albums belong to another artist, and downloading another
+   * artist's full album because this one sings on a track is not what was asked.
    *
-   * `gathering` cubre SOLO esta fase: si se estirara hasta cubrir la descarga,
-   * el botón quedaría sordo mientras baja y no se podría parar.
+   * `gathering` covers ONLY this phase: if it stretched to cover the download,
+   * the button would be deaf while downloading and couldn't be stopped.
    */
   async function gatherSongs() {
     setGathering(true);
     try {
       const parts = await Promise.all(
         albums.map((a) =>
-          // Misma clave que la pantalla de álbum: si ya has entrado en alguno,
-          // sale de la caché en vez de volver a pedirlo.
+          // Same cache key as the album screen: if you've already entered one,
+          // it comes from cache instead of refetching.
           queryClient.fetchQuery({ queryKey: ['album', a.id], queryFn: () => getAlbum(a.id) }),
         ),
       );
@@ -208,19 +208,20 @@ export default function ArtistScreen() {
   async function startDownload() {
     if (!pending) return;
     await downloadArtist(id, pending, albums);
-    // Sin este aviso la descarga acaba muda: el botón vuelve a su icono de
-    // siempre (aquí no hay estado "descargado" que lo delate) y, si ya estaba
-    // todo bajado, `downloadGroup` se sale sin hacer absolutamente nada. Si
-    // quedan canciones es que se paró, y de eso ya avisa el store.
+    // Without this notice the download ends silently: the button goes back to
+    // its normal icon (here there's no "downloaded" state to show it) and, if
+    // everything was already downloaded, `downloadGroup` exits without doing
+    // absolutely nothing. If songs remain it means it was stopped, and the
+    // store already notifies about that.
     const files = useDownloads.getState().files;
     const left = pending.filter((s) => !files[s.id] && !s.url && !s.localUri);
     if (left.length === 0) toast(t('Downloaded'));
   }
 
-  // Se recogen las canciones ANTES de preguntar, no después: así el diálogo
-  // cuenta canciones de verdad y puede estimar el tamaño, como el de álbum y
-  // listas. Contar por `songCount` habría dejado esta pantalla —la de las
-  // descargas más gordas— como la única que pregunta a ciegas.
+  // Songs are gathered BEFORE asking, not after: so the dialog counts real
+  // songs and can estimate the size, like the album and list screens. Counting
+  // by `songCount` would have left this screen —the one with the heaviest
+  // downloads— as the only one asking blindly.
   async function onDownloadPress() {
     if (gathering) return;
     if (download.status === 'active') {
@@ -272,8 +273,8 @@ export default function ArtistScreen() {
           >
             <Ionicons name="shuffle" size={28} color={colors.text} />
           </Pressable>
-          {/* En local no: lo de aquí ya está en el aparato. Mismo criterio (y
-              mismo aspecto) que la cabecera de álbum y playlist. */}
+          {/* Locally no: what's here is already on the device. Same criteria
+              (and same look) as the album and playlist header. */}
           {!offline && albums.length > 0 ? (
             <Pressable
               hitSlop={10}
@@ -285,8 +286,8 @@ export default function ArtistScreen() {
               {gathering || download.status === 'active' ? (
                 <>
                   <ActivityIndicator size="small" color={colors.accent} />
-                  {/* Reuniendo las canciones aún no hay porcentaje que dar: el
-                      progreso solo existe cuando el grupo ya está bajando. */}
+                  {/* Gathering the songs there's no percentage to give yet: progress
+                      only exists when the group is already downloading. */}
                   {download.status === 'active' ? (
                     <Text style={[styles.downloadProgress, { color: colors.accent }]}>
                       {Math.round(download.progress * 100)}%
@@ -322,8 +323,8 @@ export default function ArtistScreen() {
         {top.length > 0 ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{t('Popular')}</Text>
-            {/* Mismo margen lateral que las listas (álbum/playlist) para que las
-                filas —y el botón de tres puntos— no queden pegadas al borde. */}
+            {/* Same horizontal margin as the lists (album/playlist) so the
+                rows —and the three-dot button— don't stick to the edge. */}
             <View style={styles.popularRows}>
               {top.slice(0, songsExpanded ? 10 : 5).map((song, i) => (
                 <TrackRow
@@ -430,7 +431,7 @@ export default function ArtistScreen() {
         ) : null}
       </ScrollView>
 
-      {/* Barra fija: el botón de volver siempre; fondo + título + play al colapsar. */}
+      {/* Fixed bar: the back button always; background + title + play on collapse. */}
       <View style={[styles.bar, { height: insets.top + 48, paddingTop: insets.top }]}>
         <Animated.View
           pointerEvents="none"
@@ -495,7 +496,7 @@ export default function ArtistScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, backgroundColor: colors.background, justifyContent: 'center' },
-  // Fila del menú ⋯ (mismo aspecto que el de la playlist / menú multimedia).
+  // ⋯ menu row (same look as the playlist / media menu).
   action: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, paddingVertical: spacing.md },
   actionText: { color: colors.text, fontSize: fontSize.md },
   headerWrap: { width: WIDTH, height: HEADER_H, justifyContent: 'flex-end' },
@@ -514,7 +515,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
-  // Mismos que la cabecera de álbum/playlist, para que el botón sea el mismo.
+  // Same as the album/playlist header, so the button is the same.
   downloadWrap: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -1,4 +1,4 @@
-/** Detalle de un álbum con sus canciones. */
+/** Album detail with its songs. */
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -27,17 +27,17 @@ import { useToast } from '@/store/toast';
 import { colors, fontSize, spacing } from '@/theme';
 
 /**
- * Cabeceras de disco por índice de canción (álbumes multi-disco). Etiqueta cada
- * disco con su título (`discTitles`) o "Disc N" de fallback, en la primera pista
- * de cada disco. Solo si hay 2+ discos, o uno solo con título explícito (imita a
+ * Disc headers by song index (multi-disc albums). Labels each disc with its
+ * title (`discTitles`) or "Disc N" as fallback, on the first track of each
+ * disc. Only if 2+ discs, or a single one with an explicit title (mimics
  * Navidrome).
  *
- * `discNumber` es opcional en Subsonic y muchos álbumes no lo traen (los números
- * de pista reinician por el tag `track`, no por `discnumber`). Por eso: si
- * `discNumber` distingue discos, se usa; si no, se infieren los cortes por el
- * reinicio del número de pista (una pista con `track` menor que la anterior
- * abre disco nuevo). Los discos inferidos se numeran 1, 2, 3… que suele coincidir
- * con `discTitles` si el álbum los trae.
+ * `discNumber` is optional in Subsonic and many albums don't include it (track
+ * numbers reset by the `track` tag, not `discnumber`). Hence: if `discNumber`
+ * distinguishes discs, it's used; otherwise cuts are inferred by the track
+ * number reset (a track with a lower `track` than the previous one opens a new
+ * disc). Inferred discs are numbered 1, 2, 3… which usually matches
+ * `discTitles` if the album has them.
  */
 function discHeadersFor(
   songs: Song[],
@@ -46,8 +46,8 @@ function discHeadersFor(
   fallbackLabel: (disc: number) => string,
 ): Record<number, string> | undefined {
   if (!enabled || songs.length === 0) return undefined;
-  // Navidrome manda `discTitles` con `title: ""` cuando el disco no tiene
-  // subtítulo real; tratamos el vacío como ausente para caer en "Disc N".
+  // Navidrome sends `discTitles` with `title: ""` when the disc has no real
+  // subtitle; treat empty as absent to fall through to "Disc N".
   const titleOf = (disc: number) => {
     const title = discTitles?.find((d) => d.disc === disc)?.title?.trim();
     return title ? title : undefined;
@@ -61,7 +61,7 @@ function discHeadersFor(
       if (!firstIndex.has(disc)) firstIndex.set(disc, i);
     });
   } else {
-    // Sin discNumber útil: cada reinicio del número de pista abre un disco.
+    // Without useful discNumber: each track number reset opens a new disc.
     let disc = 1;
     let prevTrack = -Infinity;
     songs.forEach((s, i) => {
@@ -97,10 +97,10 @@ export default function AlbumScreen() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmStop, setConfirmStop] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
-  // Canciones marcadas en el modo selección pendientes de "añadir a playlist".
+  // Songs selected in selection mode pending "add to playlist".
   const [addingSongs, setAddingSongs] = useState<Song[] | null>(null);
-  // El corazón lee de la lista central de favoritos (se refresca al marcar);
-  // `data.album.starred` del detalle se queda obsoleto tras marcar/desmarcar.
+  // The heart reads from the central favorites list (refreshes on starring);
+  // `data.album.starred` from the detail becomes stale after star/unstar.
   const favAlbumIds = useFavoriteIds(canFetch, 'album');
 
   const { data: fresh, isLoading, isError, refetch } = useQuery({
@@ -109,23 +109,23 @@ export default function AlbumScreen() {
     enabled: canFetch && !!id,
   });
 
-  // El álbum ha dejado de existir mientras lo mirabas: en modo local los álbumes
-  // se derivan de sus canciones, así que quitar la última descarga borra el
-  // álbum entero. Sin esto la pantalla se quedaba con una cabecera inventada, 0
-  // canciones y un botón de play que no reproducía nada. Salir es lo que ya hace
-  // la pantalla de playlist cuando la borras desde dentro, y aquí tampoco se
-  // siente aleatorio: acabas de destruirlo tú.
-  // Solo en local: con servidor, quitar una descarga no borra nada.
+  // The album ceased to exist while you were looking at it: locally albums are
+  // derived from their songs, so removing the last download deletes the entire
+  // album. Without this the screen would stay with a made-up header, 0 songs
+  // and a play button that did nothing. Exiting is what the playlist screen
+  // already does when you delete from within, and here it doesn't feel random
+  // either: you just destroyed it yourself.
+  // Local only: with server, removing a download doesn't delete anything.
   const vanished = offline && !!fresh && fresh.songs.length === 0;
   useEffect(() => {
     if (vanished && router.canGoBack()) router.back();
   }, [vanished, router]);
 
-  // Mientras se va, seguimos pintando lo último bueno. `router.back()` no es
-  // instantáneo (anima ~300 ms) y el efecto corre después de pintar, así que la
-  // pantalla sigue montada un rato con el álbum ya borrado: sin esto asomaba el
-  // "Álbum desconocido" y 0 canciones antes de irse. Congelándolo, la pantalla
-  // simplemente se desliza fuera tal y como estaba.
+  // While it's leaving, we keep painting the last good data. `router.back()` is
+  // not instant (animates ~300 ms) and the effect runs after painting, so the
+  // screen stays mounted for a bit with the album already deleted: without this
+  // "Unknown album" and 0 songs would flash before going away. Freezing it, the
+  // screen simply slides out as it was.
   const lastGood = useRef(fresh);
   if (fresh && fresh.songs.length > 0) lastGood.current = fresh;
   const data = vanished ? (lastGood.current ?? fresh) : fresh;
@@ -145,9 +145,9 @@ export default function AlbumScreen() {
   const cancelDownload = useDownloads((s) => s.cancelDownload);
   const deleteSongs = useDownloads((s) => s.deleteSongs);
   const downloadSongs = useDownloads((s) => s.downloadSongs);
-  // Estable entre ticks de progreso (solo cambia con el estado): si su identidad
-  // cambiara en cada actualización del %, el Pressable perdería el toque y habría
-  // que pulsar varias veces.
+  // Stable between progress ticks (only changes with status): if its identity
+  // changed on every % update, the Pressable would lose its touch and you'd
+  // have to press multiple times.
   const onDownloadPress = useCallback(() => {
     if (download.status === 'none') setConfirmDownload(true);
     else if (download.status === 'done') setConfirmDelete(true);
@@ -192,8 +192,8 @@ export default function AlbumScreen() {
         meta={metaParts.join(' · ')}
         coverUri={coverArtUrl(data.album.coverArt ?? data.album.id, 500)}
         onCoverPress={() => setCoverOpen(true)}
-        // Misma hoja que el long-press en tarjetas: reproducir, a la cola,
-        // descargar, favorito y fijar, sin duplicar menú.
+        // Same sheet as the long-press on cards: play, queue, download,
+        // favorite and pin, without duplicating the menu.
         onMenu={() => openMediaMenu({ kind: 'album', album: data.album })}
         songs={data.songs}
         currentId={playing?.id}
@@ -229,7 +229,7 @@ export default function AlbumScreen() {
             </>
           ) : undefined
         }
-        // Sin "Quitar": las canciones de un álbum no se pueden sacar de él.
+        // No "Remove": an album's songs can't be taken out of it.
         selection={{
           onAddTo: (sel) => setAddingSongs(sel),
           onDownload: !offline

@@ -1,4 +1,4 @@
-/** Reproductor a pantalla completa (modal): carátula, progreso y controles. */
+/** Full-screen player (modal): cover art, progress and controls. */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Slider from '@react-native-community/slider';
@@ -61,7 +61,7 @@ const SCREEN_H = Dimensions.get('window').height;
 const COVER = SCREEN_W - spacing.xl * 2;
 const SWIPE_THRESHOLD = SCREEN_W * 0.25;
 const DISMISS_THRESHOLD = 120;
-// Cuánto asoma la tarjeta de letra bajo la primera página (invita a deslizar).
+// How much of the lyrics card peeks below the first page (invites swipe).
 const LYRICS_PEEK = 56;
 
 function CircleButton({
@@ -87,14 +87,14 @@ function CircleButton({
 }
 
 /**
- * Posición y atenuado de un panel del carrusel de carátulas (reciclado).
+ * Position and opacity of a carousel panel (recycled).
  *
- * Los 3 paneles forman una tira infinita: el panel `k` se coloca en el
- * múltiplo de 3 pantallas más cercano al centro, así siempre queda a ≤1,5
- * pantallas y el salto de un extremo al otro ocurre fuera de pantalla. Todo se
- * calcula en el hilo de UI a partir de `offset` (que acumula, nunca se
- * resetea), de modo que consolidar un swipe no mueve ningún panel visible: el
- * que era vecino queda centrado y solo cambia el contenido del panel oculto.
+ * The 3 panels form an infinite strip: panel `k` is placed at the nearest
+ * multiple of 3 screens to the center, so it always stays ≤1.5 screens away
+ * and the jump from one end to the other happens off-screen. Everything is
+ * calculated on the UI thread from `offset` (which accumulates, never resets),
+ * so committing a swipe doesn't move any visible panel: the one that was the
+ * neighbor stays centered and only the hidden panel's content changes.
  */
 function usePaneStyle(offset: SharedValue<number>, k: number) {
   return useAnimatedStyle(() => {
@@ -108,8 +108,8 @@ function usePaneStyle(offset: SharedValue<number>, k: number) {
 }
 
 export default function PlayerScreen() {
-  useSettings((s) => s.accentColor); // re-render al cambiar el acento
-  useSettings((s) => s.appFont); // re-render al cambiar la fuente
+  useSettings((s) => s.accentColor); // re-render when accent changes
+  useSettings((s) => s.appFont); // re-render when font changes
   const router = useRouter();
   const isFocused = useIsFocused();
   const song = usePlayerStore(currentSong);
@@ -147,55 +147,54 @@ export default function PlayerScreen() {
   const jukeboxActive = useJukebox((s) => s.active);
   const remoteDevice = upnpDevice ?? (jukeboxActive ? t('Server speakers (Jukebox)') : null);
   const [outputOpen, setOutputOpen] = useState(false);
-  // Con letra local (.lrc/USLT/LRCLIB) el modo offline también tiene lyrics;
-  // solo la radio (url directa) queda fuera. Ocultar la tarjeta (ajuste) no
-  // desactiva las letras: tocar la carátula sigue abriendo pantalla completa.
+  // With local lyrics (.lrc/USLT/LRCLIB) offline mode also has lyrics;
+  // only radio (direct url) is excluded. Hiding the card (setting) doesn't
+  // disable lyrics: tapping cover art still opens the full screen.
   const canLyrics = !song?.url;
   const favIds = useFavoriteIds(!!song && (!song?.localUri || offline));
 
-  // La capa de datos resuelve la carátula: del servidor (online) o del índice
-  // local por álbum (offline). Ya no se guarda el base64 en cada canción.
-  // Emisoras de radio: carátula propia guardada en el dispositivo (Subsonic no
-  // tiene carátula para radios). Se resuelve por id de canción/emisora.
+  // The data layer resolves the cover: from the server (online) or from the
+  // local index by album (offline). Base64 is no longer stored per song.
+  // Radio stations: own cover stored on the device (Subsonic has no cover
+  // for radios). Resolved by song/station id.
   const radioCovers = useRadioCovers((s) => s.covers);
   const radioCoverOf = (s?: Song) => (s?.url ? radioCovers[s.id] : undefined);
   const cover = song
     ? (song.url ? radioCoverOf(song) : coverArtUrl(song.coverArt ?? song.albumId, 600))
     : undefined;
-  // Fondo estilo Spotify: degradado del color dominante de la carátula
-  // (desactivable en Ajustes → Aspecto). El color transiciona suave al cambiar
-  // de canción: se anima un color plano y el degradado hacia el fondo es una
-  // capa fija encima (mismo aspecto que animar el degradado, que no se puede).
+  // Spotify-style background: gradient from the cover's dominant color
+  // (toggle in Settings → Theme). The color transitions smoothly on song
+  // change: a flat color is animated and the gradient toward the background is
+  // a fixed overlay (same look as animating the gradient, which can't be done).
   const colorBackground = useSettings((s) => s.playerColorBackground);
   const dominant = useDominantColor(colorBackground ? cover : undefined);
   const targetBg = colorBackground ? dominant : '#3a4042';
   const bgColor = useSharedValue(targetBg);
   useEffect(() => {
-    // reduceMotion Never: el fundido de color es parte del look y algunos
-    // móviles (ahorro de batería / "reducir movimiento") lo saltarían.
+    // reduceMotion Never: the color fade is part of the look and some devices
+    // (battery saver / "reduce motion") would skip it.
     bgColor.value = withTiming(targetBg, { duration: 600, reduceMotion: ReduceMotion.Never });
   }, [targetBg, bgColor]);
   const bgStyle = useAnimatedStyle(() => ({ backgroundColor: bgColor.value }));
-  // Misma query que usa la tarjeta de letra (cacheada): aquí solo para saber
-  // si hay letra y dejar la tarjeta asomando bajo la primera página.
+  // Same query used by the lyrics card (cached): here only to know if there
+  // are lyrics and let the card peek below the first page.
   const { data: lyrics } = useLyrics(canLyrics ? (song ?? undefined) : undefined);
 
-  // El player es desplazable (como Spotify): la primera "página" ocupa la
-  // pantalla y debajo asoma la tarjeta de la letra. La altura real la da el
-  // onLayout del ScrollView; hasta entonces, una aproximación.
+  // The player is scrollable (like Spotify): the first "page" fills the
+  // screen and the lyrics card peeks below. The real height comes from the
+  // ScrollView's onLayout; until then, an approximation.
   const [pageH, setPageH] = useState(0);
-  // El gesto de cerrar arrastrando solo debe actuar con el scroll arriba del
-  // todo; si no, robaría el gesto al volver de la tarjeta de letra.
+  // The swipe-to-close gesture should only work when scrolled to the top;
+  // otherwise it would steal the gesture when returning from the lyrics card.
   const [atTop, setAtTop] = useState(true);
   const atTopRef = useRef(true);
 
-  // Deslizar la carátula: izquierda → siguiente, derecha → anterior. A
-  // diferencia de los botones, el swipe siempre cambia de pista y da la vuelta
-  // a la lista al llegar al final/inicio.
+  // Cover art swipe: left → next, right → previous. Unlike the buttons,
+  // swipe always changes tracks and wraps around at the end/beginning.
   const jumpTo = usePlayerStore((s) => s.jumpTo);
   const canSwitch = usePlayerStore((s) => s.queue.length > 1);
-  // Vecinas en la cola (con vuelta), para que el carrusel las enseñe al
-  // arrastrar. Referencias estables: solo re-renderiza si cambia la canción.
+  // Neighbors in the queue (with wrap), so the carousel can show them when
+  // dragging. Stable references: only re-renders if the song changes.
   const prevSong = usePlayerStore((s) =>
     s.queue.length > 1 ? s.queue[(s.index - 1 + s.queue.length) % s.queue.length] : undefined,
   );
@@ -217,8 +216,8 @@ export default function PlayerScreen() {
     if (queue.length > 1) jumpTo(index > 0 ? index - 1 : queue.length - 1);
   };
 
-  // Avances netos consumados del carrusel: espejo entero de `-offset/W` en
-  // reposo. Vive en React porque decide qué canción enseña cada panel.
+  // Net committed advances of the carousel: integer mirror of `-offset/W` at
+  // rest. Lives in React because it decides which song each panel shows.
   const [spins, setSpins] = useState(0);
   const offset = useSharedValue(0);
   const dragBase = useSharedValue(0);
@@ -233,9 +232,9 @@ export default function PlayerScreen() {
       dragBase.value = offset.value;
     })
     .onUpdate((e) => {
-      // Sin más pistas, resistencia (se nota que no hay a dónde ir). El
-      // arrastre se acota a los paneles vecinos ya cargados: más allá habría
-      // un panel con contenido viejo.
+      // With no more tracks, resistance (you feel there's nowhere to go).
+      // The drag is clamped to the already-loaded neighbor panels: beyond
+      // would show a panel with stale content.
       const raw = dragBase.value + (canSwitch ? e.translationX : e.translationX / 4);
       const min = -(spins + 1) * SCREEN_W;
       const max = -(spins - 1) * SCREEN_W;
@@ -247,9 +246,10 @@ export default function PlayerScreen() {
       const advance = wantNext ? 1 : wantPrev ? -1 : 0;
       const target = -(spins + advance) * SCREEN_W;
       if (advance !== 0) {
-        // El carrusel termina el recorrido con la vecina centrada; la pista
-        // cambia al acabar. Si React tarda, no se nota: el panel centrado ya
-        // enseña la carátula correcta y el swap ocurre en el panel oculto.
+        // The carousel finishes the travel with the neighbor centered; the
+        // track changes at the end. If React lags, it's not noticeable: the
+        // centered panel already shows the right cover and the swap happens
+        // in the hidden panel.
         offset.value = withTiming(
           target,
           { duration: 220, easing: Easing.out(Easing.cubic) },
@@ -261,14 +261,14 @@ export default function PlayerScreen() {
         offset.value = withSpring(target, { damping: 20, stiffness: 200 });
       }
     });
-  // Tocar la carátula muestra la letra (si la hay). Convive con el swipe: el tap
-  // solo gana si no hubo arrastre. `hasLyrics` es un booleano para poder leerlo
-  // desde el hilo de UI del gesto.
+  // Cover tap shows lyrics (if any). Coexists with swipe: tap only wins if
+  // there was no drag. `hasLyrics` is a boolean so it can be read from the
+  // gesture's UI thread.
   const hasLyrics = !!lyrics;
-  // Qué hace el tap según el ajuste: «inline» la muestra en el sitio de la
-  // carátula (toggle), «screen» abre la pantalla completa, «none» nada.
+  // What tap does based on setting: «inline» shows lyrics in place of the
+  // cover (toggle), «screen» opens the full screen, «none» nothing.
   const [inlineLyrics, setInlineLyrics] = useState(false);
-  // Al cambiar de canción se vuelve a la carátula (cada canción se toca aparte).
+  // When the song changes, go back to the cover (each song is tapped separately).
   useEffect(() => {
     setInlineLyrics(false);
   }, [song?.id]);
@@ -283,8 +283,8 @@ export default function PlayerScreen() {
     });
   const coverGesture = Gesture.Race(coverPan, coverTap);
   const paneStyles = [usePaneStyle(offset, 0), usePaneStyle(offset, 1), usePaneStyle(offset, 2)];
-  // Qué canción (actual, siguiente o anterior) toca en cada panel según los
-  // avances consumados; misma fórmula de reciclado que la posición en UI.
+  // Which song (current, next or previous) belongs to each panel based on
+  // committed advances; same recycling formula as the UI position.
   const paneRel = (k: number) => k + 3 * Math.round((spins - k) / 3) - spins;
 
   // Deslizar hacia abajo cierra el reproductor (gesto propio: el modal nativo
@@ -311,10 +311,10 @@ export default function PlayerScreen() {
     transform: [{ translateY: transY.value }],
   }));
 
-  // Si no hay canción (p. ej. al vaciar la cola), cierra el reproductor. En un
-  // efecto (no en render) para no actualizar el Stack mientras se pinta otro
-  // componente, y solo si el player es la pantalla visible: si encima está la
-  // cola, dejamos que esa muestre su estado vacío en vez de cerrarla nosotros.
+  // If there's no song (e.g. after emptying the queue), close the player. In an
+  // effect (not in render) to avoid updating the Stack while painting another
+  // component, and only if the player is the visible screen: if the queue
+  // screen is on top, let it show its empty state instead of closing it.
   useEffect(() => {
     if (!song && isFocused) router.back();
   }, [song, isFocused, router]);
@@ -322,15 +322,15 @@ export default function PlayerScreen() {
   if (!song) return null;
 
   const isLocal = !!song.localUri;
-  // La lista central manda cuando está cargada (se refresca al marcar desde
-  // cualquier sitio); `song.starred` de la cola queda obsoleto, así que solo
-  // sirve de reserva para canciones locales o mientras carga.
+  // The central list wins when loaded (refreshes when starred from any
+  // screen); `song.starred` from the queue becomes stale, so it only serves
+  // as a fallback for local songs or while loading.
   const favorited = favIds ? favIds.has(song.id) : !!song.starred;
-  // Las estrellas (setRating) son cosa de Subsonic: se activan en Ajustes y
-  // necesitan cuenta de servidor no-Jellyfin; no aplican en radio (url directa)
-  // ni en el perfil local (sin cuenta). Offline se apunta y sube al reconectar.
+  // Stars (setRating) are a Subsonic thing: enabled in Settings and require
+  // a non-Jellyfin server account; not applicable to radio (direct url) or
+  // the local profile (no account). Offline queues and uploads on reconnect.
   const canRate = showRating && hasAccount && serverType !== 'jellyfin' && !song.url;
-  // Álbum · año bajo el título (opcional). Radio no tiene: solo si hay algo.
+  // Album · year under the title (optional). Radio doesn't have it: only if there's something.
   const albumLine = [song.album, song.year].filter(Boolean).join(' · ');
   const duration = durationSec || song.duration || 0;
   const repeatActive = repeat !== 'off';
@@ -400,10 +400,10 @@ export default function PlayerScreen() {
 
         <View style={styles.coverWrap}>
           <GestureDetector gesture={coverGesture}>
-            {/* Carrusel reciclado: la carátula actual centrada y las vecinas a
-                una pantalla, entrando ya al arrastrar. Sin fundido (transition
-                0): el contenido de un panel solo cambia fuera de pantalla y un
-                fundido no pinta nada aquí. */}
+            {/* Recycled carousel: the current cover centered and the neighbors at
+                one screen, already entering on drag. No fade (transition 0): a
+                panel's content only changes off-screen and a fade is pointless
+                here. */}
             <Animated.View style={styles.coverRow}>
               {paneStyles.map((paneStyle, k) => {
                 const rel = paneRel(k);
@@ -411,8 +411,8 @@ export default function PlayerScreen() {
                 const paneCover = rel === 0 ? cover : rel === 1 ? nextCover : prevCover;
                 return (
                   <Animated.View key={k} style={[styles.coverPane, paneStyle]}>
-                    {/* Con la letra en el sitio se oculta la carátula: la letra
-                        (fondo transparente) queda sobre el fondo del player. */}
+                    {/* With lyrics in place the cover is hidden: the lyrics
+                        (transparent background) sit on top of the player background. */}
                     {paneSong && !inlineLyrics ? (
                       <Cover
                         uri={paneCover}
@@ -426,7 +426,7 @@ export default function PlayerScreen() {
               })}
             </Animated.View>
           </GestureDetector>
-          {/* Letra en el sitio de la carátula (ajuste): mismo cuadro, encima. */}
+          {/* Lyrics in place of the cover (setting): same frame, on top. */}
           {inlineLyrics && hasLyrics ? (
             <View style={styles.lyricsOverlay}>
               <CoverLyrics size={COVER} onClose={() => setInlineLyrics(false)} />
@@ -567,10 +567,10 @@ export default function PlayerScreen() {
               accessibilityRole="button"
               accessibilityLabel={isPlaying ? t('Pause') : t('Play')}
               onPress={toggle}
-              // Stop de verdad: para y elimina cola, mini player y
-              // notificación. No hace falta cerrar el player a mano: el efecto
-              // de "sin canción" ya lo cierra, y el toast con Deshacer queda
-              // en la pantalla de debajo.
+               // Real stop: stops and clears queue, mini player and
+               // notification. No need to close the player manually: the
+               // "no song" effect already closes it, and the Undo toast stays
+               // on the screen underneath.
               onLongPress={() => {
                 haptic('medium');
                 void usePlayerStore
@@ -599,8 +599,8 @@ export default function PlayerScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={t('Forward {n} seconds', { n: seekButtonsSec })}
                 onPress={() =>
-                  // Tope antes del final: saltarse el didJustFinish a pelo
-                  // dejaría el avance automático sin disparar.
+                  // Cap before the end: skipping past didJustFinish manually
+                  // would leave auto-advance without triggering.
                   seekTo(duration > 0 ? Math.min(duration - 1, positionSec + seekButtonsSec) : positionSec + seekButtonsSec)
                 }
               >
@@ -636,8 +636,8 @@ export default function PlayerScreen() {
           {showDevicesButton || showQueueButton || remoteDevice ? (
             <View style={styles.bottomRow}>
               <View style={styles.bottomSlot}>
-                {/* Conectado a un dispositivo remoto se muestra siempre: es la
-                    única vía para desconectar el cast. */}
+                {/* Connected to a remote device it's always shown: it's the
+                    only way to disconnect the cast. */}
                 {showDevicesButton || remoteDevice ? (
                   <Pressable
                     hitSlop={10}
@@ -685,8 +685,8 @@ export default function PlayerScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  // El padding lateral vive en cada sección (no aquí): así el slider puede
-  // sobresalir su margen interno sin que el ScrollView recorte el pulgar.
+  // Horizontal padding lives in each section (not here): so the slider can
+  // overshoot its internal margin without the ScrollView clipping the thumb.
   safe: { flex: 1 },
   topBar: {
     flexDirection: 'row',
@@ -728,13 +728,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: spacing.lg,
   },
-  // Los paneles del carrusel son absolutos (usePaneStyle los coloca); la fila
-  // reserva el hueco de la carátula.
+  // Carousel panels are absolute (usePaneStyle positions them); the row
+  // reserves the cover art slot.
   coverRow: { width: COVER, height: COVER },
   coverPane: { position: 'absolute', top: 0, left: 0 },
-  // Superposición de la letra sobre el cuadro de la carátula: ocupa el mismo
-  // alto (top 0, height COVER) y se centra en horizontal (coverWrap es más
-  // ancho que la carátula; sin esto la letra queda pegada a la izquierda).
+  // Lyrics overlay on top of the cover frame: same height (top 0, height COVER)
+  // and horizontally centered (coverWrap is wider than the cover; without this
+  // the lyrics would be left-aligned).
   lyricsOverlay: {
     position: 'absolute',
     top: 0,
@@ -755,9 +755,9 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginBottom: spacing.md,
   },
-  // El área pulsable se ajusta al texto (no a todo el ancho), para no navegar
-  // al tocar el hueco vacío de la derecha.
-  // Abraza el texto: la zona pulsable es solo el título/artista, no la fila.
+  // The tappable area fits the text (not the full width), to avoid navigating
+  // when tapping the empty space on the right.
+  // Hugs the text: the tappable area is just the title/artist, not the row.
   tapText: { alignSelf: 'flex-start', maxWidth: '100%' },
   title: { color: colors.text, fontSize: fontSize.xl, fontWeight: '800' },
   artist: {
@@ -765,19 +765,20 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     marginTop: spacing.xs,
   },
-  // Líneas de info bajo el título/artista (álbum·año y/o calidad), en versión
-  // compacta: son opcionales y la primera página va justa con todo activado —
-  // cada píxel vertical cuenta (el slider ya trae aire propio debajo). Un único
-  // tirón hacia arriba para todo el grupo y un gap pequeño entre líneas, así no
-  // se solapan cuando se muestran las dos.
+  // Info lines under title/artist (album·year and/or quality), compact
+  // version: they're optional and the first page is tight with everything
+  // enabled — every vertical pixel counts (the slider already brings its own
+  // breathing room below). A single pull-up for the whole group and a small
+  // gap between lines, so they don't overlap when both are visible.
   subInfo: { marginTop: -spacing.sm, marginBottom: spacing.xs, gap: 2 },
   albumInfo: { color: colors.textSecondary, fontSize: fontSize.sm },
   progress: { marginBottom: spacing.md },
-  // Compensa el margen interno del slider (~15px, donde centra el pulgar en
-  // los extremos): la pista visible va de borde a borde del contenido, como
-  // Spotify, y el pulgar sobresale hacia el hueco sin que nada lo recorte.
+  // Compensates for the slider's internal margin (~15px, where the thumb is
+  // centered at the extremes): the visible track goes edge to edge of the
+  // content, like Spotify, and the thumb extends into the gap without being
+  // clipped.
   slider: { marginHorizontal: -15 },
-  // Pegados a la barra: el slider trae mucho aire vertical (zona táctil).
+  // Snug against the bar: the slider brings lots of vertical space (touch area).
   times: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -798,7 +799,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Estrellas centradas bajo la carátula (elemento opcional).
+  // Stars centered below the cover (optional element).
   belowCover: { alignItems: 'center', marginTop: spacing.md },
   bottomRow: {
     flexDirection: 'row',
@@ -807,15 +808,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     marginTop: spacing.sm,
   },
-  // Hueco flexible para el botón de dispositivos: mantiene la cola en su
-  // sitio aunque el botón esté oculto, y deja crecer el nombre del aparato.
+  // Flexible slot for the devices button: keeps the queue in place even if
+  // the button is hidden, and lets the device name expand.
   bottomSlot: {
     flex: 1,
     height: 40,
     alignItems: 'flex-start',
     justifyContent: 'center',
   },
-  // Como Spotify Connect: icono + nombre del aparato en acento al castear.
+  // Like Spotify Connect: icon + device name in accent when casting.
   deviceRow: {
     flexDirection: 'row',
     alignItems: 'center',

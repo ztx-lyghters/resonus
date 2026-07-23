@@ -1,6 +1,6 @@
 /**
- * Layout raíz: proveedores globales y control de sesión. Las rutas se protegen
- * según haya o no sesión iniciada, usando Stack.Protected de expo-router.
+ * Root layout: global providers and session control. Routes are protected
+ * depending on whether a session is active, using expo-router's Stack.Protected.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
@@ -41,12 +41,12 @@ import { APP_FONT_FAMILY, useSettings } from '@/store/settings';
 import { useSortPrefs } from '@/store/sortPrefs';
 import { colors } from '@/theme';
 
-// Parchea Text/TextInput una vez, antes del primer render.
+// Patches Text/TextInput once, before the first render.
 installAppFont();
 
 export default function RootLayout() {
-  // La fuente elegida se aplica en cada render (y tras hidratar los ajustes):
-  // así todo lo que se vuelva a pintar coge la familia actual.
+  // The selected font is applied on every render (and after hydrating settings):
+  // so everything that gets repainted picks up the current family.
   const appFont = useSettings((s) => s.appFont);
   setAppFont(APP_FONT_FAMILY[appFont]);
 
@@ -55,12 +55,12 @@ export default function RootLayout() {
   const offlineSource = useAuthStore((s) => s.offlineSource);
   const hydrating = useAuthStore((s) => s.hydrating);
   const hydrate = useAuthStore((s) => s.hydrate);
-  // Con descargas, el perfil local funciona sin haber elegido origen de música.
+  // With downloads, the local profile works without having chosen a music source.
   const hasDownloads = useDownloads((s) => Object.keys(s.files).length > 0);
   const ready = !!auth || (offline && (!!offlineSource || hasDownloads));
-  // Perfil activo identificado para recargar búsquedas recientes al cambiar.
-  // Cuelga de la URL PRINCIPAL (no la activa): al conmutar de red la URL activa
-  // cambia pero seguimos en el mismo perfil, así que no debe reinicializarse.
+  // Active profile identified to reload recent searches when switching.
+  // Depends on the PRIMARY URL (not the active one): when switching networks the
+  // active URL changes but we stay on the same profile, so it must not reinitialize.
   const activeProfile = auth
     ? `${auth.urls?.[0] ?? auth.serverUrl}|${auth.username}`
     : offline
@@ -79,10 +79,10 @@ export default function RootLayout() {
     void useRadioCovers.getState().hydrate();
     void useDownloads.getState().hydrate();
     void useAutoDownloads.getState().hydrate();
-    // Espejo + outbox para el offline (se recargan al cambiar de perfil). Al
-    // terminar de cargar de disco, si estamos offline refrescamos la Biblioteca:
-    // cubre el arranque en frío donde una query pudo resolverse antes de tener
-    // el espejo en memoria y se quedaba vacía hasta recargar a mano.
+    // Mirror + outbox for offline (reloaded when switching profiles). After
+    // loading from disk, if we're offline we refresh the Library: covers cold
+    // starts where a query could resolve before the mirror is in memory and
+    // would stay empty until manually reloaded.
     void Promise.all([
       useLibraryMirror.getState().load(),
       useOfflineQueue.getState().load(),
@@ -92,14 +92,14 @@ export default function RootLayout() {
         void queryClient.invalidateQueries({ queryKey: ['starred'] });
       }
     });
-    // Ecualizador: lee las capacidades del móvil y aplica lo guardado.
+    // Equalizer: reads device capabilities and applies saved settings.
     void useEqualizer.getState().hydrate();
     initNetworkType();
-    // Conmutación de URL de servidor al cambiar de red (perfiles con varias
-    // URLs); re-sondea también al cambiar de perfil.
+    // Server URL switching on network change (profiles with multiple URLs);
+    // re-probes on profile switch as well.
     initAutoUrl();
     checkAutoUrlNow();
-    // Bibliotecas: hidrata el filtro guardado y refresca la lista del servidor.
+    // Libraries: hydrates the saved filter and refreshes the server list.
     void useLibraries
       .getState()
       .hydrate()
@@ -110,14 +110,14 @@ export default function RootLayout() {
     initRemoteIntegration();
   }, [hydrate, activeProfile]);
 
-  // Al entrar en un perfil (servidor o local), retoma la cola guardada
-  // (sin reproducir): primero la copia del dispositivo, si no la del servidor.
+  // On entering a profile (server or local), resumes the saved queue
+  // (without playing): first the device copy, then the server copy if not.
   useEffect(() => {
     if (ready) void usePlayerStore.getState().restoreQueue();
   }, [ready, activeProfile]);
 
-  // Mantener la pantalla encendida (ajuste). El flag nativo solo actúa con la
-  // app en primer plano, así que en segundo plano no gasta batería extra.
+  // Keep screen awake (setting). The native flag only acts with the app in
+  // the foreground, so it doesn't waste extra battery in the background.
   const keepScreenAwake = useSettings((s) => s.keepScreenAwake);
   useEffect(() => {
     if (!keepScreenAwake) return;
@@ -148,9 +148,9 @@ export default function RootLayout() {
             <Stack
               screenOptions={{
                 headerShown: false,
-                // Fundido rápido entre pantallas: en Android la duración de las
-                // transiciones nativas no se puede tocar y los empujes laterales
-                // (slide/ios_from_right) se sentían lentos.
+                // Fast crossfade between screens: on Android native transition
+                // durations can't be adjusted and lateral pushes
+                // (slide/ios_from_right) felt sluggish.
                 animation: 'fade',
                 contentStyle: { backgroundColor: colors.background },
               }}
@@ -191,10 +191,10 @@ export default function RootLayout() {
               <Stack.Protected guard={!auth && !offline}>
                 <Stack.Screen name="login" />
               </Stack.Protected>
-              {/* Modales compartidos por servidor y offline (requieren canción
-                  activa). Suben desde abajo pero con la variante corta
-                  (fade_from_bottom): el slide_from_bottom nativo dura ~350 ms
-                  fijos y abrir el player se sentía lento. */}
+              {/* Modals shared by server and offline (require active song).
+                  Open from the bottom but with the short variant
+                  (fade_from_bottom): native slide_from_bottom takes ~350 ms
+                  fixed and opening the player felt slow. */}
               <Stack.Screen
                 name="player"
                 options={{ presentation: 'modal', animation: 'fade_from_bottom' }}

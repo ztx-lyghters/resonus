@@ -1,13 +1,13 @@
 /**
- * Pantalla de Historial estilo "Escuchado recientemente" de Spotify: barra
- * superior simple (sin cabecera-hero) y canciones agrupadas por día.
+ * History screen in Spotify's "Recently played" style: simple top bar
+ * (no hero header) and songs grouped by day.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
-// gesture-handler no exporta SectionList; su ScrollView como scroll interno
-// hace que el swipe-a-cola de las filas conviva con el scroll (ver TrackRow).
+// gesture-handler doesn't export SectionList; its ScrollView as inner scroll
+// makes the row swipe-to-queue coexist with scrolling (see TrackRow).
 import { ScrollView as GHScrollView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -25,11 +25,11 @@ import { colors, fontSize, spacing, SCREEN_BOTTOM_PADDING } from '@/theme';
 interface DaySection {
   title: string;
   data: HistoryEntry[];
-  /** Índice del primer elemento de la sección en la lista completa. */
+/** Index of the first element of the section in the full list. */
   offset: number;
 }
 
-/** "Hoy", "Ayer" o la fecha ("29 de junio", con año si no es el actual). */
+/** "Today", "Yesterday" or the date ("June 29", with year if not current). */
 function dayLabel(playedAt: number, t: (k: string) => string, lang: string): string {
   const d = new Date(playedAt);
   const now = new Date();
@@ -59,7 +59,7 @@ export default function HistoryScreen() {
 
   const songs = entries.map((e) => e.song);
 
-  // Las entradas ya vienen de la más reciente a la más antigua.
+  // Entries already come from most recent to oldest.
   const sections: DaySection[] = [];
   entries.forEach((e, i) => {
     const title = dayLabel(e.playedAt, t, lang);

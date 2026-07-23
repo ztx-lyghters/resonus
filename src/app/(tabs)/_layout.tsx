@@ -1,6 +1,6 @@
 /**
- * Navegación principal por pestañas: Inicio, Buscar y Biblioteca.
- * Barra inferior sólida sobre el fondo de la app.
+ * Main tab navigation: Home, Search and Library.
+ * Solid bottom bar over the app background.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
@@ -19,8 +19,8 @@ export default function TabsLayout() {
       <Tabs
         screenOptions={{
           headerShown: false,
-          // Crossfade corto al cambiar de pestaña, en vez del corte seco por
-          // defecto ('shift' se sentía lento).
+          // Short crossfade when switching tabs, instead of the default hard
+          // cut ('shift' felt slow).
           animation: 'fade',
           transitionSpec: {
             animation: 'timing',

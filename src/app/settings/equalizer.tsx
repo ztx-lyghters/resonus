@@ -1,8 +1,8 @@
 /**
- * Ajustes › Ecualizador: interruptor, presets del dispositivo y una banda por
- * fila. El procesado lo hace el ecualizador del sistema (módulo nativo
- * modules/audio-eq); aquí solo se eligen las ganancias, que se guardan y se
- * aplican al audio de la app al momento.
+ * Settings › Equalizer: toggle, device presets and one band per row.
+ * Processing is done by the system equalizer (native module modules/audio-eq);
+ * here you only choose gains, which are saved and applied to the app audio
+ * immediately.
  */
 import { useState } from 'react';
 import { ScrollView, Text } from 'react-native';
@@ -43,8 +43,8 @@ export default function EqualizerSettings() {
   const applyPreset = useEqualizer((s) => s.applyPreset);
   const reset = useEqualizer((s) => s.reset);
 
-  // El preset elegido es solo de la vista: al tocar una banda deja de haber
-  // preset («Personalizado»). Lo que se guarda son las ganancias.
+  // The selected preset is view-only: touching a band clears the preset
+  // («Custom»). What's saved are the gains.
   const [preset, setPreset] = useState(-1);
 
   if (!supported) {
@@ -96,7 +96,7 @@ export default function EqualizerSettings() {
             value={levels[band.index] ?? 0}
             min={minLevel}
             max={maxLevel}
-            // Pasos de 1 dB: el rango viene en milibelios.
+            // 1 dB steps: the range comes in millibels.
             step={100}
             formatValue={formatGain}
             onChange={(v) => {

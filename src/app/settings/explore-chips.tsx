@@ -1,10 +1,10 @@
 /**
- * Ajustes › Chips de explorar: lista arrastrable (mismo motor que la cola y las
- * playlists) para mostrar/ocultar y reordenar los chips de Inicio. Los cambios
- * se aplican y guardan al momento.
+ * Settings › Explore chips: draggable list (same engine as the queue and
+ * playlists) to show/hide and reorder the Home chips. Changes are applied and
+ * saved immediately.
  *
- * Sin ninguno activo la fila entera desaparece de Inicio; por eso no hay un
- * interruptor general aparte.
+ * With none active the entire row disappears from Home; that's why there's no
+ * separate master toggle.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
@@ -36,8 +36,8 @@ function ChipRow({ chip }: { chip: ExploreChip }) {
   const t = useT();
   const drag = useReorderableDrag();
   const setExploreChip = useSettings((s) => s.setExploreChip);
-  // Del store, no de `colors.accent`: sin suscripción el switch se quedaría con
-  // el acento anterior mientras la pantalla siga montada.
+  // From the store, not `colors.accent`: without subscription the switch would
+  // keep the previous accent while the screen stays mounted.
   const accent = useSettings((s) => s.accentColor);
   return (
     <View style={styles.row}>
@@ -64,7 +64,7 @@ function ChipRow({ chip }: { chip: ExploreChip }) {
 }
 
 /** Chips que en local no existen (Inicio los filtra por OFFLINE_KEYS): su fila
- *  aquí prometería algo que nunca aparece. */
+ * here would promise something that never appears. */
 const SERVER_ONLY: ExploreChipKey[] = ['genres', 'radio', 'history'];
 
 export default function ExploreChipsSettings() {
@@ -88,8 +88,8 @@ export default function ExploreChipsSettings() {
           const nextVisible = visible.slice();
           const [moved] = nextVisible.splice(from, 1);
           nextVisible.splice(to, 0, moved);
-          // Las ocultas vuelven a su posición absoluta: reordenar en local no
-          // debe perder ni recolocar la config de los chips solo-servidor.
+          // Hidden ones go back to their absolute position: reordering locally
+          // must not lose or reposition the config of server-only chips.
           let vi = 0;
           const next = exploreChips.map((c) =>
             offline && SERVER_ONLY.includes(c.key) ? c : nextVisible[vi++],

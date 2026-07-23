@@ -1,4 +1,4 @@
-/** Lista de géneros del servidor, en tarjetas de color (estilo Spotify). */
+/** Server genre list, in colored cards (Spotify style). */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
@@ -25,8 +25,8 @@ import { useAuthStore } from '@/store/auth';
 import { colors, fontSize, radius, spacing, SCREEN_BOTTOM_PADDING } from '@/theme';
 import { listPerf } from '@/lib/listPerf';
 
-// Ancho de cada tarjeta en la rejilla de 2 columnas (mismo que en Buscar), para
-// que el esqueleto de carga coincida exactamente con las tarjetas reales.
+// Width of each card in the 2-column grid (same as in Search), so the loading
+// skeleton matches the actual cards exactly.
 const GENRE_W = (Dimensions.get('window').width - spacing.lg * 2 - spacing.sm) / 2;
 
 export default function GenresScreen() {
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
     paddingBottom: SCREEN_BOTTOM_PADDING,
     gap: spacing.sm,
   },
-  // Mismo margen lateral que la lista para que las tarjetas del esqueleto queden
-  // alineadas con las reales cuando lleguen.
+  // Same horizontal margin as the list so the skeleton cards align with the
+  // real ones when they arrive.
   skeleton: { paddingHorizontal: spacing.lg },
 });

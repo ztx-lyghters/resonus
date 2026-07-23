@@ -1,4 +1,4 @@
-/** Ajustes › Aspecto: idioma, tema, listas de canciones e interfaz. */
+/** Settings › Appearance: language, theme, song lists and interface. */
 import { useRouter } from 'expo-router';
 import { ScrollView, Text } from 'react-native';
 
@@ -23,8 +23,8 @@ import {
 export default function AppearanceSettings() {
   const router = useRouter();
   const t = useT();
-  // La pestaña de carpetas solo existe con servidor Subsonic (ver library):
-  // en offline o Jellyfin el toggle no haría nada, así que no se muestra.
+  // The folders tab only exists with a Subsonic server (see library):
+  // offline or Jellyfin the toggle wouldn't do anything, so it's not shown.
   const offline = useAuthStore((s) => s.offline);
   const serverType = useAuthStore((s) => s.auth?.serverType);
   const canBrowseFolders = !offline && serverType !== 'jellyfin';
@@ -229,7 +229,7 @@ export default function AppearanceSettings() {
               value: hapticsEnabled,
               onChange: (v: boolean) => {
                 setHapticsEnabled(v);
-                // Vibra al activarlo: confirmación inmediata de que funciona.
+                // Vibrates on enable: immediate confirmation that it works.
                 if (v) haptic('medium');
               },
             },

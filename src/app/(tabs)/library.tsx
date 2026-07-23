@@ -1,4 +1,4 @@
-/** Biblioteca: listas (con acceso fijo a Favoritos) y artistas. Ajustes. */
+/** Library: lists (with fixed access to Favorites) and artists. Settings. */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -57,20 +57,20 @@ const SEGMENTS: { key: Segment; label: string }[] = [
   { key: 'artists', label: 'Artists' },
 ];
 
-/** Segmento extra "Carpetas" (navegación por directorios; solo Subsonic). */
+/** Extra "Folders" segment (directory browsing; Subsonic only). */
 const FOLDERS_SEGMENT: { key: Segment; label: string } = { key: 'folders', label: 'Folders' };
 
-// Cuadrícula de la Biblioteca: 3 columnas, mismo hueco que el resto de rejillas.
+// Library grid: 3 columns, same gap as the rest of the grids.
 const GRID_COLUMNS = 3;
 const GRID_GAP = spacing.sm;
 const GRID_CARD =
   (Dimensions.get('window').width - spacing.lg * 2 - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS;
 
-// En cuadrícula, el acceso a Favoritos va como primera tarjeta de la rejilla
-// (en lista es la cabecera). Este id centinela lo marca dentro de los datos.
+// In grid mode, the Favorites access goes as the first card of the grid
+// (in list it's the header). This sentinel id marks it within the data.
 const FAVORITES_ID = '__favorites__';
 
-// ── Orden estilo Spotify (Recientes / Añadido recientemente / Alfabético) ──
+// ── Spotify-style sort (Recent / Recently added / Alphabetical) ──
 
 const SORT_LABELS: Record<LibrarySort, string> = {
   recent: 'Recents',
@@ -79,9 +79,9 @@ const SORT_LABELS: Record<LibrarySort, string> = {
 };
 
 /**
- * Ordena según el criterio elegido: alfabético por nombre, o por puntuación
- * descendente (timestamp de última escucha / de añadido) con desempate
- * alfabético — lo nunca escuchado queda al final, en A-Z.
+ * Sorts by the chosen criterion: alphabetical by name, or by descending score
+ * (last play timestamp / added timestamp) with alphabetical tie-break — the
+ * never-played ones end up last, in A-Z.
  */
 function sortItems<T>(
   items: T[],
@@ -95,7 +95,7 @@ function sortItems<T>(
   return arr.sort((a, b) => score(b) - score(a) || byName(a, b));
 }
 
-/** Fila "⇅ Recientes" bajo los segmentos; abre la hoja de orden. */
+/** "⇅ Recent" row under the segments; opens the sort sheet. */
 function SortBar({ onPress }: { onPress: () => void }) {
   const t = useT();
   const sort = useSettings((s) => s.librarySort);
@@ -150,7 +150,7 @@ function SortSheet({ visible, onClose }: { visible: boolean; onClose: () => void
   );
 }
 
-/** Anclados primero (en su orden de fijado), ignorando el orden elegido. */
+/** Pinned first (in their pinned order), ignoring the chosen sort order. */
 function withPins<T>(items: T[], key: (x: T) => string, pins: Record<string, number>): T[] {
   const pinned = items
     .filter((x) => pins[key(x)])
@@ -223,8 +223,8 @@ function PlaylistsTab({ onNew }: { onNew?: () => void }) {
     (p) => `playlist:${p.id}`,
     pins,
   );
-  // En cuadrícula, Favoritos entra como primera tarjeta (centinela); en lista
-  // sigue siendo la cabecera a todo el ancho.
+  // In grid, Favorites goes in as the first card (sentinel); in list it
+  // remains the full-width header.
   const listData: Playlist[] = grid ? [{ id: FAVORITES_ID, name: '' }, ...playlists] : playlists;
   return (
     <FlatList
@@ -292,7 +292,7 @@ function ArtistsTab() {
   const { byArtist } = useHistoryTimes();
   const grid = useSettings((s) => s.libraryLayout) === 'grid';
   const bottomPad = useScreenBottomPadding();
-  // Solo artistas favoritos (lo explorable está en Inicio).
+  // Only favorite artists (what's browseable is in Home).
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['starred'],
     queryFn: () => getStarred(),
@@ -342,7 +342,7 @@ function ArtistsTab() {
   );
 }
 
-/** Segmento "Carpetas": lista las bibliotecas y abre su navegador de directorios. */
+/** "Folders" segment: lists libraries and opens their directory browser. */
 function FoldersTab() {
   const t = useT();
   const router = useRouter();
@@ -355,7 +355,7 @@ function FoldersTab() {
   });
   if (isLoading) return <Loader />;
   if (isError) return <Message text={t("Couldn't load folders.")} onRetry={() => refetch()} />;
-  // Sin bibliotecas declaradas: una entrada raíz que explora todo el árbol.
+  // No declared libraries: a root entry that explores the entire tree.
   const folders = data && data.length > 0 ? data : [{ id: 'root', name: t('Music') }];
   return (
     <FlatList
@@ -396,7 +396,7 @@ function AlbumsTab() {
   const openMenu = useMediaMenu((s) => s.open);
   const grid = useSettings((s) => s.libraryLayout) === 'grid';
   const bottomPad = useScreenBottomPadding();
-  // Solo álbumes favoritos (lo explorable está en Inicio).
+  // Only favorite albums (what's browseable is in Home).
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['starred'],
     queryFn: () => getStarred(),
@@ -455,7 +455,7 @@ function Loader() {
   return <ActivityIndicator style={{ marginTop: spacing.xl }} color={colors.accent} />;
 }
 
-/** Botón para alternar lista/cuadrícula; muestra el icono del modo actual. */
+/** Button to toggle list/grid; shows the current mode's icon. */
 function LayoutToggle() {
   const t = useT();
   const layout = useSettings((s) => s.libraryLayout);
@@ -473,7 +473,7 @@ function LayoutToggle() {
   );
 }
 
-/** Tarjeta de la cuadrícula (álbum/lista/artista y el acceso a Favoritos). */
+/** Grid card (album/list/artist and the Favorites access). */
 function GridCard({
   href,
   uri,
@@ -486,7 +486,7 @@ function GridCard({
 }: {
   href: string;
   uri?: string;
-  /** Carátula alternativa (p. ej. el mosaico de Favoritos). */
+  /** Alternative cover (e.g. the Favorites tile). */
   art?: ReactNode;
   rounded?: boolean;
   title: string;
@@ -520,9 +520,9 @@ function GridCard({
 }
 
 /**
- * Props de FlatList según la disposición. Aparte hay que pasar `key={grid...}`
- * directo en cada lista para forzar el remonte: FlatList no admite cambiar
- * `numColumns` en caliente (y `key` no puede ir en un spread).
+ * FlatList props by layout. Additionally `key={grid...}` must be passed
+ * directly on each list to force remounting: FlatList doesn't support hot-
+ * changing `numColumns` (and `key` can't go in a spread).
  */
 function gridListProps(grid: boolean, bottomPad: number) {
   return grid
@@ -537,7 +537,7 @@ function gridListProps(grid: boolean, bottomPad: number) {
 export default function LibraryScreen() {
   const t = useT();
   const accent = useAccent();
-  useSettings((s) => s.appFont); // re-render al cambiar la fuente
+  useSettings((s) => s.appFont); // re-render when font changes
   const auth = useAuthStore((s) => s.auth);
   const offline = useAuthStore((s) => s.offline);
   const queryClient = useQueryClient();
@@ -546,8 +546,8 @@ export default function LibraryScreen() {
   const [creating, setCreating] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
 
-  // "Carpetas" solo con servidor Subsonic (Jellyfin no navega por directorios;
-  // offline no aplica) y con el ajuste activado (oculto por defecto).
+  // "Folders" only with a Subsonic server (Jellyfin doesn't browse directories;
+  // offline doesn't apply) and with the setting enabled (hidden by default).
   const showFolderBrowser = useSettings((s) => s.showFolderBrowser);
   const foldersEnabled =
     showFolderBrowser && !offline && !!auth && auth.serverType !== 'jellyfin';
@@ -609,7 +609,7 @@ export default function LibraryScreen() {
         })}
       </View>
 
-      {/* Los controles de orden/disposición no aplican a Carpetas. */}
+      {/* Sort/layout controls don't apply to Folders. */}
       {activeSegment === 'folders' ? null : (
         <>
           <View style={styles.controls}>
@@ -680,12 +680,11 @@ const styles = StyleSheet.create({
   rowTitle: { color: colors.text, fontSize: fontSize.md, fontWeight: '600' },
   rowSub: { color: colors.textSecondary, fontSize: fontSize.xs },
   rowSubGap: { marginTop: 2 },
-  // Subtítulo con hueco para la chincheta de los anclados.
+  // Subtitle with room for the pinned icon.
   rowSubLine: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  // La chincheta de MCI viene vertical; girada 45° queda como la de Spotify.
+  // The MCI pin comes vertical; rotated 45° it looks like Spotify's.
   pinIcon: { transform: [{ rotate: '45deg' }] },
-  // Fila de controles: orden a la izquierda ("⇅ Recientes"), alternar
-  // lista/cuadrícula a la derecha.
+  // Control row: sort on the left ("⇅ Recent"), toggle list/grid on the right.
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -693,7 +692,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
   },
-  // Fila de orden estilo Spotify ("⇅ Recientes") y su hoja inferior.
+  // Spotify-style sort row ("⇅ Recent") and its bottom sheet.
   sortBar: {
     flexDirection: 'row',
     alignItems: 'center',

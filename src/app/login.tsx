@@ -1,4 +1,4 @@
-/** Inicio de sesión: elección de tipo de servidor + credenciales. */
+/** Sign in: server type selection + credentials. */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { useState } from 'react';
@@ -124,22 +124,22 @@ export default function LoginScreen() {
   const [serverUrl, setServerUrl] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  // Auth en claro (`p=enc:`) para montajes con proxy/SSO que no validan el
-  // hash con salt; off por defecto (el token con salt es lo estándar y seguro).
+  // Plain-text auth (`p=enc:`) for proxy/SSO setups that don't validate the
+  // salted hash; off by default (token+salt is standard and secure).
   const [plainAuth, setPlainAuth] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showAll, setShowAll] = useState(false);
-  // Flujo para añadir perfil: home → elegir servidor → credenciales.
+  // Flow for adding profile: home → choose server → credentials.
   const [step, setStep] = useState<'home' | 'server' | 'form'>('home');
 
   const isLocal = server === 'local';
-  // Solo tiene sentido en servidores Subsonic que por defecto usan token+salt.
-  // Ampache ya va siempre en claro; Jellyfin tiene su propia auth por sesión.
+  // Only makes sense for Subsonic servers that use token+salt by default.
+  // Ampache always goes plain-text; Jellyfin has its own session auth.
   const supportsPlainAuth = server === 'navidrome' || server === 'opensubsonic';
-  // Sin exigir contraseña: hay servidores con cuentas sin ella (p. ej. la
-  // demo pública de Jellyfin).
+  // Password not enforced: some servers have accounts without passwords (e.g.
+  // Jellyfin public demo).
   const canSubmit = serverUrl.trim() && username.trim() && !loading;
   const visible = profiles.slice(0, MAX_VISIBLE);
   const overflow = profiles.length > MAX_VISIBLE;
@@ -156,7 +156,7 @@ export default function LoginScreen() {
     setStep('form');
   }
 
-  // Modo sin conexión: fija el origen y entra directamente (sin pantalla intermedia).
+  // Offline mode: set source and enter directly (no intermediate screen).
   async function startLocalDevice() {
     const ok = await ensureAudioPermission();
     if (!ok) {
@@ -189,7 +189,7 @@ export default function LoginScreen() {
   async function onProfileTap(p: Profile) {
     try {
       const mode = await switchProfile(p);
-      // Perfil de servidor sin red: se entró en su modo offline (descargas).
+      // Server profile without network: entered its offline mode (downloads).
       if (mode === 'offline' && isServer(p)) {
         toast(t('Offline'));
       }
@@ -236,8 +236,8 @@ export default function LoginScreen() {
                   {overflow ? (
                     <Pressable style={styles.showMore} onPress={() => setShowAll(true)}>
                       <Text style={styles.showMoreText}>{t('Show all')}</Text>
-                      {/* Color fijo (no el acento): en login el acento puede ser
-                          el de una sesión anterior y desentona con la marca. */}
+                      {/* Fixed color (not the accent): on login the accent may be
+                          from a previous session and clashes with the brand. */}
                       <Ionicons name="chevron-down" size={18} color={DEFAULT_ACCENT} />
                     </Pressable>
                   ) : null}
@@ -423,8 +423,8 @@ export default function LoginScreen() {
                   {error ? <Text style={styles.error}>{error}</Text> : null}
 
                   <Pressable
-                    // Acento inline: la hoja congela el valor del primer import
-                    // y cambiar el acento + cerrar sesión lo dejaría desfasado.
+                    // Inline accent: the sheet freezes the first import value
+                    // and changing accent + signing out would leave it stale.
                     style={[
                       styles.button,
                       { backgroundColor: colors.accent },
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   container: { flexGrow: 1, padding: spacing.xl, paddingTop: spacing.xxl },
   logo: {
-    // Verde de marca fijo: en login el acento puede ser el de una sesión previa.
+    // Fixed brand green: on login the accent may be from a previous session.
     color: DEFAULT_ACCENT,
     fontSize: fontSize.xxl,
     fontWeight: '800',

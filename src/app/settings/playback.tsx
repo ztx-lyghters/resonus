@@ -1,8 +1,8 @@
 /**
- * Ajustes › Calidad y reproducción: bitrate de streaming, crossfade, autoplay
- * y letras online. En modo offline solo se muestran los ajustes que aplican
- * en local (crossfade y letras online); el resto es de servidor. Lo relativo
- * a descargas vive en Ajustes › Descargas.
+ * Settings › Quality & playback: streaming bitrate, crossfade, autoplay and
+ * online lyrics. In offline mode only settings that apply locally are shown
+ * (crossfade and online lyrics); the rest is server-side. Download-related
+ * settings live in Settings › Downloads.
  */
 import { useRouter } from 'expo-router';
 import { ScrollView, Text } from 'react-native';
@@ -53,7 +53,7 @@ export default function PlaybackSettings() {
       <ScrollView contentContainerStyle={settingsStyles.content}>
         {offline ? null : (
           <>
-            {/* El primer título va pegado a la cabecera (sin el margen de sección). */}
+            {/* The first title sticks to the header (no section margin). */}
             <Text style={[settingsStyles.sectionTitle, { marginTop: 0 }]}>{t('Streaming')}</Text>
             <SelectList
               label={t('Streaming codec')}
@@ -78,7 +78,7 @@ export default function PlaybackSettings() {
           </>
         )}
 
-        {/* En offline no hay sección Streaming: este pasa a ser el primer título. */}
+        {/* In offline there's no Streaming section: this becomes the first title. */}
         <Text style={[settingsStyles.sectionTitle, offline && { marginTop: 0 }]}>
           {t('Playback')}
         </Text>

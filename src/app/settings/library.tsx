@@ -1,4 +1,4 @@
-/** Ajustes › Biblioteca: escaneo, bibliotecas del servidor y limpieza de caché. */
+/** Settings › Library: scanning, server libraries and cache clearing. */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
@@ -19,7 +19,7 @@ import { useToast } from '@/store/toast';
 import { colors, fontSize, radius, spacing } from '@/theme';
 
 export default function LibrarySettings() {
-  useSettings((s) => s.accentColor); // re-render al cambiar el acento
+  useSettings((s) => s.accentColor); // re-render when accent changes
   const t = useT();
   const auth = useAuthStore((s) => s.auth);
   const offline = useAuthStore((s) => s.offline);
@@ -27,7 +27,7 @@ export default function LibrarySettings() {
   const setSource = useAuthStore((s) => s.setOfflineSource);
   const toast = useToast((s) => s.show);
   const insets = useSafeAreaInsets();
-  // Bibliotecas del servidor (Navidrome multi-library): un switch por carpeta.
+  // Server libraries (Navidrome multi-library): one switch per folder.
   const foldersMap = useLibraries((s) => s.folders);
   const disabledMap = useLibraries((s) => s.disabled);
   const setEnabled = useLibraries((s) => s.setEnabled);
@@ -42,7 +42,7 @@ export default function LibrarySettings() {
 
   function toggleLibrary(id: string, enabled: boolean) {
     if (!auth) return;
-    // Nunca dejar todas apagadas: al menos una biblioteca visible.
+    // Never turn all off: at least one visible library.
     if (!enabled && enabledCount <= 1) {
       toast(t('Keep at least one library on'));
       return;
@@ -91,7 +91,7 @@ export default function LibrarySettings() {
     queryKey: ['scanStatus'],
     queryFn: () => getScanStatus(auth!),
     enabled: !!auth,
-    // Mientras el servidor escanea, el contador se refresca solo.
+    // While the server is scanning, the count refreshes itself.
     refetchInterval: (query) => (query.state.data?.scanning ? 2000 : false),
   });
 
@@ -130,7 +130,7 @@ export default function LibrarySettings() {
           </>
         ) : (
           <>
-            {/* El primer título va pegado a la cabecera (sin el margen de sección). */}
+            {/* The first title sticks to the header (no section margin). */}
             <Text style={[settingsStyles.sectionTitle, { marginTop: 0 }]}>{t('Scan')}</Text>
             <Field
               label={t('Scan status')}
@@ -156,7 +156,7 @@ export default function LibrarySettings() {
           </>
         )}
 
-        {/* Separada del escaneo/origen: es mantenimiento, no configuración. */}
+        {/* Separated from scanning/source: it's maintenance, not configuration. */}
         <Text style={settingsStyles.sectionTitle}>{t('Storage')}</Text>
         <SettingRow icon="trash-outline" label={t('Clear cache')} onPress={clearCache} />
       </ScrollView>

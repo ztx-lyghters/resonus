@@ -1,8 +1,8 @@
 /**
- * Navegación por carpetas (directorios del servidor Subsonic). Muestra el
- * contenido de un directorio: subcarpetas (navegables) y canciones. La raíz de
- * una biblioteca usa `getIndexes`; los directorios internos, `getMusicDirectory`.
- * Se alcanza desde la sección "Carpetas" de la Biblioteca (oculta por defecto).
+ * Folder browsing (Subsonic server directories). Shows the contents of a
+ * directory: subfolders (navigable) and songs. The root of a library uses
+ * `getIndexes`; inner directories use `getMusicDirectory`. Reached from the
+ * Library's "Folders" section (hidden by default).
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery } from '@tanstack/react-query';
@@ -25,8 +25,8 @@ type Row =
   | { kind: 'song'; song: Song; index: number };
 
 export default function FolderBrowseScreen() {
-  useSettings((s) => s.accentColor); // re-render al cambiar el acento
-  useSettings((s) => s.appFont); // re-render al cambiar la fuente
+  useSettings((s) => s.accentColor); // re-render when accent changes
+  useSettings((s) => s.appFont); // re-render when font changes
   const router = useRouter();
   const t = useT();
   const { id, name, root } = useLocalSearchParams<{ id: string; name?: string; root?: string }>();
@@ -36,7 +36,7 @@ export default function FolderBrowseScreen() {
   const playQueue = usePlayerStore((s) => s.playQueue);
 
   const isRoot = root === '1';
-  // En la raíz, `id` es el id de la biblioteca ('root' = sin filtrar).
+  // At the root, `id` is the library id ('root' = unfiltered).
   const musicFolderId = id === 'root' ? undefined : id;
 
   const { data, isLoading, isError, refetch } = useQuery({

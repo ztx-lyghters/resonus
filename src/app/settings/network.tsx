@@ -1,8 +1,9 @@
 /**
- * Ajustes › Red: varias URLs para el mismo servidor/cuenta (IP local, dominio,
- * Tailscale…) y conmutación automática entre ellas al cambiar de red. La app
- * usa la primera que responde, probando las de red local primero (en casa gana
- * la local; fuera cae sola a la remota). Solo aplica a perfiles de servidor.
+ * Settings › Network: multiple URLs for the same server/account (local IP,
+ * domain, Tailscale…) and automatic switching between them when network
+ * changes. The app uses the first one that responds, testing local network
+ * ones first (at home the local one wins; outside it falls through to the
+ * remote). Only applies to server profiles.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useState } from 'react';
@@ -19,7 +20,7 @@ import { useSettings } from '@/store/settings';
 import { useToast } from '@/store/toast';
 import { colors, fontSize, radius, spacing } from '@/theme';
 
-/** Quita el esquema para mostrar la URL más compacta. */
+/** Strips the scheme to show a more compact URL. */
 function shown(url: string): string {
   return url.replace(/^https?:\/\//, '');
 }
@@ -32,9 +33,9 @@ export default function NetworkSettings() {
   const addServerUrl = useAuthStore((s) => s.addServerUrl);
   const removeServerUrl = useAuthStore((s) => s.removeServerUrl);
   const setAutoUrl = useAuthStore((s) => s.setAutoUrl);
-  // Del store, no de `colors.accent`: sin suscripción el radio de la URL activa
-  // y el «Añadir dirección» se quedarían con el acento anterior mientras la
-  // pantalla siga montada.
+  // From the store, not `colors.accent`: without subscription the active URL
+  // radio and «Add address» would keep the previous accent while the screen
+  // stays mounted.
   const accent = useSettings((s) => s.accentColor);
 
   const [health, setHealth] = useState<'checking' | 'ok' | 'down'>('checking');
@@ -42,7 +43,7 @@ export default function NetworkSettings() {
 
   const activeUrl = auth?.serverUrl ?? '';
 
-  // Comprueba si la URL activa responde ahora mismo (el check verde/rojo).
+  // Checks whether the active URL responds right now (green/red check).
   useEffect(() => {
     if (!auth) return;
     let alive = true;
@@ -136,14 +137,14 @@ export default function NetworkSettings() {
                   <Text style={settingsStyles.rowLabel} numberOfLines={1}>
                     {shown(url)}
                   </Text>
-                  {/* Etiqueta autodetectada (Local/Remota) + «Principal» en la
-                      primera: explica el modelo de un vistazo. */}
+                  {/* Auto-detected label (Local/Remote) + «Primary» on the first
+                      one: explains the model at a glance. */}
                   <Text style={settingsStyles.rowDescription}>
                     {isLanUrl(url) ? t('Local') : t('Remote')}
                     {isPrimary ? ` · ${t('Primary')}` : ''}
                   </Text>
                 </View>
-                {/* La principal es la identidad del perfil: no se borra. */}
+                {/* The primary is the profile's identity: can't be deleted. */}
                 {!isPrimary ? (
                   <Pressable
                     hitSlop={10}

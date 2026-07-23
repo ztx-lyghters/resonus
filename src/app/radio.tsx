@@ -1,4 +1,4 @@
-/** Emisoras de radio del servidor (exploración desde Inicio). */
+/** Server radio stations (browsing from Home). */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
@@ -48,11 +48,11 @@ export default function RadioScreen() {
   const covers = useRadioCovers((s) => s.covers);
   const toast = useToast((s) => s.show);
 
-  // Jellyfin no gestiona emisoras; el modo offline no llega al servidor.
+  // Jellyfin doesn't manage stations; offline mode doesn't reach the server.
   const canManage = !!auth && auth.serverType !== 'jellyfin' && !offline;
 
-  // `editForm` guarda el formulario abierto (nuevo o edición); `menu` la fila
-  // con el menú de acciones abierto; `deleting` la que espera confirmación.
+  // `editForm` holds the open form (new or edit); `menu` the row with the
+  // actions menu open; `deleting` the one awaiting confirmation.
   const [editForm, setEditForm] = useState<{ station: RadioStation | null } | null>(null);
   const [menu, setMenu] = useState<RadioStation | null>(null);
   const [deleting, setDeleting] = useState<RadioStation | null>(null);
@@ -84,7 +84,7 @@ export default function RadioScreen() {
           changes.streamUrl,
           changes.homePageUrl,
         );
-        // Carátula elegida al crear: se aplica ahora que el servidor asignó id.
+        // Cover chosen on creation: applied now that the server has assigned an id.
         if (newId && pendingCoverUri) {
           await useRadioCovers.getState().setCover(newId, pendingCoverUri);
         }

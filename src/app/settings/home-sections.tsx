@@ -1,7 +1,7 @@
 /**
- * Ajustes › Secciones de Inicio: lista arrastrable (mismo motor que la cola y
- * las playlists) para mostrar/ocultar y reordenar las filas de álbumes de
- * Inicio. Los cambios se aplican y guardan al momento.
+ * Settings › Home sections: draggable list (same engine as the queue and
+ * playlists) to show/hide and reorder the album rows on Home. Changes are
+ * applied and saved immediately.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
@@ -18,7 +18,7 @@ import { useAuthStore } from '@/store/auth';
 import { useSettings, type HomeSection, type HomeSectionKey } from '@/store/settings';
 import { colors, fontSize, radius, spacing, SCREEN_BOTTOM_PADDING } from '@/theme';
 
-/** Etiqueta (clave i18n) de cada sección. */
+/** Label (i18n key) of each section. */
 const LABEL: Record<HomeSectionKey, string> = {
   recentlyAdded: 'Recently added',
   recentlyPlayed: 'Recently played',
@@ -33,8 +33,8 @@ function SectionRow({ section }: { section: HomeSection }) {
   const t = useT();
   const drag = useReorderableDrag();
   const setHomeSection = useSettings((s) => s.setHomeSection);
-  // Del store, no de `colors.accent`: sin suscripción el switch se quedaría con
-  // el acento anterior mientras la pantalla siga montada.
+  // From the store, not `colors.accent`: without subscription the switch would
+  // keep the previous accent while the screen stays mounted.
   const accent = useSettings((s) => s.accentColor);
   return (
     <View style={styles.row}>
@@ -60,8 +60,8 @@ function SectionRow({ section }: { section: HomeSection }) {
   );
 }
 
-/** Secciones que en local no existen: su fila aquí prometería algo que Inicio
- *  nunca pinta (mismo criterio que el navegador de carpetas en Aspecto). */
+/** Sections that don't exist locally: their row here would promise something
+ *  Home never renders (same criteria as folder browsing in Appearance). */
 const SERVER_ONLY: HomeSectionKey[] = ['discover'];
 
 export default function HomeSectionsSettings() {
@@ -85,8 +85,8 @@ export default function HomeSectionsSettings() {
           const nextVisible = visible.slice();
           const [moved] = nextVisible.splice(from, 1);
           nextVisible.splice(to, 0, moved);
-          // Las ocultas vuelven a su posición absoluta: reordenar en local no
-          // debe perder ni recolocar la config de las filas solo-servidor.
+          // Hidden ones go back to their absolute position: reordering locally
+          // must not lose or reposition the config of server-only rows.
           let vi = 0;
           const next = homeSections.map((s) =>
             offline && SERVER_ONLY.includes(s.key) ? s : nextVisible[vi++],

@@ -1,4 +1,4 @@
-/** Explorar todos los álbumes del servidor, con orden, búsqueda y scroll infinito. */
+/** Browse all server albums, with sort, search and infinite scroll. */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
@@ -44,23 +44,23 @@ const COLUMNS = 2;
 const GAP = spacing.sm;
 const CARD = (Dimensions.get('window').width - spacing.lg * 2 - GAP * (COLUMNS - 1)) / COLUMNS;
 
-/** Alto de la barra desplegada: la caja (44) más su separación con los chips. */
+/** Height of the expanded bar: the box (44) plus its gap to the chips. */
 const SEARCH_H = 44 + spacing.md;
 
 /**
- * Tope de resultados. La lista normal pagina, pero los de búsqueda no: hay que
- * escribir más, no scrollear más. 50 es de sobra para encontrar un álbum sin
- * pedirle al servidor cientos que nadie va a mirar.
+ * Result limit. The normal list paginates, but search results don't: you
+ * should type more, not scroll more. 50 is plenty to find an album without
+ * asking the server for hundreds nobody will look at.
  */
 const SEARCH_COUNT = 50;
 
-/** Espera antes de preguntar al servidor: sin esto sería una petición por tecla. */
+/** Delay before querying the server: without this it'd be one request per keystroke. */
 const DEBOUNCE_MS = 300;
 
-// Mismos chips y mismo orden que en Artistas: son pantallas hermanas y verlas
-// ordenadas distinto chirriaba. 'alphabeticalByArtist' se cayó por eso, por
-// simetría: no tiene equivalente en Artistas, donde ordenar por artista es
-// justo lo que ya hace A-Z.
+// Same chips and same order as Artists: they're sibling screens and seeing
+// them ordered differently felt jarring. 'alphabeticalByArtist' was dropped
+// for this reason, by symmetry: it has no equivalent in Artists, where sorting
+// by artist is exactly what A-Z already does.
 const SORTS: { key: AlbumListType; label: string }[] = [
   { key: 'recent', label: 'Recent' },
   { key: 'newest', label: 'Recently added' },
@@ -86,28 +86,28 @@ export default function BrowseAlbumsScreen() {
       getNextPageParam: (last, pages) =>
         last.length === PAGE ? pages.length * PAGE : undefined,
       enabled: canFetch,
-      // «Recién reproducidos» cambia con cada escucha: se refresca al volver a
-      // la pantalla para que se sienta vivo (los demás órdenes cambian poco y
-      // se quedan con el staleTime global de 5 min).
+      // «Recently played» changes with every listen: refreshes on returning to
+      // the screen so it feels alive (other orders change little and keep the
+      // global staleTime of 5 min).
       refetchOnMount: sort === 'recent' ? 'always' : undefined,
     });
 
-  // ── Búsqueda al tirar hacia abajo ───────────────────────────────────────
-  // Mismo gesto y misma barra que al explorar artistas, pero por dentro no es
-  // un filtro: allí `getArtists` trae el índice entero, así que filtrar en
-  // cliente es exacto. Aquí la lista pagina de PAGE en PAGE, y filtrar lo
-  // cargado solo miraría las páginas ya scrolleadas — parecería funcionar y se
-  // dejaría fuera media biblioteca. Así que pregunta al servidor.
+  // ── Pull-down search ───────────────────────────────────────────────────
+  // Same gesture and same bar as browsing artists, but internally it's not a
+  // filter: there `getArtists` brings the full index, so client-side filtering
+  // is exact. Here the list paginates PAGE by PAGE, and filtering what's loaded
+  // would only look at already-scrolled pages — it would seem to work and
+  // leave half the library out. So it asks the server.
   const listRef = useRef<GHFlatList<Album>>(null);
   const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [revealed, setRevealed] = useState(false);
-  /** Último offset real del scroll (el gesto solo revela estando arriba). */
+  /** Last real scroll offset (the gesture only reveals when at the top). */
   const lastOffsetY = useRef(0);
   const searchH = useRef(new Animated.Value(0)).current;
 
-  // El texto va por delante de lo que se pregunta: se escribe letra a letra y
-  // cada una dispararía una petición.
+  // The text is ahead of what's being queried: you type letter by letter and
+  // each one would fire a request.
   const [debounced, setDebounced] = useState('');
   useEffect(() => {
     const id = setTimeout(() => setDebounced(query.trim()), DEBOUNCE_MS);
@@ -144,14 +144,14 @@ export default function BrowseAlbumsScreen() {
     listRef.current?.scrollToOffset({ offset: 0, animated: false });
   }
 
-  // Pan simultáneo con el scroll: no roba el gesto, solo observa. Android no da
-  // eventos de overscroll (la lista clava el offset en 0), así que "tirar hacia
-  // abajo estando arriba" hay que detectarlo aparte.
+  // Simultaneous pan with the scroll: doesn't steal the gesture, only observes.
+  // Android doesn't emit overscroll events (the list locks offset at 0), so
+  // "pull down while at the top" must be detected separately.
   const revealPanRef = useRef<GestureType | undefined>(undefined);
   const revealPan = Gesture.Pan()
     .withRef(revealPanRef)
     .runOnJS(true)
-    // Solo arrastres hacia abajo: los hacia arriba (scroll normal) lo anulan.
+    // Only downward swipes: upward swipes (normal scroll) cancel it.
     .activeOffsetY(10)
     .failOffsetY(-10)
     .onChange((e) => {
@@ -159,13 +159,13 @@ export default function BrowseAlbumsScreen() {
       if (lastOffsetY.current <= 1 && e.translationY > 60) revealSearchBar();
     });
 
-  // Buscando manda la búsqueda: el texto escrito, no el debounce, para que la
-  // lista entera no reaparezca un instante entre tecla y tecla.
+  // When searching, the search results rule: the typed text, not the debounce,
+  // so the full list doesn't flash back for an instant between keystrokes.
   const isSearch = query.trim().length > 0;
   const albums = isSearch ? (results ?? []) : (data?.pages.flat() ?? []);
-  // Mientras el debounce no ha saltado la consulta sigue apagada, así que no
-  // está "cargando" pero tampoco hay resultados: sin esto asomaría «Sin
-  // resultados» entre tecla y tecla.
+  // While the debounce hasn't fired the query is still off, so it's not
+  // "loading" but there are also no results: without this «No results» would
+  // flash between keystrokes.
   const searchPending = isSearch && (searchLoading || debounced !== query.trim());
 
   return (
@@ -175,8 +175,8 @@ export default function BrowseAlbumsScreen() {
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </Pressable>
         <Text style={styles.title}>{t('Albums')}</Text>
-        {/* Ocupa lo mismo que el chevron de volver para que el título siga
-            centrado; antes había aquí un hueco vacío del mismo ancho. */}
+        {/* Takes the same width as the back chevron so the title stays centered;
+            there used to be an empty slot of the same width here. */}
         <View style={styles.headerAction}>
           <Pressable
             hitSlop={10}
@@ -193,9 +193,9 @@ export default function BrowseAlbumsScreen() {
         </View>
       </View>
 
-      {/* Plegada = alto 0 (invisible). El recorte va en un contenedor sin
-          padding: cualquier padding impondría un alto mínimo y asomaría una
-          rendija con la barra cerrada. */}
+      {/* Collapsed = height 0 (invisible). Clipping goes in a container without
+          padding: any padding would impose a minimum height and show a sliver
+          with the bar closed. */}
       <Animated.View style={[styles.searchClip, { height: searchH }]}>
         <View style={styles.searchRow}>
           <View style={styles.searchBar}>
@@ -230,9 +230,9 @@ export default function BrowseAlbumsScreen() {
         </View>
       </Animated.View>
 
-      {/* Los chips se apartan al buscar: el servidor devuelve por relevancia,
-          así que ordenar los resultados no está en su mano y una píldora
-          marcada mentiría sobre el orden que se ve. */}
+      {/* The chips hide when searching: the server returns by relevance, so
+          ordering results isn't in its hands and a marked pill would lie about
+          the visible order. */}
       {isSearch ? null : (
       <ScrollView
         horizontal
@@ -274,9 +274,9 @@ export default function BrowseAlbumsScreen() {
           ref={listRef}
           simultaneousHandlers={revealPanRef}
           data={albums}
-          // Remonta la lista al cambiar de orden o de disposición: si no,
-          // FlatList reaprovecha las filas y se queda a medias con las viejas
-          // (numColumns tampoco admite cambiar en caliente).
+          // Remount the list when changing sort or layout: otherwise FlatList
+          // reuses rows and gets stuck with stale ones (numColumns also doesn't
+          // support hot-swapping).
           key={`${sort}-${layout}`}
           keyExtractor={(item, i) => `${item.id}-${i}`}
           {...(grid
@@ -288,15 +288,15 @@ export default function BrowseAlbumsScreen() {
           onScroll={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
             const y = e.nativeEvent.contentOffset.y;
             lastOffsetY.current = y;
-            // Scrollear hacia abajo con la barra fuera la vuelve a plegar; con
-            // el foco puesto no, o una búsqueda activa quedaría escondida.
+            // Scrolling down with the bar open collapses it again; with focus
+            // set it doesn't, or an active search would be hidden.
             if (revealed && !searching && y > 30) collapseSearchBar();
           }}
           renderItem={({ item }: { item: Album }) =>
             grid ? <AlbumCard album={item} width={CARD} /> : <AlbumRow album={item} />
           }
-          // Los resultados no paginan: son un tope, no una ventana. Pedir la
-          // página siguiente al llegar al final traería la lista normal detrás.
+          // Results don't paginate: they're a cap, not a window. Requesting the
+          // next page at the end would bring in the normal list instead.
           onEndReached={() => !isSearch && hasNextPage && fetchNextPage()}
           onEndReachedThreshold={0.5}
           ListFooterComponent={
@@ -354,8 +354,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     paddingHorizontal: spacing.lg,
-    // La separación con los chips va dentro del alto animado: así se pliega con
-    // la barra (un margen exterior quedaría siempre visible).
+    // The gap to the chips goes inside the animated height: this way it
+    // collapses with the bar (an outer margin would remain visible).
     paddingBottom: spacing.md,
   },
   searchBar: {
@@ -370,13 +370,13 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, color: colors.text, fontSize: fontSize.md, paddingVertical: 0 },
   searchCancel: { color: colors.text, fontSize: fontSize.sm, fontWeight: '600' },
-  // `flexShrink: 0` porque la barra de búsqueda añade un hijo a la columna: sin
-  // él el flex encoge esta fila y corta el texto de las píldoras.
+  // `flexShrink: 0` because the search bar adds a child to the column: without
+  // it flex shrinks this row and clips the pill text.
   chipsRow: { flexGrow: 0, flexShrink: 0 },
   chips: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
   chip: {
-    // Padding asimétrico a propósito: aun sin includeFontPadding, los glifos
-    // quedan ~1dp bajos respecto al centro de la píldora (medido en captura).
+    // Asymmetric padding on purpose: even without includeFontPadding, glyphs
+    // end up ~1dp low relative to the pill center (measured in screenshot).
     paddingTop: spacing.xs - 1,
     paddingBottom: spacing.xs + 1,
     paddingHorizontal: spacing.md,
@@ -389,8 +389,8 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: fontSize.sm,
     fontWeight: '600',
-    // Android mete relleno extra asimétrico sobre el texto (ascent de la
-    // fuente): sin quitarlo, el texto no queda centrado en la píldora.
+    // Android adds extra asymmetric padding on top of the text (font ascent):
+    // without removing it, the text doesn't center in the pill.
     includeFontPadding: false,
     textAlignVertical: 'center',
   },
@@ -400,8 +400,8 @@ const styles = StyleSheet.create({
     paddingBottom: SCREEN_BOTTOM_PADDING,
     gap: GAP,
   },
-  // En filas el hueco entre tarjetas se queda corto: las de la Biblioteca
-  // respiran con spacing.lg y estas son las mismas.
+  // In rows the gap between cards is tight: the Library ones breathe with
+  // spacing.lg and these are the same.
   rowList: {
     paddingHorizontal: spacing.lg,
     paddingBottom: SCREEN_BOTTOM_PADDING,

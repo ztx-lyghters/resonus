@@ -1,7 +1,7 @@
 /**
- * Ajustes › Aspecto › Quick grid: qué alimenta la rejilla de accesos rápidos
- * de Inicio y cuántos mosaicos mostrar. La rejilla es dinámica (ordena por
- * última escucha), así que aquí no se reordena: solo se eligen fuentes y tamaño.
+ * Settings › Appearance › Quick grid: what feeds the shortcut card grid on
+ * Home and how many tiles to show. The grid is dynamic (sorts by last play),
+ * so here you don't reorder: you just pick sources and size.
  */
 import { ScrollView, Text } from 'react-native';
 
@@ -14,8 +14,8 @@ const SIZES = [4, 6, 8] as const;
 
 export default function QuickGridSettings() {
   const t = useT();
-  // En local no hay playlists de servidor; la fuente se oculta para no prometer
-  // algo que nunca aparece (misma idea que los chips solo-servidor).
+  // Locally there are no server playlists; the source is hidden to avoid
+  // promising something that never appears (same idea as server-only chips).
   const offline = useAuthStore((s) => s.offline);
   const showQuickGrid = useSettings((s) => s.showQuickGrid);
   const setShowQuickGrid = useSettings((s) => s.setShowQuickGrid);
@@ -65,7 +65,7 @@ export default function QuickGridSettings() {
           ]}
         />
 
-        {/* Fuentes y tamaño solo tienen sentido con la rejilla activa. */}
+        {/* Sources and size only make sense with the grid active. */}
         {showQuickGrid ? (
           <>
             <Text style={settingsStyles.sectionTitle}>{t('Sources')}</Text>

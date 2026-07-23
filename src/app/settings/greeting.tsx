@@ -1,9 +1,9 @@
 /**
- * Ajustes › Saludo: si se muestra el saludo de Inicio y con qué texto.
+ * Settings › Greeting: whether to show the Home greeting and with what text.
  *
- * Pantalla propia, aunque solo tenga dos cosas: en Aspecto ocupaban un
- * interruptor más una tarjeta con su campo de texto, y esa fila de Inicio ya
- * iba cargada.
+ * Its own screen, even though it only has two things: in Appearance they took
+ * up a toggle plus a card with its text field, and that Home row was already
+ * crowded.
  */
 import { ScrollView } from 'react-native';
 
@@ -20,8 +20,8 @@ export default function GreetingSettings() {
 
   return (
     <SettingsPage title={t('Greeting')}>
-      {/* `SettingsPage` pinta a sus hijos tal cual: el margen y la separación
-          entre tarjetas los pone este ScrollView, como el resto de Ajustes. */}
+      {/* `SettingsPage` renders its children as-is: the margin and spacing
+          between cards are set by this ScrollView, like the rest of Settings. */}
       <ScrollView contentContainerStyle={settingsStyles.content}>
         <SwitchList
           options={[
@@ -34,8 +34,8 @@ export default function GreetingSettings() {
           ]}
         />
 
-        {/* Solo con el saludo visible: un campo para un texto que no se pinta
-            en ningún sitio sería una promesa falsa. */}
+        {/* Only with the greeting visible: a field for text that wouldn't render
+            anywhere would be a false promise. */}
         {showGreeting ? (
           <TextRow
             label={t('Custom greeting')}

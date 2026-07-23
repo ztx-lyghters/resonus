@@ -1,6 +1,6 @@
 /**
- * Ajustes › Theme: elegir el color de acento (se aplica al instante). Más
- * opciones de tema (claro/oscuro…) llegarán más adelante.
+ * Settings › Theme: choose the accent color (applied instantly). More theme
+ * options (light/dark…) will come later.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';

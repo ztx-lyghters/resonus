@@ -1,15 +1,15 @@
 /**
  * Reescribe los deep links del sistema antes de que expo-router los resuelva.
  *
- * react-native-track-player abre la app, al pulsar la notificación, con el
+ * react-native-track-player opens the app, on notification tap, with the
  * enlace `trackplayer://notification.click` (y `trackplayer://service-bound`
- * al enlazar el servicio). Esas rutas no existen y mostrarían "Unmatched
- * Route", así que la pulsación de la notificación la mandamos al reproductor.
+ * when binding the service). Those routes don't exist and would show "Unmatched
+ * Route", so the notification tap is routed to the player.
  */
 export function redirectSystemPath({ path }: { path: string; initial: boolean }): string {
   try {
     if (path.includes('notification.click')) return '/player';
-    // Otros intents internos de RNTP: a la pantalla principal en vez de fallar.
+    // Other internal RNTP intents: to the main screen instead of failing.
     if (path.includes('trackplayer://')) return '/';
     return path;
   } catch {

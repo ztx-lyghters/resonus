@@ -1,9 +1,9 @@
 /**
- * Ajustes › Descargas: calidad, solo Wi-Fi, espacio usado (con barra visual
- * del disco, estilo Spotify) y borrado total. Reúne lo que antes vivía
- * repartido entre "Calidad y reproducción" y "Biblioteca". En offline queda
- * la versión reducida: espacio usado y borrar (liberar sitio sin conexión);
- * calidad y Wi-Fi solo aplican al descargar, que requiere servidor.
+ * Settings › Downloads: quality, Wi-Fi only, used space (with visual
+ * disk bar, Spotify-style) and full clear. Brings together what previously
+ * lived split between "Quality & playback" and "Library". In offline mode the
+ * reduced version remains: used space and delete (free space without network);
+ * quality and Wi-Fi only apply when downloading, which requires a server.
  */
 import { Paths } from 'expo-file-system';
 import { useEffect, useState } from 'react';
@@ -25,7 +25,7 @@ import { BITRATE_OPTIONS, TRANSCODE_FORMATS, useSettings } from '@/store/setting
 import { useToast } from '@/store/toast';
 import { colors, fontSize, spacing } from '@/theme';
 
-/** Espacio del disco (total y libre), o null si el sistema no lo expone. */
+/** Disk space (total and free), or null if the system doesn't expose it. */
 function diskSpace(): { total: number; free: number } | null {
   try {
     const total = Paths.totalDiskSpace;
@@ -37,7 +37,7 @@ function diskSpace(): { total: number; free: number } | null {
   return null;
 }
 
-/** Punto de color + etiqueta con tamaño, para la leyenda de la barra. */
+/** Color dot + label with size, for the bar legend. */
 function LegendItem({ color, label, value }: { color: string; label: string; value: string }) {
   return (
     <View style={styles.legendItem}>
@@ -49,7 +49,7 @@ function LegendItem({ color, label, value }: { color: string; label: string; val
   );
 }
 
-/** Color del segmento "otros" (lo ocupado por el resto del dispositivo). */
+/** Color of the "other" segment (what the rest of the device occupies). */
 const OTHER_COLOR = '#7a7a7a';
 
 export default function DownloadsSettings() {
@@ -57,8 +57,8 @@ export default function DownloadsSettings() {
   const toast = useToast((s) => s.show);
   const offline = useAuthStore((s) => s.offline);
   const lang = useSettings((s) => s.language);
-  // Del store, no de `colors.accent`: sin suscripción la barra de espacio se
-  // quedaría con el acento anterior mientras la pantalla siga montada.
+  // From the store, not `colors.accent`: without subscription the space bar
+  // would keep the previous accent while the screen stays mounted.
   const accent = useSettings((s) => s.accentColor);
   const downloadBitRate = useSettings((s) => s.downloadBitRate);
   const setDownloadBitRate = useSettings((s) => s.setDownloadBitRate);
@@ -93,7 +93,7 @@ export default function DownloadsSettings() {
       <ScrollView contentContainerStyle={settingsStyles.content}>
         {offline ? null : (
           <>
-            {/* El primer título va pegado a la cabecera (sin el margen de sección). */}
+            {/* The first title sticks to the header (no section margin). */}
             <Text style={[settingsStyles.sectionTitle, { marginTop: 0 }]}>
               {t('Downloading')}
             </Text>
@@ -126,7 +126,7 @@ export default function DownloadsSettings() {
             />
           </>
         )}
-        {/* En offline no hay sección de descarga: este pasa a ser el primer título. */}
+        {/* In offline there's no download section: this becomes the first title. */}
         <Text style={[settingsStyles.sectionTitle, offline && { marginTop: 0 }]}>
           {t('Offline')}
         </Text>
@@ -157,8 +157,8 @@ export default function DownloadsSettings() {
             return <Text style={styles.legendText}>{usage == null ? '…' : `${formatBytes(usage)} · ${songsLabel(count, lang)}`}</Text>;
           }
           const other = Math.max(0, disk.total - disk.free - usage);
-          // Fracciones con un mínimo visible: unas descargas pequeñas en un
-          // disco grande deben verse como una astilla, no desaparecer.
+          // Fractions with a visible minimum: small downloads on a large disk
+          // should appear as a sliver, not disappear.
           const frac = (n: number) => Math.max(n > 0 ? 0.012 : 0, n / disk.total);
           return (
             <>

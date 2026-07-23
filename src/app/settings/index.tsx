@@ -1,7 +1,7 @@
 /**
- * Ajustes estilo Spotify: la cuenta arriba como fila de perfil (avatar +
- * nombre + servidor), las categorías como filas planas, restaurar ajustes,
- * el botón píldora de cerrar sesión y un pie con el enlace al repositorio.
+ * Spotify-style Settings: the account at the top as a profile row (avatar +
+ * name + server), categories as flat rows, restore settings, the sign out
+ * pill button and a footer with the repo link.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
@@ -22,22 +22,22 @@ export default function SettingsScreen() {
   const router = useRouter();
   const t = useT();
   const auth = useAuthStore((s) => s.auth);
-  // El anillo del avatar lee el acento del store para recolorearse al cambiarlo.
+  // The avatar ring reads the store's accent to recolor when changed.
   const accentColor = useSettings((s) => s.accentColor);
-  useSettings((s) => s.appFont); // re-render al cambiar la fuente
+  useSettings((s) => s.appFont); // re-render when font changes
   const resetToDefaults = useSettings((s) => s.resetToDefaults);
   const logout = useAuthStore((s) => s.logout);
   const goOnline = useAuthStore((s) => s.goOnline);
   const goOffline = useAuthStore((s) => s.goOffline);
   const offline = useAuthStore((s) => s.offline);
-  // Solo ofrecemos "ir offline" a mano si hay algo descargado que oír.
+  // Only offer "go offline" manually if there's something downloaded to listen to.
   const hasDownloads = useDownloads((s) => Object.keys(s.files).length > 0);
   const toast = useToast((s) => s.show);
-  // Restaurar valores por defecto: afecta a todos los ajustes, por eso vive
-  // aquí (en el índice) y no dentro de una categoría concreta.
+  // Restore defaults: affects all settings, that's why it lives here (in the
+  // index) and not inside a specific category.
   const [confirmReset, setConfirmReset] = useState(false);
 
-  // Cuenta de servidor en modo offline (auth intacto) vs perfil local (sin auth).
+  // Server account in offline mode (auth intact) vs local profile (no auth).
   const serverOffline = offline && !!auth;
   const initial = serverOffline
     ? (auth?.username ?? '?').charAt(0).toUpperCase()
@@ -51,22 +51,22 @@ export default function SettingsScreen() {
       ? t('Music on your device')
       : auth?.serverUrl.replace(/^https?:\/\//, '') ?? '';
 
-  // En offline, Reproducción también aparece: la propia pantalla oculta lo
-  // que es de servidor (bitrates, autoplay) y deja lo que aplica en local
-  // (crossfade, letras online). "Biblioteca" pasa a ser la música local.
+  // In offline, Playback also appears: the screen itself hides what's server-
+  // side (bitrates, autoplay) and leaves what applies locally (crossfade,
+  // online lyrics). "Library" becomes the local music.
   const sections: { key: string; title: string; icon: keyof typeof Ionicons.glyphMap }[] = [
     { key: 'playback', title: 'Quality & playback', icon: 'musical-notes-outline' as const },
     { key: 'player', title: 'Player', icon: 'play-circle-outline' as const },
-    // Descargas: en servidor-offline se reduce a espacio usado y borrado (sin
-    // servidor no se descarga, pero liberar espacio sigue siendo útil). En el
-    // perfil local (sin cuenta) NO hay descargas de servidor, así que sobra.
+    // Downloads: in server-offline it reduces to used space and delete (no
+    // server means no downloading, but freeing space is still useful). In the
+    // local profile (no account) there are NO server downloads, so it's skipped.
     ...(offline && !auth
       ? []
       : [{ key: 'downloads', title: 'Downloads', icon: 'download-outline' as const }]),
-    // Biblioteca: online es la del servidor; en perfil local, la música del
-    // dispositivo. En servidor-offline se oculta: su contenido es de servidor
-    // (escaneo, bibliotecas) que no aplica sin conexión, y la gestión de las
-    // descargas ya vive en la sección "Downloads" de arriba (evita duplicarla).
+    // Library: online is the server's; in local profile, the device's music.
+    // In server-offline it's hidden: its content is server-side (scanning,
+    // libraries) which doesn't apply offline, and download management already
+    // lives in the "Downloads" section above (avoid duplication).
     ...(serverOffline
       ? []
       : [
@@ -78,11 +78,11 @@ export default function SettingsScreen() {
               : ('server-outline' as const),
           },
         ]),
-    // Red: varias URLs de servidor y conmutación automática. Solo con servidor.
+    // Network: multiple server URLs and automatic switching. Server only.
     ...(offline
       ? []
       : [{ key: 'network', title: 'Network (experimental)', icon: 'git-network-outline' as const }]),
-    // Tema vive dentro de Aspecto (fila con chevron, como Idioma).
+    // Theme lives inside Appearance (row with chevron, like Language).
     { key: 'personalization', title: 'Appearance', icon: 'color-palette-outline' as const },
     { key: 'about', title: 'About', icon: 'information-circle-outline' as const },
   ];
@@ -126,10 +126,9 @@ export default function SettingsScreen() {
         </Pressable>
 
         <View style={styles.sessionRow}>
-          {/* Acción de MODO (pastilla de contorno, a la izquierda): igual
-              colocación en online y en offline. Online con descargas: ir offline
-              a mano; offline de servidor: volver online. Ambas recargan la
-              biblioteca, así que llevan a Inicio. */}
+          {/* MODE action (outline pill, left): same placement online and offline.
+              Online with downloads: go offline manually; server offline: go back
+              online. Both reload the library, so they navigate to Home. */}
           {!offline && auth && hasDownloads ? (
             <Pressable
               style={({ pressed }) => [styles.offlinePill, pressed && { opacity: 0.6 }]}
@@ -155,9 +154,9 @@ export default function SettingsScreen() {
             </Pressable>
           ) : null}
 
-          {/* Cerrar sesión (pastilla de contorno oscura + icono): mismo estilo
-              y posición en online y offline. En perfil local es "Exit local
-              mode". logout() no necesita red, así que funciona sin conexión. */}
+          {/* Sign out (dark outline pill + icon): same style and position online
+              and offline. In local profile it's "Exit local mode". logout()
+              doesn't need network, so it works offline. */}
           <Pressable
             style={({ pressed }) => [styles.offlinePill, pressed && { opacity: 0.6 }]}
             onPress={() => logout()}
@@ -193,7 +192,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingVertical: spacing.sm,
   },
-  // Mismo avatar que la cabecera de Inicio (anillo de acento) por coherencia.
+  // Same avatar as the Home header (accent ring) for consistency.
   avatar: {
     width: 44,
     height: 44,
@@ -213,7 +212,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md + 2,
   },
   sectionRowTitle: { color: colors.text, fontSize: fontSize.md, fontWeight: '600', flex: 1 },
-  // Fila con las acciones de sesión (offline manual + salir), centradas.
+  // Row with session actions (manual offline + exit), centered.
   sessionRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -221,8 +220,8 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginTop: spacing.lg,
   },
-  // Pastilla sólida clara para las acciones de sesión (cambio de modo y cerrar
-  // sesión): fondo blanco con texto e iconos negros, para que destaquen.
+  // Light solid pill for session actions (mode toggle and sign out): white
+  // background with black text and icons, so they stand out.
   offlinePill: {
     flexDirection: 'row',
     alignItems: 'center',

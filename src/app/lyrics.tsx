@@ -1,7 +1,7 @@
 /**
- * Letra a pantalla completa (expandida desde la tarjeta del player), estilo
- * Spotify: fondo del color dominante de la carátula, karaoke con tocar-línea
- * -para-saltar y controles básicos (progreso y play/pausa) abajo.
+ * Full-screen lyrics page (expanded from the player card), Spotify-style:
+ * background from the cover's dominant color, karaoke with tap-line-to-seek
+ * and basic controls (progress and play/pause) at the bottom.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Slider from '@react-native-community/slider';
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   controls: { paddingHorizontal: spacing.xl, paddingBottom: spacing.md },
-  // Igual que en el player: la pista visible de borde a borde del contenido.
+  // Same as the player: the visible track edge to edge of the content.
   slider: { marginHorizontal: -15 },
   times: {
     flexDirection: 'row',

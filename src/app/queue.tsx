@@ -1,11 +1,11 @@
 /**
- * Cola de reproducción estilo Spotify, en secciones:
- *   · Reproduciendo — la canción actual (fija, no se arrastra ni se quita).
- *   · A continuación — lo añadido a mano (bloque `queuedCount`).
- *   · Siguiente de: {origen} — el resto de lo que venía sonando.
- * Solo se muestra lo actual y lo que viene (lo ya reproducido no aparece).
- * Reordenar arrastrando, quitar y limpiar. Las cabeceras de sección se deducen
- * de la posición, así que se recolocan solas al reordenar.
+ * Spotify-style playback queue, in sections:
+ *   · Now playing — the current song (fixed, can't be dragged or removed).
+ *   · Next up — manually added items (`queuedCount` block).
+ *   · Next from: {source} — the rest of what was playing.
+ * Only current and upcoming are shown (already-played doesn't appear).
+ * Drag to reorder, remove and clear. Section headers are derived from the
+ * position, so they reposition themselves on reorder.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
@@ -33,8 +33,8 @@ import { haptic } from '@/lib/haptics';
 import { colors, fontSize, spacing } from '@/theme';
 import { listPerf } from '@/lib/listPerf';
 
-// ReorderableList no admite removeClippedSubviews (necesita las celdas
-// montadas para animar el drag); usamos el resto de props de rendimiento.
+// ReorderableList doesn't support removeClippedSubviews (needs cells mounted
+// to animate the drag); we use the rest of the performance props.
 const queueListPerf = {
   initialNumToRender: listPerf.initialNumToRender,
   maxToRenderPerBatch: listPerf.maxToRenderPerBatch,
@@ -45,7 +45,7 @@ function SectionHeader({ title, gap }: { title: string; gap?: boolean }) {
   return <Text style={[styles.sectionHeader, gap && styles.sectionGap]}>{title}</Text>;
 }
 
-/** Canción actual: fija arriba, resaltada, sin controles. */
+/** Current song: fixed at the top, highlighted, no controls. */
 function NowPlayingRow({ song }: { song: Song }) {
   const showListArtwork = useSettings((s) => s.showListArtwork);
   return (
@@ -99,7 +99,7 @@ function PlayedRow({ item, absIndex }: { item: Song; absIndex: number }) {
   );
 }
 
-/** Fila de lo que viene: se puede tocar (saltar), arrastrar y quitar. */
+/** Row for upcoming tracks: can be tapped (skip), dragged and removed. */
 function UpcomingRow({ item, absIndex }: { item: Song; absIndex: number }) {
   const jumpTo = usePlayerStore((s) => s.jumpTo);
   const removeAt = usePlayerStore((s) => s.removeAt);
@@ -146,8 +146,8 @@ function UpcomingRow({ item, absIndex }: { item: Song; absIndex: number }) {
 }
 
 export default function QueueScreen() {
-  useSettings((s) => s.accentColor); // re-render al cambiar el acento
-  useSettings((s) => s.appFont); // re-render al cambiar la fuente
+  useSettings((s) => s.accentColor); // re-render when accent changes
+  useSettings((s) => s.appFont); // re-render when font changes
   const t = useT();
   const router = useRouter();
   const queue = usePlayerStore((s) => s.queue);
@@ -158,23 +158,23 @@ export default function QueueScreen() {
   const clearQueue = usePlayerStore((s) => s.clearQueue);
   const radioMode = usePlayerStore((s) => s.radioMode);
   const stopRadio = usePlayerStore((s) => s.stopRadio);
-  // El acento del store, no `colors.accent`: sin suscripción el icono se
-  // quedaría con el anterior mientras la pantalla siga montada.
+  // The store's accent, not `colors.accent`: without subscription the icon
+  // would keep the previous one while the screen stays mounted.
   const accent = useSettings((s) => s.accentColor);
   const toast = useToast((s) => s.show);
   const [confirmClear, setConfirmClear] = useState(false);
-  // Menú ⋯ (imperativo: abrir/cerrar no re-renderiza la pantalla).
+  // ⋯ menu (imperative: opening/closing doesn't re-render the screen).
   const menuRef = useRef<() => void>(() => {});
 
   const showPlayed = useSettings((s) => s.showPlayedInQueue);
   const current = queue[index] ?? null;
   const upcoming = queue.slice(index + 1);
-  // Ya reproducidas (ajuste): su índice absoluto es su propia posición 0..index-1.
+  // Already played (setting): its absolute index is its own position 0..index-1.
   const played = showPlayed ? queue.slice(0, index) : [];
   const totalSec = upcoming.reduce((acc, s) => acc + (s.duration ?? 0), 0);
 
-  // Etiqueta del origen para la sección "Siguiente de:"; los centinelas de
-  // favoritos/historial se traducen (como en el reproductor).
+  // Source label for the "Next from:" section; favorites/history sentinels
+  // are translated (like in the player).
   const sourceName =
     source === SOURCE_FAVORITES
       ? t('Favorites')
@@ -183,7 +183,7 @@ export default function QueueScreen() {
         : source;
   const contextHeader = sourceName ? t('Next from {name}', { name: sourceName }) : null;
 
-  /** Cabecera de sección para la fila `rel` de lo que viene (o null). */
+  /** Section header for upcoming row `rel` (or null). */
   const headerFor = (rel: number): string | null => {
     if (queuedCount > 0 && rel === 0) return t('Next in queue');
     if (rel === queuedCount && contextHeader) return contextHeader;
@@ -205,10 +205,10 @@ export default function QueueScreen() {
           ) : null}
         </View>
         <View style={styles.headerRight}>
-          {/* Que este icono ESTÉ es el aviso de que la radio sigue alargando la
-              cola; tocarlo la para. Sin radio no hay icono, así que no estorba.
-              Es un botón y no un interruptor: uno que desapareciera al apagarlo
-              no se podría volver a encender. Para reanudar, se inicia otro mix. */}
+          {/* That this icon EXISTS is the warning that radio is still extending the
+              queue; tapping it stops it. No icon without radio, so it's not in the
+              way. It's a button, not a toggle: one that disappears on turning off
+              couldn't be turned back on. To resume, you start another mix. */}
           {radioMode ? (
             <Pressable
               style={styles.headerAction}
@@ -326,7 +326,7 @@ export default function QueueScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  // Fila del menú ⋯ (mismo aspecto que el de la playlist / menú multimedia).
+  // ⋯ menu row (same look as the playlist / media menu).
   action: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, paddingVertical: spacing.md },
   actionText: { color: colors.text, fontSize: fontSize.md },
   header: {
@@ -336,9 +336,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
-  // Absoluto y centrado sobre la barra: como hijo del flex se descentraba al
-  // aparecer o desaparecer iconos a la derecha (`space-between` reparte entre
-  // todos los hijos). Va con pointerEvents="none" para no comerse sus toques.
+  // Absolute and centered over the bar: as a flex child it would shift off
+  // center when right-side icons appear/disappear (`space-between` distributes
+  // among all children). Uses pointerEvents="none" to not eat their touches.
   headerCenter: {
     position: 'absolute',
     left: 0,
@@ -366,10 +366,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: spacing.sm,
-    // Fondo opaco para que la fila arrastrada tape a las demás al pasar.
+    // Opaque background so the dragged row covers the others while passing.
     backgroundColor: colors.background,
   },
-  // Filas ya reproducidas: atenuadas para leerse como "pasado" sin desaparecer.
+  // Already-played rows: dimmed to read as "past" without disappearing.
   played: { opacity: 0.55 },
   main: {
     flex: 1,

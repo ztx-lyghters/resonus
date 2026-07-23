@@ -1,4 +1,4 @@
-/** Inicio estilo Spotify: accesos rápidos + carruseles de álbumes. */
+/** Spotify-style Home: quick access tiles + album carousels. */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'expo-router';
@@ -77,9 +77,9 @@ function QuickGrid() {
   const offline = useAuthStore((s) => s.offline);
   const times = useLastPlayed((s) => s.times);
   const t = useT();
-  // Fuentes y tamaño configurables (Ajustes → Aspecto → Quick grid). Cada
-  // fuente solo se consulta si está activa; el tamaño es el total de mosaicos
-  // (Favoritos incluido cuando está fijado).
+  // Configurable sources and size (Settings → Appearance → Quick grid). Each
+  // source is only queried if active; size is the total tile count (Favorites
+  // included when pinned).
   const withFavorites = useSettings((s) => s.quickGridFavorites);
   const withAlbums = useSettings((s) => s.quickGridAlbums);
   const withPlaylists = useSettings((s) => s.quickGridPlaylists);
@@ -95,13 +95,13 @@ function QuickGrid() {
     enabled: canFetch && withAlbums,
   });
 
-  // Rejilla dinámica estilo Spotify: mezcla listas y álbumes recientes ordenados
-  // por última escucha (mismo store que "Recientes" de Biblioteca). Lo que
-  // acabas de escuchar sube; el resto se rellena con álbumes recientes (orden
-  // del servidor) y listas frescas (por fecha de modificación). Favoritos queda
-  // siempre fijo el primero, fuera de esta ordenación.
-  // Favoritos, si está fijado, ocupa un hueco del total; el resto se reparte
-  // entre las fuentes activas ordenadas por última escucha.
+  // Spotify-style dynamic grid: mixes playlists and recent albums sorted by
+  // last play (same store as "Recent" in the Library). What you just listened
+  // to rises; the rest is filled with recent albums (server order) and fresh
+  // playlists (by modification date). Favorites is always pinned first, outside
+  // this sorting.
+  // Favorites, if pinned, takes one slot from the total; the rest is
+  // distributed among active sources sorted by last play.
   const dynamicCount = Math.max(0, size - (withFavorites ? 1 : 0));
   const tiles = useMemo(() => {
     type Item = { key: string; href: string; name: string; cover?: string; ts: number };
@@ -132,8 +132,8 @@ function QuickGrid() {
     return [...al, ...pl].sort((x, y) => y.ts - x.ts).slice(0, dynamicCount);
   }, [playlists, albums, times, withPlaylists, withAlbums, dynamicCount]);
 
-  // Sin fuentes activas no hay nada que enseñar (el interruptor general sigue
-  // decidiendo si se monta el bloque; esto cubre "todo apagado" desde aquí).
+  // Without active sources there's nothing to show (the master toggle still
+  // decides if the block mounts; this covers "all off" from here).
   if (!withFavorites && tiles.length === 0) return null;
 
   return (
@@ -186,8 +186,8 @@ function AlbumSection({
   );
 }
 
-/** Fila de playlists (acceso rápido desde Inicio). Existe también en offline
- *  (playlists locales), así que no se filtra como las de solo-servidor. */
+/** Playlist row (quick access from Home). Also exists offline (local
+ *  playlists), so it's not filtered like server-only ones. */
 function PlaylistsSection({ title }: { title: string }) {
   const canFetch = useAuthStore((s) => !!s.auth || s.offline);
   const { data, isLoading } = useQuery({
@@ -222,7 +222,7 @@ function PlaylistsSection({ title }: { title: string }) {
   );
 }
 
-/** Baraja una copia (Fisher-Yates); para las secciones "al azar". */
+/** Pick one (Fisher-Yates); for the "random" sections. */
 function shuffled<T>(arr: T[]): T[] {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -234,7 +234,7 @@ function shuffled<T>(arr: T[]): T[] {
 
 const ARTIST_SIZE = 130;
 
-/** Fila de artistas al azar (para redescubrir). */
+/** Row of random artists (rediscovery). */
 function ArtistSection({ title, reshuffleKey }: { title: string; reshuffleKey: number }) {
   const canFetch = useAuthStore((s) => !!s.auth || s.offline);
   const { data, isLoading } = useQuery({
@@ -242,9 +242,10 @@ function ArtistSection({ title, reshuffleKey }: { title: string; reshuffleKey: n
     queryFn: () => getArtists(),
     enabled: canFetch,
   });
-  // Rebaraja al cambiar la lista o al tirar para refrescar (`reshuffleKey`). Sin
-  // esa key, cuando la lista no cambia react-query conserva la misma referencia
-  // (structural sharing) y el memo devolvería siempre los mismos 10 artistas.
+  // Reshuffles when the list changes or on pull-to-refresh (`reshuffleKey`).
+  // Without that key, when the list doesn't change react-query keeps the same
+  // reference (structural sharing) and the memo would always return the same
+  // 10 artists.
   const artists = useMemo(
     () => (data ? shuffled(data).slice(0, 10) : []),
     [data, reshuffleKey],
@@ -276,9 +277,9 @@ function ArtistSection({ title, reshuffleKey }: { title: string; reshuffleKey: n
   );
 }
 
-// Discover = redescubrir: OpenSubsonic no tiene endpoint propio, así que
-// tomamos tus álbumes por última reproducción (`recent`), saltamos los más
-// recientes (offset) y barajamos la cola → "escuchado pero no últimamente".
+// Discover = rediscover: OpenSubsonic has no dedicated endpoint, so we take
+// your albums by last play (`recent`), skip the most recent ones (offset) and
+// shuffle the tail → "listened to but not lately".
 const DISCOVER_OFFSET = 15;
 const DISCOVER_POOL = 50;
 
@@ -289,8 +290,8 @@ function DiscoverSection({ title, reshuffleKey }: { title: string; reshuffleKey:
     queryFn: () => getAlbumList('recent', DISCOVER_POOL, DISCOVER_OFFSET),
     enabled: canFetch,
   });
-  // Rebaraja al cambiar la lista o al tirar para refrescar (`reshuffleKey`); ver
-  // la nota en ArtistSection sobre el structural sharing de react-query.
+  // Reshuffles when changing the list or on pull-to-refresh (`reshuffleKey`);
+  // see the note in ArtistSection about react-query's structural sharing.
   const albums = useMemo(
     () => (data ? shuffled(data).slice(0, 10) : []),
     [data, reshuffleKey],
@@ -322,9 +323,9 @@ function DiscoverSection({ title, reshuffleKey }: { title: string; reshuffleKey:
   );
 }
 
-/** Aspecto y destino de cada chip; el orden y el estado los pone el usuario
- *  (Ajustes → Aspecto → Chips de explorar). Sin `href` = reproduce en vez de
- *  navegar (solo el de aleatorio). */
+/** Look and target of each chip; order and state are set by the user
+ *  (Settings → Appearance → Explore chips). Without `href` = plays instead of
+ *  navigating (only the shuffle one). */
 const EXPLORE: Record<ExploreChipKey, { href?: string; icon: keyof typeof Ionicons.glyphMap; label: string }> = {
   shuffle: { icon: 'shuffle', label: 'Shuffle' },
   favorites: { href: '/favorites', icon: 'heart-outline', label: 'Favorites' },
@@ -335,7 +336,7 @@ const EXPLORE: Record<ExploreChipKey, { href?: string; icon: keyof typeof Ionico
   history: { href: '/history', icon: 'time-outline', label: 'Recently played' },
 };
 
-// En local hay aleatorio, álbumes y artistas (radio y géneros son de servidor).
+// Locally there is shuffle, albums and artists (radio and genres are server-side).
 const OFFLINE_KEYS = new Set<ExploreChipKey>(['shuffle', 'favorites', 'albums', 'artists']);
 
 function ExploreChips({ offline }: { offline: boolean }) {
@@ -343,8 +344,8 @@ function ExploreChips({ offline }: { offline: boolean }) {
   const chips = useSettings((s) => s.exploreChips).filter(
     (c) => c.enabled && (!offline || OFFLINE_KEYS.has(c.key)),
   );
-  // El aleatorio tarda lo que tarde el servidor: sin esto, tocas y no pasa nada
-  // durante medio segundo y parece roto.
+  // The shuffle one takes whatever the server returns: without this, you tap
+  // and nothing happens for half a second and it feels broken.
   const [shuffling, setShuffling] = useState(false);
 
   async function onShuffle() {
@@ -357,7 +358,7 @@ function ExploreChips({ offline }: { offline: boolean }) {
     }
   }
 
-  // Sin chips no hay fila: eso sustituye al interruptor general que había.
+  // No chips means no row: this replaces the master toggle that was there.
   if (chips.length === 0) return null;
   return (
     <ScrollView
@@ -368,8 +369,9 @@ function ExploreChips({ offline }: { offline: boolean }) {
     >
       {chips.map(({ key }) => {
         const cfg = EXPLORE[key];
-        // El de aleatorio es el único que suena en vez de llevarte a un sitio:
-        // pedirlo y que te salga una lista es lo contrario de lo que pediste.
+        // The shuffle one is the only one that plays instead of taking you
+        // somewhere: asking for it and getting a list is the opposite of what
+        // you asked for.
         if (!cfg.href) {
           return (
             <Pressable
@@ -406,15 +408,15 @@ function ScanningPanel() {
   const count = useScanProgress((s) => s.count);
   const total = useScanProgress((s) => s.total);
   const fraction = total > 0 ? Math.min(count / total, 1) : 0;
-  // El ancho sale directo de la fracción, sin animar. Animarlo tenía sentido
-  // cuando el progreso llegaba a saltos del 10%, pero ahora viene en pasos del
-  // 1%: eso YA es la animación. Con tics tan seguidos, cada `timing` de 250 ms
-  // moría a medias y arrancaba otro desde donde se hubiera quedado, así que la
-  // barra no alcanzaba nunca la verdad — al acabar se quedaba por la mitad.
-  // Tampoco ahorraba renders: este panel ya se repinta en cada tic por el texto.
-  const width = `${fraction * 100}%` as const;
-  // Cada fase dice lo suyo: el número sube igual, pero bajo un título que
-  // promete lo que de verdad está pasando.
+  // The width comes directly from the fraction, without animating. Animating
+  // made sense when progress arrived in 10% jumps, but now it comes in 1%
+  // steps: that IS the animation. With ticks that close together, each 250 ms
+  // `timing` would die halfway and another would start from where it left off,
+  // so the bar never reached the truth — it would stay at half when done.
+  // It didn't save renders either: this panel already repaints on every tick
+  // for the text.
+  // Each phase says its thing: the number goes up the same, but under a title
+  // that promises what's really happening.
   const title =
     phase === 'finding'
       ? t('Looking for music…')
@@ -440,7 +442,7 @@ function ScanningPanel() {
   );
 }
 
-/** Título (clave i18n) y tipo de lista de las secciones que usan AlbumSection.
+/** Title (i18n key) and list type for the sections that use AlbumSection.
  *  «discover» y «randomArtists» se pintan con sus propios componentes. */
 const HOME_ALBUM_CONFIG: Record<
   Exclude<HomeSectionKey, 'randomArtists' | 'discover' | 'playlists'>,
@@ -460,8 +462,8 @@ export default function HomeScreen() {
   const queryClient = useQueryClient();
   const t = useT();
   const [refreshing, setRefreshing] = useState(false);
-  // Sube en cada pull-to-refresh para forzar que las filas al azar (artistas y
-  // Discover) traigan una selección nueva aunque la biblioteca no haya cambiado.
+  // Increments on each pull-to-refresh to force that the random rows (artists
+  // and Discover) bring a new selection even if the library hasn't changed.
   const [reshuffleKey, setReshuffleKey] = useState(0);
   const showHistoryButton = useSettings((s) => s.showHistoryButton);
   const showProfileButton = useSettings((s) => s.showProfileButton);
@@ -469,17 +471,17 @@ export default function HomeScreen() {
   const showGreeting = useSettings((s) => s.showGreeting);
   const customGreeting = useSettings((s) => s.customGreeting);
   const homeSections = useSettings((s) => s.homeSections);
-  // El anillo del avatar lee el acento del store (no la constante global), así
-  // se recolorea siempre al cambiarlo o al hidratar; Home es la pantalla
-  // inicial y se pinta antes de aplicarse el acento guardado.
+  // The avatar ring reads the store's accent (not the global constant), so it
+  // always recolors when changed or after hydrating; Home is the initial screen
+  // and renders before the saved accent is applied.
   const accentColor = useSettings((s) => s.accentColor);
-  useSettings((s) => s.appFont); // re-render al cambiar la fuente
-  // 'O' solo en perfil local (sin cuenta); una cuenta de servidor offline sigue
-  // mostrando su inicial.
+  useSettings((s) => s.appFont); // re-render when font changes
+  // 'O' only in local profile (no account); a server account offline still
+  // shows its initial.
   const initial = offline && !auth ? 'O' : (auth?.username ?? '?').charAt(0).toUpperCase();
 
-  // Saludo según la hora (estilo Spotify). Tramos a la española: mañana hasta
-  // las 13, tarde hasta las 21, noche el resto (incluida la madrugada).
+  // Spanish-style time slots: morning until 13, afternoon until 21, evening
+  // the rest (including the early hours).
   const hour = new Date().getHours();
   const byHour =
     hour >= 6 && hour < 13
@@ -487,21 +489,21 @@ export default function HomeScreen() {
       : hour >= 13 && hour < 21
         ? t('Good afternoon')
         : t('Good evening');
-  // El personalizado manda; en blanco vuelve el de la hora, así que borrarlo es
-  // la forma de deshacerlo (no hace falta un botón de "restablecer").
+  // Custom takes priority; leaving it blank falls back to the time-based one,
+  // so clearing it is the way to undo (no need for a "reset" button).
   const greeting = customGreeting.trim() || byHour;
 
-  // Detecta si el servidor no responde (comparte caché con la sección "newest").
-  // Solo online: en local no hay servidor y la key la usa también QuickGrid.
+  // Detects if the server is unreachable (shares cache with the "newest" section).
+  // Online only: locally there is no server and the key is also used by QuickGrid.
   const { isError: serverUnreachable } = useQuery({
     queryKey: ['albumList', 'newest'],
     queryFn: () => getAlbumList('newest'),
     enabled: !!auth && !offline,
   });
 
-  // El servidor no responde con la red arriba (no solo cuando cae la red):
-  // dispara un sondeo. Si de verdad no llega y hay descargas, el motor cae a
-  // offline solo (ver store/autoUrl.ts).
+  // Server unreachable with network up (not only when network drops):
+  // triggers a probe. If it truly doesn't reach and there are downloads,
+  // the engine falls to offline only (see store/autoUrl.ts).
   useEffect(() => {
     if (serverUnreachable) checkAutoUrlNow();
   }, [serverUnreachable]);
@@ -526,10 +528,10 @@ export default function HomeScreen() {
         }
       >
         <View style={styles.header}>
-          {/* `flexShrink` y `numberOfLines`: el saludo se puede personalizar, y
-              aunque el ajuste lo limite a GREETING_MAX, esos caracteres miden
-              distinto según la fuente elegida. Encogiendo y recortando, no hay
-              texto capaz de empujar los botones fuera de la pantalla. */}
+          {/* `flexShrink` and `numberOfLines`: the greeting is customizable,
+              and although the setting caps it at GREETING_MAX, those characters
+              measure differently depending on the chosen font. Shrinking and
+              trimming, no text can push the buttons off-screen. */}
           <View style={styles.headerLeft}>
             {showGreeting ? (
               <Text style={styles.greeting} numberOfLines={1}>
@@ -579,12 +581,12 @@ export default function HomeScreen() {
           <>
             {showQuickGrid ? <QuickGrid /> : null}
 
-            {/* Filas activables y reordenables (Ajustes → Personalización →
-                Secciones de Inicio). «Recently played» no existe en offline. */}
+            {/* Toggleable and reorderable rows (Settings → Personalization →
+                Home sections). «Recently played» doesn't exist offline. */}
             {homeSections.map((s) => {
-              // «Discover» depende del historial del servidor (recent con
-              // offset): no aplica en offline. «Recently played» sí: el
-              // historial local registra igual en ese modo.
+              // «Discover» depends on server history (recent with offset):
+              // not applicable offline. «Recently played» does: the local
+              // history records just the same in that mode.
               if (!s.enabled) return null;
               if (s.key === 'discover' && offline) return null;
               if (s.key === 'discover') {

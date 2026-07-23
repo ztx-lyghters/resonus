@@ -1,8 +1,8 @@
 /**
- * "Añadir a favoritos" (estilo "Add to Liked Songs" de Spotify): pestañas de
- * candidatas (recientes del historial, sugerencias por parecido a favoritas
- * ya existentes, y al azar de la biblioteca) + buscador abajo. Cada fila tiene
- * un ⊕ que marca la canción como favorita al momento (y ✓ para deshacer).
+ * "Add to favorites" (Spotify's "Add to Liked Songs" style): tabs of
+ * candidates (recent from history, suggestions based on similarity to existing
+ * favorites, and random from the library) + a search bar at the bottom. Each
+ * row has a ⊕ to favorite the song instantly (and ✓ to undo).
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -42,7 +42,7 @@ import { colors, fontSize, radius, spacing } from '@/theme';
 type Tab = 'most' | 'recent' | 'suggested';
 
 export default function FavoritesAddScreen() {
-  useSettings((s) => s.accentColor); // re-render al cambiar el acento
+  useSettings((s) => s.accentColor); // re-render when accent changes
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const t = useT();
@@ -55,7 +55,7 @@ export default function FavoritesAddScreen() {
   const [tab, setTab] = useState<Tab>('most');
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  // Marcadas desde esta pantalla: la fila se queda con ✓ (tocar deshace).
+  // Favorited from this screen: the row stays with ✓ (tapping undoes).
   const [added, setAdded] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -69,8 +69,8 @@ export default function FavoritesAddScreen() {
     enabled: canFetch,
   });
 
-  // Foto de las favoritas AL ENTRAR: las filas no desaparecen al marcarlas
-  // (como en Spotify), solo se excluye lo que ya era favorito antes.
+  // Snapshot of favorites ON ENTRY: rows don't disappear when favorited
+  // (like Spotify), only what was already a favorite before is excluded.
   const initialFavIds = useRef<Set<string> | null>(null);
   if (starred && !initialFavIds.current) {
     initialFavIds.current = new Set(starred.songs.map((s) => s.id));
@@ -87,7 +87,7 @@ export default function FavoritesAddScreen() {
   const { data: suggested, isLoading: loadingSuggested } = useQuery({
     queryKey: ['favAddSuggested'],
     queryFn: async () => {
-      // Semillas: hasta 3 favoritas al azar; sus parecidas, mezcladas.
+      // Seeds: up to 3 random favorites; their similar songs, shuffled.
       const seeds = [...(starred?.songs ?? [])].sort(() => Math.random() - 0.5).slice(0, 3);
       const lists = await Promise.all(seeds.map((s) => getSimilarSongs(s.id, 20).catch(() => [])));
       const seen = new Set<string>();
@@ -119,7 +119,7 @@ export default function FavoritesAddScreen() {
         : tab === 'recent'
           ? history.map((e) => e.song)
           : (suggested ?? []);
-  // Sin favoritas previas (ni radios, que no se pueden marcar en el servidor).
+  // No prior favorites (or radios, which can't be starred on the server).
   const songs = base.filter((s) => !s.url && !(excluded?.has(s.id) && !added.has(s.id)));
 
   async function toggle(song: Song) {
@@ -135,7 +135,7 @@ export default function FavoritesAddScreen() {
       else await star(song.id);
       queryClient.invalidateQueries({ queryKey: ['starred'] });
     } catch {
-      // Revertir la marca optimista si el servidor falla.
+      // Revert the optimistic mark if the server fails.
       setAdded((prev) => {
         const next = new Set(prev);
         if (wasAdded) next.add(song.id);
@@ -226,8 +226,8 @@ export default function FavoritesAddScreen() {
             keyExtractor={(item) => item.id}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
-            // La lista ahora es lo último de la pantalla (la búsqueda vive
-            // arriba): que su final libre la barra de navegación.
+            // The list is now the last thing on the screen (the search bar lives
+            // above): let its end clear the navigation bar.
             contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + spacing.lg }]}
             renderItem={({ item }) => (
               <AddRow song={item} added={added.has(item.id)} onToggle={() => void toggle(item)} />
@@ -247,7 +247,7 @@ export default function FavoritesAddScreen() {
   );
 }
 
-/** Fila de candidata: carátula, título/artista y ⊕ (o ✓ si ya se marcó). */
+/** Candidate row: cover, title/artist and ⊕ (or ✓ if already marked). */
 function AddRow({
   song,
   added,

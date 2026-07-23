@@ -1,4 +1,4 @@
-/** Detalle de una lista de reproducción con sus canciones. */
+/** Playlist detail with its songs. */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -52,7 +52,7 @@ export default function PlaylistScreen() {
   const playQueue = usePlayerStore((s) => s.playQueue);
   const addToQueue = usePlayerStore((s) => s.addToQueue);
 
-  // El menú ⋯ vive en un SheetModal (abrir/cerrar no re-renderiza la pantalla).
+  // The ⋯ menu lives in a SheetModal (opening/closing doesn't re-render the screen).
   const menuRef = useRef<() => void>(() => {});
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -61,11 +61,11 @@ export default function PlaylistScreen() {
   const [confirmStop, setConfirmStop] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
   const [reordering, setReordering] = useState(false);
-  // Canciones marcadas en el modo selección pendientes de "añadir a otra".
+  // Songs selected in selection mode pending "add to another".
   const [addingSongs, setAddingSongs] = useState<Song[] | null>(null);
 
-  // Cambiar la carátula desde el visor ampliado (estilo Spotify). Mismas
-  // condiciones que en la hoja de edición: Navidrome en servidor, o perfil local.
+  // Change cover from the expanded viewer (Spotify-style). Same conditions as
+  // in the edit sheet: Navidrome on server, or local profile.
   const coverChange = usePlaylistCover({
     coverUploadId: !offline && auth?.serverType === 'navidrome' ? id : undefined,
     localCoverId: offline ? id : undefined,
@@ -83,12 +83,13 @@ export default function PlaylistScreen() {
     useShallow((s) => groupDownloadState(s, `playlist:${id}`, songIds)),
   );
   const downloadPlaylist = useDownloads((s) => s.downloadPlaylist);
-  // Auto-descarga: solo tiene sentido en playlists de servidor (no en el perfil
-  // local ni en las playlists locales `dl_` que ya son el espejo de descargas).
+  // Auto-download: only makes sense for server playlists (not the local profile
+  // nor the `dl_` local playlists that are already the download mirror).
   const canAutoDownload = !!auth && !id.startsWith('dl_');
   const autoDownload = useAutoDownloads((s) => !!s.ids[id]);
-  // Al abrir/refrescar la playlist marcada, reconcilia con lo que ya tenemos en
-  // mano (sin re-pedir): descarga lo que falte, pilla cambios de otros clientes.
+  // On opening/refreshing the auto-download playlist, reconcile with what we
+  // already have (without re-fetching): download what's missing, pick up changes
+  // from other clients.
   useEffect(() => {
     if (autoDownload && data) {
       void useAutoDownloads.getState().reconcileKnown(data.playlist, data.songs, true);
@@ -97,16 +98,16 @@ export default function PlaylistScreen() {
   const cancelDownload = useDownloads((s) => s.cancelDownload);
   const deleteSongs = useDownloads((s) => s.deleteSongs);
   const downloadSongs = useDownloads((s) => s.downloadSongs);
-  // Estable entre ticks de progreso (solo cambia con el estado): evita que el
-  // Pressable pierda el toque al recrearse su onPress con cada actualización.
+  // Stable between progress ticks (only changes with status): prevents the
+  // Pressable from losing its touch when its onPress is recreated on every update.
   const onDownloadPress = useCallback(() => {
     if (download.status === 'none') setConfirmDownload(true);
     else if (download.status === 'done') setConfirmRemoveDl(true);
     else if (download.status === 'active') setConfirmStop(true);
   }, [download.status]);
 
-  // En playlists 'recent' = orden guardado en el servidor = orden manual, así
-  // que se etiqueta "Personalizado"; 'added' = orden de adición ("Recientes").
+  // In playlists 'recent' = order saved on the server = manual order, so it's
+  // labeled "Custom"; 'added' = addition order ("Recent").
   const {
     songs: displaySongs,
     indices: playlistIndices,
@@ -116,8 +117,8 @@ export default function PlaylistScreen() {
   } = useSongSort(data?.songs ?? [], `playlist:${id}`, {
     fields: ['recent', 'added', 'alpha', 'artist', 'album', 'downloaded'],
     labels: { recent: 'Custom', added: 'Recent' },
-    // Como Spotify: por defecto "Personalizado" (el orden manual de la lista,
-    // lo nuevo se añade abajo); "Recientes" pone lo último añadido arriba.
+    // Like Spotify: default "Custom" (the list's manual order, new items added
+    // at the bottom); "Recent" puts the latest added at the top.
     defaultSort: { field: 'recent', dir: 'asc' },
   });
 
@@ -137,9 +138,9 @@ export default function PlaylistScreen() {
   function onDelete() {
     setDeleting(false);
     if (!auth && !offline) return;
-    // Optimista: desaparece de la lista y salimos de la pantalla; el borrado
-    // real se difiere hasta que caduca el toast. «Deshacer» lo cancela (el
-    // servidor no llegó a enterarse).
+    // Optimistic: disappears from the list and we exit the screen; the actual
+    // delete is deferred until the toast expires. «Undo» cancels it (the server
+    // never found out).
     const prev = queryClient.getQueryData<{ id: string }[]>(['playlists']);
     if (prev) {
       queryClient.setQueryData(['playlists'], prev.filter((p) => p.id !== id));
@@ -161,10 +162,10 @@ export default function PlaylistScreen() {
     });
   }
 
-  /** Guarda el nuevo orden (optimista) y lo reescribe en el servidor. */
+  /** Saves the new order (optimistic) and rewrites it on the server. */
   async function onReorderSave(songIds: string[]) {
     setReordering(false);
-    // La vista vuelve al orden manual para que se vea el cambio recién hecho.
+    // The view goes back to manual order so the just-made change is visible.
     setSort({ field: 'recent', dir: 'asc' });
     const key = ['playlist', id];
     const prev = queryClient.getQueryData<{ playlist: unknown; songs: Song[] }>(key);
@@ -183,20 +184,21 @@ export default function PlaylistScreen() {
     }
   }
 
-  /** Reordenar disponible en servidores Subsonic y en local (Jellyfin no). */
+  /** Reordering available on Subsonic servers and locally (Jellyfin doesn't support it). */
   const canReorder =
     (data?.songs.length ?? 0) > 1 && (offline || (!!auth && auth.serverType !== 'jellyfin'));
 
-  /** Quita varias canciones (índices reales) con borrado diferido y deshacer. */
+  /** Removes several songs (real indices) with deferred delete and undo. */
   function removeMany(indices: number[]) {
     if ((!auth && !offline) || indices.length === 0) return;
     const key = ['playlist', id];
     const drop = new Set(indices);
-    // Optimista: desaparecen ya de la vista; el borrado real se difiere hasta
-    // que caduca el toast. «Deshacer» lo cancela y las restaura en su sitio.
+    // Optimistic: they disappear from the view immediately; the actual delete
+    // is deferred until the toast expires. «Undo» cancels it and restores them
+    // in place.
     const prev = queryClient.getQueryData<{ playlist: unknown; songs: Song[] }>(key);
-    // Conteo optimista en la Biblioteca ('{n} canciones'): sin esto el subtítulo
-    // de la lista no cambia hasta recargar esa pantalla.
+    // Optimistic count in the Library ('{n} songs'): without this the list's
+    // subtitle doesn't update until that screen is reloaded.
     const prevList = queryClient.getQueryData<{ id: string; songCount?: number }[]>(['playlists']);
     if (prev) {
       const nextSongs = prev.songs.filter((_, i) => !drop.has(i));
@@ -214,11 +216,11 @@ export default function PlaylistScreen() {
         commit: () => {
           void (async () => {
             try {
-              // Reescribimos la lista al estado final (la original menos las
-              // quitadas) en vez de quitar por índice: es un "set", idéntico
-              // online y offline, así que no hay desfase de índices ni doble
-              // borrado si el commit diferido cae ya en modo offline. Si el
-              // resultado es vaciar la lista, el método por índice es lo probado.
+            // We rewrite the list to the final state (the original minus the
+            // removed ones) instead of removing by index: it's a "set", identical
+            // online and offline, so there's no index mismatch or double delete
+            // if the deferred commit falls in offline mode. If the result is an
+            // empty list, the index method is the proven one.
               if (prev) {
                 const finalIds = prev.songs.filter((_, i) => !drop.has(i)).map((s) => s.id);
                 if (finalIds.length > 0) {
@@ -260,8 +262,8 @@ export default function PlaylistScreen() {
     );
   }
 
-  // El reorden trabaja siempre sobre el orden manual (crudo del servidor),
-  // no sobre la vista ordenada por A-Z/fecha.
+  // Reordering always works on the manual order (raw server), not on the
+  // A-Z/date sorted view.
   if (reordering) {
     return (
       <PlaylistReorder
@@ -368,7 +370,7 @@ export default function PlaylistScreen() {
               style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
               onPress={() => {
                 close();
-                // En el orden visible (respeta el orden elegido con ⇅).
+                // In the visible order (respects the order chosen with ⇅).
                 for (const s of displaySongs) addToQueue(s);
                 toast(t('Added to queue'));
               }}
@@ -419,8 +421,9 @@ export default function PlaylistScreen() {
                     toast(t('Auto-download off'));
                   } else {
                     toast(t('Auto-download on'));
-                    // Descarga ya con los datos en mano (no en 2º plano: si toca
-                    // Wi-Fi y hay datos, el flujo avisa con su toast).
+                    // Download now with data in hand (not in background: if
+                    // Wi-Fi is required and there's cell data, the flow warns
+                    // with its own toast).
                     if (data) {
                       void useAutoDownloads
                         .getState()

@@ -1,4 +1,4 @@
-/** Discografía completa de un artista: lista vertical de 1 columna. */
+/** Full artist discography: single-column vertical list. */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';

@@ -1,4 +1,4 @@
-/** Ajustes › Reproductor: aspecto y extras de la pantalla de reproducción. */
+/** Settings › Player: looks and extras for the playback screen. */
 import { ScrollView, Text } from 'react-native';
 
 import { SelectList, SettingsPage, settingsStyles, SwitchList } from '@/components/SettingsUI';
@@ -8,10 +8,10 @@ import { type CoverTapAction, type PreviousButtonMode, useSettings } from '@/sto
 
 export default function PlayerSettings() {
   const t = useT();
-  // La valoración es cosa de Subsonic: necesita cuenta de servidor y no aplica a
-  // Jellyfin. Sí funciona offline (se apunta en el outbox y sube al reconectar),
-  // así que su toggle se muestra también sin conexión, igual que en el player.
-  // El botón de dispositivos, en cambio, no tiene destino offline y se oculta.
+  // Rating is a Subsonic thing: needs a server account and doesn't apply to
+  // Jellyfin. It does work offline (queued in the outbox and uploaded on
+  // reconnect), so its toggle is also shown offline, same as in the player.
+  // The devices button, however, has no offline destination and is hidden.
   const offline = useAuthStore((s) => s.offline);
   const hasAccount = useAuthStore((s) => !!s.auth);
   const serverType = useAuthStore((s) => s.auth?.serverType);
@@ -48,7 +48,7 @@ export default function PlayerSettings() {
   return (
     <SettingsPage title={t('Player')}>
       <ScrollView contentContainerStyle={settingsStyles.content}>
-        {/* El primer título va pegado a la cabecera (sin el margen de sección). */}
+        {/* The first title sticks to the header (no section margin). */}
         <Text style={[settingsStyles.sectionTitle, { marginTop: 0 }]}>{t('Color')}</Text>
         <SwitchList
           options={[

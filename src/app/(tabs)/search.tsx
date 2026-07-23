@@ -1,4 +1,4 @@
-/** Búsqueda de álbumes y canciones en el servidor. */
+/** Album and song search on the server. */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { ParamListBase } from '@react-navigation/native';
@@ -14,8 +14,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
-// ScrollView de gesture-handler: necesario para que el swipe-a-cola de las
-// filas de canciones conviva con el scroll (ver TrackRow).
+// gesture-handler ScrollView: needed so the song row swipe-to-queue coexists
+// with scrolling (see TrackRow).
 import { ScrollView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -43,8 +43,8 @@ import { useScreenBottomPadding } from '@/hooks/useScreenBottomPadding';
 const GENRE_W = (Dimensions.get('window').width - spacing.lg * 2 - spacing.sm) / 2;
 
 export default function SearchScreen() {
-  useSettings((s) => s.accentColor); // re-render al cambiar el acento
-  useSettings((s) => s.appFont); // re-render al cambiar la fuente
+  useSettings((s) => s.accentColor); // re-render when accent changes
+  useSettings((s) => s.appFont); // re-render when font changes
   const canSearch = useAuthStore((s) => !!s.auth || s.offline);
   const auth = useAuthStore((s) => s.auth);
   const t = useT();
@@ -60,18 +60,18 @@ export default function SearchScreen() {
   const removeRecent = useRecentSearches((s) => s.remove);
   const clearRecent = useRecentSearches((s) => s.clear);
 
-  // Pulsar la pestaña de Buscar estando ya en Buscar levanta el teclado.
+  // Tapping the Search tab while already on Search raises the keyboard.
   //
-  // Entrar aquí no enfoca a propósito: sin foco la pantalla ofrece "Explorar
-  // todo", y el teclado la taparía. Pero quien ya sabe lo que busca pagaba un
-  // toque de más en la caja, siempre. Así conviven las dos intenciones, cada
-  // una con su gesto.
+  // Entering here doesn't focus on purpose: without focus the screen offers
+  // "Browse all", and the keyboard would cover it. But whoever already knows
+  // what they want was paying an extra tap on the box, always. So both
+  // intentions coexist, each with its own gesture.
   //
-  // No es un doble toque con ventana de tiempo, que sería un número arbitrario
-  // (corto para unos, largo para otros): `tabPress` llega antes de que la
-  // pestaña se active, así que viniendo de otra el primer toque no enfoca y el
-  // segundo sí — se siente igual que un doble toque. Y si ya estás aquí, con
-  // uno basta.
+  // It's not a double tap with a time window, which would be an arbitrary
+  // number (short for some, long for others): `tabPress` arrives before the
+  // tab activates, so coming from another tab the first tap doesn't focus and
+  // the second one does — feels the same as a double tap. And if you're already
+  // here, one is enough.
   const navigation = useNavigation<BottomTabNavigationProp<ParamListBase>>();
   const inputRef = useRef<TextInput>(null);
   useEffect(() => {
@@ -86,7 +86,7 @@ export default function SearchScreen() {
     enabled: canSearch && debouncedQuery.length > 1,
   });
 
-  // Géneros para "Explorar todo" (solo servidor) cuando no hay búsqueda activa.
+  // Genres for "Browse all" (server only) when there's no active search.
   const { data: genres, isLoading: genresLoading } = useQuery({
     queryKey: ['genres'],
     queryFn: () => getGenres(auth!),
@@ -94,8 +94,8 @@ export default function SearchScreen() {
   });
 
   const openMediaMenu = useMediaMenu((s) => s.open);
-  // Playlists: search3 de Subsonic no las devuelve, así que se filtran por
-  // nombre en cliente (la lista completa ya está cacheada por otras pantallas).
+  // Playlists: Subsonic's search3 doesn't return them, so they're filtered by
+  // name client-side (the full list is already cached by other screens).
   const { data: playlists } = useQuery({
     queryKey: ['playlists'],
     queryFn: () => getPlaylists(),
@@ -113,7 +113,7 @@ export default function SearchScreen() {
   const showBrowse = isEmpty && !showRecent && !!genres && genres.length > 0;
   const showBrowseSkeleton = isEmpty && !showRecent && !!auth && genresLoading;
 
-  /** Subtítulo de un reciente: tipo (+ artista en álbumes/canciones). */
+  /** Recent item subtitle: type (+ artist for albums/songs). */
   const recentLabel = (item: RecentItem): string => {
     if (item.kind === 'artist') return t('Artist');
     const type = item.kind === 'album' ? t('Album') : t('Song');

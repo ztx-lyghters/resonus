@@ -1,4 +1,4 @@
-/** Álbumes de un género, con scroll infinito. */
+/** Albums of a genre, with infinite scroll. */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -36,7 +36,7 @@ export default function GenreScreen() {
   const router = useRouter();
   const t = useT();
   const auth = useAuthStore((s) => s.auth);
-  // Sin esto, tocar y no oír nada durante medio segundo parece que no funciona.
+  // Without this, tapping and hearing nothing for half a second feels broken.
   const [shuffling, setShuffling] = useState(false);
 
   async function onShuffle() {
@@ -67,8 +67,8 @@ export default function GenreScreen() {
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </Pressable>
         <Text style={styles.title} numberOfLines={1}>{genre}</Text>
-        {/* Ocupa el hueco que equilibraba el título. Suena el género al momento:
-            escucharlo sin ir álbum por álbum es de lo que va este botón. */}
+        {/* Takes the slot that balances the title. Hear the genre right away:
+            listening without going album by album is what this button is about. */}
         <Pressable hitSlop={10} onPress={onShuffle} accessibilityLabel={t('Shuffle')}>
           {shuffling ? (
             <ActivityIndicator color={colors.text} />

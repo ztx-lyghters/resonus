@@ -1,4 +1,4 @@
-/** Pantalla de Favoritos: canciones marcadas con estrella, estilo Spotify. */
+/** Favorites screen: starred songs, Spotify-style. */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -23,14 +23,14 @@ import { useSettings } from '@/store/settings';
 import { showUndoToast, useToast } from '@/store/toast';
 import { colors } from '@/theme';
 
-// Cabecera índigo → negro (estilo "Canciones que te gustan" de Spotify): el
-// índigo del arte de Favoritos (#450af5, ver FavoritesArt) oscurecido para que
-// el texto blanco se lea y el degradado funda limpio con el fondo, igual que
-// los tonos oscuros que useDominantColor elige en álbumes y playlists.
+// Indigo → black header (Spotify's "Liked Songs" style): Favorites art's
+// indigo (#450af5, see FavoritesArt) darkened so white text is readable and the
+// gradient blends cleanly with the background, same as the dark tones
+// useDominantColor picks for albums and playlists.
 const HEADER_COLOR = '#290693';
 
 export default function FavoritesScreen() {
-  useSettings((s) => s.accentColor); // re-render al cambiar el acento
+  useSettings((s) => s.accentColor); // re-render when accent changes
   const router = useRouter();
   const canFetch = useAuthStore((s) => !!s.auth || s.offline);
   const offline = useAuthStore((s) => s.offline);
@@ -45,7 +45,7 @@ export default function FavoritesScreen() {
   const [confirmDownload, setConfirmDownload] = useState(false);
   const [confirmRemoveDl, setConfirmRemoveDl] = useState(false);
   const [confirmStop, setConfirmStop] = useState(false);
-  // Canciones marcadas en el modo selección pendientes de "añadir a otra".
+  // Songs selected in selection mode pending "add to another playlist".
   const [addingSongs, setAddingSongs] = useState<Song[] | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
@@ -60,8 +60,8 @@ export default function FavoritesScreen() {
   const cancelDownload = useDownloads((s) => s.cancelDownload);
   const deleteSongs = useDownloads((s) => s.deleteSongs);
   const downloadSongs = useDownloads((s) => s.downloadSongs);
-  // Estable entre ticks de progreso (solo cambia con el estado): evita que el
-  // Pressable pierda el toque al recrearse su onPress con cada actualización.
+  // Stable between progress ticks (only changes with status): prevents the
+  // Pressable from losing its touch when its onPress is recreated on every update.
   const onDownloadPress = useCallback(() => {
     if (download.status === 'none') setConfirmDownload(true);
     else if (download.status === 'done') setConfirmRemoveDl(true);
@@ -69,17 +69,17 @@ export default function FavoritesScreen() {
   }, [download.status]);
 
   const { songs: displaySongs, openSort, sortSheet } = useSongSort(data?.songs ?? [], 'favorites');
-  // Sobre `displaySongs`: es lo que `downloadFavorites` baja, y con un filtro
-  // puesto no es lo mismo que `data.songs`.
+  // Over `displaySongs`: this is what `downloadFavorites` downloads, and with a
+  // filter applied it's not the same as `data.songs`.
   const downloadMsg = useDownloadMessage(displaySongs);
 
-  /** Desmarca varias favoritas con borrado diferido y deshacer. */
+  /** Unstars several favorites with deferred delete and undo. */
   function removeMany(sel: Song[]) {
     if (sel.length === 0) return;
     const ids = new Set(sel.map((s) => s.id));
-    // Optimista sobre la lista central de favoritos: desaparecen ya (también
-    // los corazones de las filas, que beben de ['starred']). El unstar real se
-    // difiere hasta que caduca el toast; «Deshacer» lo cancela.
+    // Optimistic on the central favorites list: they disappear immediately (also
+    // the heart icons on rows, which read from ['starred']). The real unstar is
+    // deferred until the toast expires; «Undo» cancels it.
     const prev = queryClient.getQueryData<{ songs: Song[] }>(['starred']);
     if (prev) {
       queryClient.setQueryData(['starred'], {

@@ -1,4 +1,4 @@
-/** Ajustes › Acerca de: versión, repositorio, reportar bugs y comunidad. */
+/** Settings › About: version, repository, report bugs and community. */
 import Constants from 'expo-constants';
 import { Linking, ScrollView } from 'react-native';
 

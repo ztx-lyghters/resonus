@@ -1,4 +1,4 @@
-/** Selector de fuente — lista con radio en la activa, como el de Idioma. */
+/** Font picker — list with radio on the active one, like Language. */
 import { ScrollView } from 'react-native';
 
 import { SelectList, SettingsPage, settingsStyles } from '@/components/SettingsUI';
@@ -14,7 +14,7 @@ export default function FontSettings() {
     Object.keys(APP_FONT_LABELS) as AppFont[]
   ).map((value) => ({
     value,
-    // La del sistema lleva la coletilla traducida; el resto son nombres propios.
+    // The system font gets the translated suffix; the rest are proper names.
     label: value === 'system' ? `${APP_FONT_LABELS.system} (${t('default')})` : APP_FONT_LABELS[value],
   }));
 

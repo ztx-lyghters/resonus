@@ -1,9 +1,9 @@
 /**
- * Cliente mínimo de la API Subsonic, que es la que expone Navidrome.
+ * Minimal Subsonic API client (the API exposed by Navidrome).
  *
- * Autenticación por token: en cada petición se envían el usuario (u), un salt
- * aleatorio (s) y el token (t = md5(password + salt)). Así no viaja nunca la
- * contraseña en claro. Ver https://www.subsonic.org/pages/api.jsp
+ * Token-based authentication: each request sends the username (u), a random
+ * salt (s), and the token (t = md5(password + salt)). This way the password
+ * is never sent in the clear. See https://www.subsonic.org/pages/api.jsp
  */
 import * as Crypto from 'expo-crypto';
 
@@ -14,46 +14,47 @@ export interface SubsonicAuth {
   serverUrl: string;
   username: string;
   /**
-   * URLs candidatas del mismo servidor/cuenta (local, dominio, Tailscale…),
-   * ordenadas por prioridad; `urls[0]` es la principal (identidad del perfil).
-   * `serverUrl` es la que está activa ahora mismo. Si falta, equivale a
-   * `[serverUrl]`. Ver `store/autoUrl.ts` para la conmutación automática.
+   * Candidate URLs for the same server/account (local, domain, Tailscale…),
+   * sorted by priority; `urls[0]` is the primary one (profile identity).
+   * `serverUrl` is the one currently active. If missing, it defaults to
+   * `[serverUrl]`. See `store/autoUrl.ts` for automatic switching.
    */
   urls?: string[];
   /**
-   * Conmutar `serverUrl` sola a la primera URL alcanzable al cambiar de red
-   * (p. ej. salir de casa: IP local deja de responder → Tailscale/dominio).
+   * Switch `serverUrl` alone to the first reachable URL when the network
+   * changes (e.g. leaving home: local IP stops responding → Tailscale/domain).
    */
   autoUrl?: boolean;
-  /** md5(password + salt) en hexadecimal */
+  /** md5(password + salt) in hexadecimal */
   token: string;
-  /** salt aleatorio usado para generar el token */
+  /** random salt used to generate the token */
   salt: string;
-  /** Tipo de servidor (para mostrar su logo); navidrome/opensubsonic/ampache. */
+  /** Server type (to show its logo); navidrome/opensubsonic/ampache. */
   serverType?: string;
   /**
-   * Contraseña en claro. Se manda como `p=enc:<hex>` (método clásico de
-   * Subsonic) en vez de token + salt. Se guarda cuando el servidor no valida
-   * bien la auth por token (Ampache) o cuando el usuario fuerza la auth en
-   * claro (`plainAuth`, p. ej. proxies/SSO que validan contra un backend
-   * externo). En el resto no se guarda (se usa token + salt).
+   * Cleartext password. Sent as `p=enc:<hex>` (classic Subsonic method)
+   * instead of token + salt. Stored when the server doesn't validate token
+   * auth properly (Ampache) or when the user forces cleartext auth
+   * (`plainAuth`, e.g. proxies/SSO that validate against an external
+   * backend). Otherwise not stored (token + salt is used).
    */
   password?: string;
   /**
-   * El usuario forzó la auth en claro (`p=enc:`) en el perfil, para montajes
-   * (reverse-proxy/LDAP/SSO) que no pueden validar el hash con salt contra un
-   * backend externo. Solo informativo; el envío en claro lo decide `password`.
+   * User forced cleartext auth (`p=enc:`) in the profile, for setups
+   * (reverse-proxy/LDAP/SSO) that can't validate the salted hash against an
+   * external backend. Purely informational; sending in cleartext is decided
+   * by `password`.
    */
   plainAuth?: boolean;
   /**
-   * Contraseña para la API nativa de Navidrome (JWT), que necesita usuario y
-   * contraseña en claro. Solo se guarda en perfiles Navidrome; la auth
-   * Subsonic sigue yendo por token + salt (por eso no reutiliza `password`).
+   * Password for the native Navidrome API (JWT), which needs username and
+   * cleartext password. Only stored in Navidrome profiles; Subsonic auth
+   * still uses token + salt (hence it doesn't reuse `password`).
    */
   ndPassword?: string;
   /**
-   * Jellyfin (API propia, ver `jellyfin.ts`): token de sesión, id de usuario
-   * e id de dispositivo. En estos perfiles `token`/`salt` van vacíos.
+   * Jellyfin (own API, see `jellyfin.ts`): session token, user id and device
+   * id. In these profiles `token`/`salt` are empty.
    */
   jfToken?: string;
   jfUserId?: string;
@@ -68,64 +69,64 @@ export interface Song {
   albumId?: string;
   artistId?: string;
   /**
-   * Lista de artistas de la canción (extensión OpenSubsonic; Navidrome la
-   * envía). Permite elegir a qué artista ir cuando hay colaboraciones.
+   * List of song artists (OpenSubsonic extension; Navidrome sends it).
+   * Allows choosing which artist to navigate to when there are collaborations.
    */
   artists?: { id: string; name: string }[];
-  /** Lista de artistas del álbum (extensión OpenSubsonic; Navidrome la envía). */
+  /** Album artist list (OpenSubsonic extension; Navidrome sends it). */
   albumArtists?: { id: string; name: string }[];
   coverArt?: string;
   duration?: number;
   track?: number;
-  /** Nº de disco en álbumes multi-disco (los `track` se repiten por disco). */
+  /** Disc number in multi-disc albums (tracks repeat per disc). */
   discNumber?: number;
-  /** Marca de tiempo de cuándo se marcó como favorita; ausente si no lo es. */
+  /** Timestamp of when it was starred; absent if not a favorite. */
   starred?: string;
-  /** Nº de reproducciones registradas por el servidor (OpenSubsonic). */
+  /** Play count reported by the server (OpenSubsonic). */
   playCount?: number;
-  /** Valoración del usuario (1-5); ausente o 0 si no la ha puntuado. */
+  /** User rating (1-5); absent or 0 if not rated. */
   userRating?: number;
-  /** URL de streaming directa (usado para radio; evita generar URL Subsonic). */
+  /** Direct streaming URL (used for radio; avoids generating Subsonic URL). */
   url?: string;
-  /** Género de la canción (lo mandan Subsonic y Jellyfin). Lo usa la radio
-   *  para no morirse cuando se acaban las parecidas del artista. */
+  /** Song genre (sent by Subsonic and Jellyfin). Used by radio so it doesn't
+   *  die when similar artist tracks run out. */
   genre?: string;
-  /** Formato del archivo (mp3, flac, aac…). */
+  /** File format (mp3, flac, aac…). */
   suffix?: string;
-  /** Bitrate en kbps. */
+  /** Bitrate in kbps. */
   bitRate?: number;
-  /** Bitrate (kbps) al que Resonus transcodificó al DESCARGAR, si aplica. Solo
-   *  se fija en canciones descargadas transcodificadas; alimenta la etiqueta de
-   *  calidad (el fichero en disco no lleva esta info a mano). */
+  /** Bitrate (kbps) at which Resonus transcoded on DOWNLOAD, if applicable.
+   *  Only set on downloaded transcoded tracks; powers the quality tag
+   *  (the on-disk file doesn't carry this info readily). */
   dlBitRate?: number;
-  /** Profundidad de bits (16, 24…). */
+  /** Bit depth (16, 24…). */
   bitDepth?: number;
-  /** Frecuencia de muestreo en Hz (44100, 48000, 96000…). */
+  /** Sample rate in Hz (44100, 48000, 96000…). */
   samplingRate?: number;
-  /** Carátula embebida en base64 (modo sin conexión). */
+  /** Embedded cover art in base64 (offline mode). */
   coverBase64?: string;
-  /** MIME de la carátula embebida (image/jpeg, image/png…). */
+  /** MIME type of the embedded cover art (image/jpeg, image/png…). */
   coverMime?: string;
   /**
-   * Solo durante el escaneo local: el fichero trae carátula embebida pero aún
-   * no se ha leído. Se descarta al construir el catálogo.
+   * Only during local scanning: the file has an embedded cover but it hasn't
+   * been read yet. Discarded when building the catalog.
    */
   hasCover?: boolean;
-  /** URI de fichero local (modo sin conexión); si está, se reproduce sin servidor. */
+  /** Local file URI (offline mode); if present, playback happens without server. */
   localUri?: string;
   /**
-   * Marcada como no disponible sin conexión: aparece en la lista (espejo de la
-   * biblioteca del servidor) pero no está descargada, así que se pinta en gris
-   * y no se puede reproducir. Solo se rellena en el modo offline de servidor.
+   * Marked as unavailable offline: appears in the list (mirror of the server
+   * library) but is not downloaded, so it is shown grayed out and cannot be
+   * played. Only populated in offline server mode.
    */
   unavailable?: boolean;
-  /** Año de la canción (desde ID3, modo sin conexión). */
+  /** Song year (from ID3, offline mode). */
   year?: number;
-  /** Fecha de modificación del fichero en ms (modo sin conexión). */
+  /** File modification timestamp in ms (offline mode). */
   addedAt?: number;
   /**
-   * Etiquetas ReplayGain del fichero (extensión OpenSubsonic; Navidrome las
-   * envía si existen). Ganancias en dB (negativas atenúan), picos lineales.
+   * ReplayGain tags from the file (OpenSubsonic extension; Navidrome sends
+   * them if present). Gains in dB (negative = attenuates), peaks linear.
    */
   replayGain?: {
     trackGain?: number;
@@ -140,18 +141,18 @@ export interface Album {
   name: string;
   artist?: string;
   artistId?: string;
-  /** Lista de artistas del álbum (extensión OpenSubsonic; Navidrome la envía). */
+  /** Album artist list (OpenSubsonic extension; Navidrome sends it). */
   artists?: { id: string; name: string }[];
   coverArt?: string;
   songCount?: number;
   year?: number;
   starred?: string;
-  /** Sellos discográficos (extensión OpenSubsonic; Navidrome los envía). */
+  /** Record labels (OpenSubsonic extension; Navidrome sends them). */
   recordLabels?: { name: string }[];
   /**
-   * Títulos de disco por número (extensión OpenSubsonic; opcional). En álbumes
-   * multi-disco permite mostrar el nombre de cada disco (tag `discsubtitle`);
-   * el fallback es "Disc N". Puede faltar o traer solo algunos discos.
+   * Disc titles by number (OpenSubsonic extension; optional). In multi-disc
+   * albums allows showing the name of each disc (tag `discsubtitle`);
+   * the fallback is "Disc N". May be missing or only include some discs.
    */
   discTitles?: { disc: number; title: string; coverArt?: string }[];
 }
@@ -169,19 +170,19 @@ export interface Playlist {
   name: string;
   songCount?: number;
   coverArt?: string;
-  /** Descripción de la lista. */
+  /** Playlist description. */
   comment?: string;
-  /** Visible para otros usuarios del servidor. */
+  /** Visible to other server users. */
   public?: boolean;
-  /** Usuario dueño de la lista ("System" en las smartlists de serie de Ampache). */
+  /** Playlist owner ("System" for Ampache stock smartlists). */
   owner?: string;
-  /** Fecha de creación (ISO); la mandan Navidrome/Subsonic y el perfil local. */
+  /** Creation date (ISO); sent by Navidrome/Subsonic and the local profile. */
   created?: string;
-  /** Última modificación (ISO). */
+  /** Last modification (ISO). */
   changed?: string;
 }
 
-/** Genera un salt aleatorio en hexadecimal. */
+/** Generates a random salt in hexadecimal. */
 function randomSalt(): string {
   const bytes = Crypto.getRandomBytes(8);
   return Array.from(bytes)
@@ -189,12 +190,12 @@ function randomSalt(): string {
     .join('');
 }
 
-/** Ampache valida mal la auth por token; necesita la clásica (`p=enc:<hex>`). */
+/** Ampache doesn't validate token auth properly; needs classic (`p=enc:<hex>`). */
 function isAmpache(serverType?: string): boolean {
   return serverType === 'ampache';
 }
 
-/** Hex de los bytes UTF-8 de una cadena, para el parámetro Subsonic `enc:`. */
+/** Hex of the UTF-8 bytes of a string, for the Subsonic `enc:` parameter. */
 function hexEncodeUtf8(input: string): string {
   let hex = '';
   for (const char of input) {
@@ -218,8 +219,8 @@ function hexEncodeUtf8(input: string): string {
 }
 
 /**
- * Calcula las credenciales de token a partir de la contraseña.
- * Se hace una sola vez al iniciar sesión; luego se reutilizan salt y token.
+ * Calculates token credentials from the password.
+ * Done once at login; salt and token are then reused.
  */
 export async function makeAuth(
   serverUrl: string,
@@ -233,8 +234,8 @@ export async function makeAuth(
     Crypto.CryptoDigestAlgorithm.MD5,
     password + salt,
   );
-  // Ampache valida mal el token, y el usuario puede forzar la auth en claro
-  // (proxies/SSO): en ambos casos guardamos la contraseña para usar `p=enc:`.
+  // Ampache doesn't validate the token, and the user can force cleartext auth
+  // (proxies/SSO): in both cases we store the password to use `p=enc:`.
   const usePlain = isAmpache(serverType) || !!plainAuth;
   return {
     serverUrl: normalizeUrl(serverUrl),
@@ -244,12 +245,12 @@ export async function makeAuth(
     serverType,
     ...(usePlain ? { password } : {}),
     ...(plainAuth ? { plainAuth: true } : {}),
-    // Navidrome: la API nativa (subir carátulas) necesita la contraseña.
+    // Navidrome: the native API (uploading covers) needs the password.
     ...(serverType === 'navidrome' ? { ndPassword: password } : {}),
   };
 }
 
-/** Quita la barra final y asegura el esquema http(s). */
+/** Strips trailing slash and ensures the http(s) scheme. */
 export function normalizeUrl(url: string): string {
   let u = url.trim().replace(/\/+$/, '');
   if (!/^https?:\/\//i.test(u)) u = `https://${u}`;
@@ -258,7 +259,7 @@ export function normalizeUrl(url: string): string {
 
 function authParams(auth: SubsonicAuth): URLSearchParams {
   const base = { u: auth.username, v: API_VERSION, c: CLIENT_NAME, f: 'json' };
-  // Auth clásica para Ampache; token + salt para el resto.
+  // Classic auth for Ampache; token + salt for the rest.
   if (auth.password !== undefined) {
     return new URLSearchParams({ ...base, p: `enc:${hexEncodeUtf8(auth.password)}` });
   }
@@ -279,12 +280,12 @@ function buildUrl(
 
 const REQUEST_TIMEOUT_MS = 15000;
 
-/** Realiza una petición y desempaqueta la respuesta Subsonic. */
+/** Makes a request and unwraps the Subsonic response. */
 /**
- * Error de una petición Subsonic. `network` distingue "el servidor no respondió"
- * (sin conexión o timeout) de "respondió con error" (credenciales, 4xx/5xx…):
- * lo primero es un problema de red del que se puede caer a modo offline; lo
- * segundo es un problema real de la cuenta que hay que mostrar.
+ * Subsonic request error. `network` distinguishes "server didn't respond"
+ * (offline or timeout) from "responded with error" (credentials, 4xx/5xx…):
+ * the former is a network issue that can fall back to offline mode; the
+ * latter is a real account issue that must be shown.
  */
 export class SubsonicRequestError extends Error {
   network: boolean;
@@ -310,24 +311,24 @@ async function request<T>(
     });
   } catch {
     if (controller.signal.aborted) {
-      throw new SubsonicRequestError('El servidor tardó demasiado en responder', true);
+      throw new SubsonicRequestError('Server took too long to respond', true);
     }
-    throw new SubsonicRequestError('No se pudo conectar con el servidor', true);
+    throw new SubsonicRequestError('Could not connect to the server', true);
   } finally {
     clearTimeout(timer);
   }
 
-  if (!res.ok) throw new SubsonicRequestError(`Error de red (${res.status})`, false);
+  if (!res.ok) throw new SubsonicRequestError(`Network error (${res.status})`, false);
   const json = await res.json();
   const sub = json['subsonic-response'];
-  if (!sub) throw new SubsonicRequestError('Respuesta inesperada del servidor', false);
+  if (!sub) throw new SubsonicRequestError('Unexpected server response', false);
   if (sub.status === 'failed') {
-    throw new SubsonicRequestError(sub.error?.message ?? 'Error de Subsonic', false);
+    throw new SubsonicRequestError(sub.error?.message ?? 'Subsonic error', false);
   }
   return sub as T;
 }
 
-/** Comprueba que las credenciales son válidas. */
+/** Verifies that the credentials are valid. */
 export async function ping(auth: SubsonicAuth): Promise<void> {
   await request(auth, 'ping.view');
 }
@@ -356,13 +357,13 @@ export async function getAlbumList(
   return res.albumList2?.album ?? [];
 }
 
-/** Una biblioteca del servidor (Navidrome expone cada "library" como carpeta). */
+/** A server library (Navidrome exposes each "library" as a folder). */
 export interface MusicFolder {
   id: string;
   name: string;
 }
 
-/** Bibliotecas/carpetas raíz accesibles para el usuario. */
+/** Root libraries/folders accessible to the user. */
 export async function getMusicFolders(auth: SubsonicAuth): Promise<MusicFolder[]> {
   const res = await request<{
     musicFolders?: { musicFolder?: { id: string | number; name?: string }[] };
@@ -373,14 +374,14 @@ export async function getMusicFolders(auth: SubsonicAuth): Promise<MusicFolder[]
   }));
 }
 
-/** Un directorio hijo dentro de una carpeta (navegación por carpetas). */
+/** A child directory inside a folder (folder browsing). */
 export interface FolderEntry {
   id: string;
   name: string;
   coverArt?: string;
 }
 
-/** Contenido de un directorio: subcarpetas y canciones. */
+/** Contents of a directory: subfolders and songs. */
 export interface FolderContents {
   id: string;
   name: string;
@@ -389,9 +390,9 @@ export interface FolderContents {
 }
 
 /**
- * Nivel raíz de la navegación por carpetas: índice alfabético de directorios
- * de más alto nivel (normalmente artistas) de una biblioteca. Sus `id` sirven
- * como directorio para `getMusicDirectory`.
+ * Root level of folder browsing: alphabetical index of top-level directories
+ * (usually artists) from a library. Their `id` values serve as the directory
+ * for `getMusicDirectory`.
  */
 export async function getIndexes(
   auth: SubsonicAuth,
@@ -403,7 +404,7 @@ export async function getIndexes(
   return (res.indexes?.index ?? []).flatMap((i) => i.artist ?? []);
 }
 
-/** Contenido de un directorio concreto: subcarpetas + canciones. */
+/** Contents of a specific directory: subfolders + songs. */
 export async function getMusicDirectory(
   auth: SubsonicAuth,
   id: string,
@@ -469,8 +470,8 @@ export async function getPlaylists(auth: SubsonicAuth): Promise<Playlist[]> {
     'getPlaylists.view',
   );
   const lists = res.playlists?.playlist ?? [];
-  // Ampache mezcla sus smartlists de serie (dueño "System": "Album 1*"…) con
-  // las listas del usuario; se ocultan porque no son editables desde la app.
+  // Ampache mixes its stock smartlists (owner "System": "Album 1*"…) with
+  // the user's lists; they're hidden because they aren't editable from the app.
   return isAmpache(auth.serverType) ? lists.filter((p) => p.owner !== 'System') : lists;
 }
 
@@ -484,12 +485,12 @@ export async function getPlaylist(
     'getPlaylist.view',
     { id },
   );
-  // Ampache 6 devuelve `playlist` como array de un elemento (fuera de spec).
+  // Ampache 6 returns `playlist` as a one-element array (out of spec).
   const { entry, ...playlist } = Array.isArray(res.playlist) ? res.playlist[0] : res.playlist;
   return { playlist, songs: entry ?? [] };
 }
 
-/** Añade una canción a una lista de reproducción existente. */
+/** Adds a song to an existing playlist. */
 export async function addToPlaylist(
   auth: SubsonicAuth,
   playlistId: string,
@@ -501,7 +502,7 @@ export async function addToPlaylist(
   });
 }
 
-/** Crea una lista de reproducción vacía y devuelve su id. */
+/** Creates an empty playlist and returns its id. */
 export async function createPlaylist(
   auth: SubsonicAuth,
   name: string,
@@ -511,17 +512,17 @@ export async function createPlaylist(
     'createPlaylist.view',
     { name },
   );
-  // Ampache 6 devuelve `playlist` como array de un elemento (fuera de spec).
+  // Ampache 6 returns `playlist` as a one-element array (out of spec).
   const node = Array.isArray(res.playlist) ? res.playlist[0] : res.playlist;
   if (node?.id) return node.id;
-  // Algunos servidores no devuelven la playlist creada: la buscamos por nombre.
+  // Some servers don't return the created playlist: look it up by name.
   const lists = await getPlaylists(auth);
   const created = lists.find((p) => p.name === name);
-  if (!created) throw new Error('No se encontró la playlist creada');
+  if (!created) throw new Error('Created playlist not found');
   return created.id;
 }
 
-/** Elimina una lista de reproducción. */
+/** Deletes a playlist. */
 export async function deletePlaylist(
   auth: SubsonicAuth,
   id: string,
@@ -529,7 +530,7 @@ export async function deletePlaylist(
   await request(auth, 'deletePlaylist.view', { id });
 }
 
-/** Edita los metadatos de una lista: nombre, descripción y visibilidad. */
+/** Edits playlist metadata: name, description and visibility. */
 export async function updatePlaylist(
   auth: SubsonicAuth,
   id: string,
@@ -544,10 +545,10 @@ export async function updatePlaylist(
 }
 
 /**
- * Reescribe el orden completo de una lista. Subsonic no tiene "mover": se
- * recrea la lista con `createPlaylist` pasando su `playlistId` y todos los
- * `songId` en el nuevo orden (reemplaza las entradas). POST para no generar
- * URLs enormes con listas largas.
+ * Rewrites the full order of a playlist. Subsonic has no "move": the playlist
+ * is recreated with `createPlaylist` passing its `playlistId` and all
+ * `songId`s in the new order (replaces entries). POST to avoid generating
+ * huge URLs with long lists.
  */
 export async function reorderPlaylist(
   auth: SubsonicAuth,
@@ -568,7 +569,7 @@ export async function reorderPlaylist(
   if (sub?.status === 'failed') throw new Error(sub.error?.message ?? 'Error de Subsonic');
 }
 
-/** Quita una canción de una lista por su índice (posición en la lista). */
+/** Removes a song from a playlist by its index (position in the list). */
 export async function removeFromPlaylist(
   auth: SubsonicAuth,
   id: string,
@@ -609,8 +610,8 @@ export async function search(
 }
 
 /**
- * Búsqueda solo de álbumes. Aparte de `search` a propósito: aquella pide
- * artistas y canciones que quien filtra álbumes tira, y está capada a 20.
+ * Album-only search. Separate from `search` on purpose: that one requests
+ * artists and songs that album filtering discards, and is capped at 20.
  */
 export async function searchAlbums(
   auth: SubsonicAuth,
@@ -621,7 +622,7 @@ export async function searchAlbums(
   const res = await request<{ searchResult3?: { album?: Album[] } }>(auth, 'search3.view', {
     query,
     albumCount: count,
-    // A 0 para que el servidor no busque ni mande lo que no se pinta.
+    // Set to 0 so the server doesn't search or send what isn't rendered.
     songCount: 0,
     artistCount: 0,
     ...(musicFolderId ? { musicFolderId } : {}),
@@ -633,7 +634,7 @@ export async function getArtists(auth: SubsonicAuth, musicFolderId?: string): Pr
   const res = await request<{
     artists?: { index?: { artist?: Artist[] }[] };
   }>(auth, 'getArtists.view', musicFolderId ? { musicFolderId } : undefined);
-  // La respuesta agrupa los artistas por letra inicial; los aplanamos.
+  // The response groups artists by initial letter; flatten them.
   return (res.artists?.index ?? []).flatMap((i) => i.artist ?? []);
 }
 
@@ -651,11 +652,11 @@ export async function getArtist(
 }
 
 /**
- * Álbumes de otros artistas donde este aparece ("Aparece en"). Subsonic no
- * tiene endpoint para esto, así que se aproxima con search3: canciones que
- * casan con el nombre, filtradas a las que el artista participa y cuyo álbum
- * no es suyo (vía `albumArtists`; en servidores sin la extensión el filtrado
- * final por discografía lo hace la pantalla).
+ * Albums by other artists where this one appears ("Appears On"). Subsonic
+ * has no endpoint for this, so it's approximated with search3: songs that
+ * match the name, filtered to those where the artist participates and whose
+ * album is not theirs (via `albumArtists`; on servers without the extension,
+ * the final discography-based filter is done by the screen).
  */
 export async function getAppearsOn(
   auth: SubsonicAuth,
@@ -690,11 +691,11 @@ export async function getAppearsOn(
 }
 
 /**
- * Canciones más escuchadas. Subsonic no tiene endpoint global de canciones
- * por reproducciones, así que se compone: álbumes "frequent" (los del Home)
- * → sus canciones → ordenadas por el `playCount` que manda OpenSubsonic. Si
- * el servidor no manda playCount por canción, se dejan en el orden de los
- * álbumes frecuentes (que ya es una buena aproximación).
+ * Most played songs. Subsonic has no global endpoint for songs by play count,
+ * so it's composed: "frequent" albums (those from Home) → their songs →
+ * sorted by the `playCount` sent by OpenSubsonic. If the server doesn't send
+ * per-song playCount, they keep the order of frequent albums (which is
+ * already a good approximation).
  */
 export async function getMostPlayedSongs(
   auth: SubsonicAuth,
@@ -714,14 +715,14 @@ export async function getMostPlayedSongs(
 }
 
 /**
- * Canciones al azar de toda la biblioteca (la mezcla de Inicio).
+ * Random songs from the whole library (the Home shuffle).
  *
- * `size` no es un capricho: el endpoint topa alrededor de 500, así que esto no
- * baraja la biblioteca entera sino una muestra. En la práctica es lo que se
- * quiere; nadie navega una cola de 20.000 canciones.
+ * `size` is not arbitrary: the endpoint caps around 500, so this doesn't
+ * shuffle the entire library but a sample. In practice that's what we want;
+ * nobody browses a 20,000-song queue.
  *
- * Acepta `genre` porque es lo que haría falta para una "radio de género" sin
- * duplicar nada de esto.
+ * Accepts `genre` because that's what a "genre radio" would need without
+ * duplicating any of this.
  */
 export async function getRandomSongs(
   auth: SubsonicAuth,
@@ -737,7 +738,7 @@ export async function getRandomSongs(
   return res.randomSongs?.song ?? [];
 }
 
-/** Canciones más populares de un artista (por nombre). */
+/** Most popular songs by an artist (by name). */
 export async function getTopSongs(
   auth: SubsonicAuth,
   artist: string,
@@ -751,7 +752,7 @@ export async function getTopSongs(
   return res.topSongs?.song ?? [];
 }
 
-/** Canciones parecidas a una dada (getSimilarSongs2): autoplay / radio. */
+/** Songs similar to a given one (getSimilarSongs2): autoplay / radio. */
 export async function getSimilarSongs(
   auth: SubsonicAuth,
   id: string,
@@ -771,7 +772,7 @@ export interface ArtistInfo {
   similarArtists: Artist[];
 }
 
-/** Info ampliada del artista (biografía, foto y similares) de getArtistInfo2. */
+/** Extended artist info (bio, photo and similars) from getArtistInfo2. */
 export async function getArtistInfo(
   auth: SubsonicAuth,
   id: string,
@@ -784,9 +785,9 @@ export async function getArtistInfo(
     };
   }>(auth, 'getArtistInfo2.view', { id });
   const info = res.artistInfo2 ?? {};
-  // La biografía suele venir con HTML (enlace a Last.fm); lo quitamos.
+  // The biography usually comes with HTML (link to Last.fm); strip it.
   const biography = info.biography?.replace(/<[^>]+>/g, '').trim() || undefined;
-  // El servidor puede repetir un similar (mismo id) → keys duplicadas en React.
+  // The server may repeat a similar (same id) → duplicate keys in React.
   const seen = new Set<string>();
   const similarArtists = (info.similarArtist ?? []).filter((a) => {
     if (seen.has(a.id)) return false;
@@ -821,13 +822,13 @@ export async function getStarred(auth: SubsonicAuth, musicFolderId?: string): Pr
 export type StarType = 'song' | 'album' | 'artist';
 
 function starParam(id: string, type: StarType): Record<string, string> {
-  // Subsonic usa un parámetro distinto según el tipo de elemento.
+  // Subsonic uses a different parameter depending on the element type.
   if (type === 'album') return { albumId: id };
   if (type === 'artist') return { artistId: id };
   return { id };
 }
 
-/** Marca un elemento como favorito. */
+/** Marks an item as favorite. */
 export async function star(
   auth: SubsonicAuth,
   id: string,
@@ -836,7 +837,7 @@ export async function star(
   await request(auth, 'star.view', starParam(id, type));
 }
 
-/** Quita un elemento de favoritos. */
+/** Removes an item from favorites. */
 export async function unstar(
   auth: SubsonicAuth,
   id: string,
@@ -845,7 +846,7 @@ export async function unstar(
   await request(auth, 'unstar.view', starParam(id, type));
 }
 
-/** Valora una canción de 1 a 5 estrellas; 0 quita la valoración. */
+/** Rates a song from 1 to 5 stars; 0 removes the rating. */
 export async function setRating(auth: SubsonicAuth, id: string, rating: number): Promise<void> {
   await request(auth, 'setRating.view', { id, rating: String(rating) });
 }
@@ -855,7 +856,7 @@ export interface ScanStatus {
   count: number;
 }
 
-/** Estado del escaneo de la biblioteca del servidor. */
+/** Status of the server library scan. */
 export async function getScanStatus(auth: SubsonicAuth): Promise<ScanStatus> {
   const res = await request<{ scanStatus?: { scanning?: boolean; count?: number } }>(
     auth,
@@ -867,7 +868,7 @@ export async function getScanStatus(auth: SubsonicAuth): Promise<ScanStatus> {
   };
 }
 
-/** Lanza un nuevo escaneo de la biblioteca en el servidor. */
+/** Starts a new library scan on the server. */
 export async function startScan(auth: SubsonicAuth): Promise<ScanStatus> {
   const res = await request<{ scanStatus?: { scanning?: boolean; count?: number } }>(
     auth,
@@ -879,7 +880,7 @@ export async function startScan(auth: SubsonicAuth): Promise<ScanStatus> {
   };
 }
 
-/** Obtiene la letra de una canción (puede venir vacía si no hay). */
+/** Gets the lyrics for a song (may come back empty if none). */
 export async function getLyrics(
   auth: SubsonicAuth,
   artist: string,
@@ -894,7 +895,7 @@ export async function getLyrics(
 }
 
 export interface LyricLine {
-  /** Milisegundos desde el inicio de la pista; solo en letra sincronizada. */
+  /** Milliseconds from the start of the track; only in synced lyrics. */
   start?: number;
   value: string;
 }
@@ -905,9 +906,9 @@ export interface SongLyrics {
 }
 
 /**
- * Letra estructurada por id de canción (extensión OpenSubsonic `songLyrics`,
- * la soportan Navidrome y Ampache 7): líneas con timestamp si la letra está
- * sincronizada. Lanza en servidores sin la extensión; null si no hay letra.
+ * Structured lyrics by song id (OpenSubsonic extension `songLyrics`,
+ * supported by Navidrome and Ampache 7): lines with timestamps if the lyrics
+ * are synced. Throws on servers without the extension; null if no lyrics.
  */
 export async function getLyricsBySongId(
   auth: SubsonicAuth,
@@ -915,7 +916,7 @@ export async function getLyricsBySongId(
 ): Promise<SongLyrics | null> {
   interface StructuredLyrics {
     synced?: boolean;
-    /** Desplazamiento global en ms; positivo = la letra debe aparecer antes. */
+    /** Global offset in ms; positive = lyrics should appear earlier. */
     offset?: number;
     line?: { start?: number; value?: string }[];
   }
@@ -943,11 +944,11 @@ export async function getLyricsBySongId(
 export interface SavedQueue {
   entries: Song[];
   current?: string;
-  /** Posición en la pista actual, en milisegundos. */
+  /** Position in the current track, in milliseconds. */
   position: number;
 }
 
-/** Guarda la cola de reproducción en el servidor (savePlayQueue). */
+/** Saves the play queue to the server (savePlayQueue). */
 export async function savePlayQueue(
   auth: SubsonicAuth,
   ids: string[],
@@ -960,18 +961,18 @@ export async function savePlayQueue(
   if (currentId) params.set('current', currentId);
   params.set('position', String(Math.max(0, Math.floor(positionMs))));
   try {
-    // POST con los parámetros en el cuerpo: evita URLs gigantes con colas largas.
+    // POST with parameters in the body: avoids giant URLs with long queues.
     await fetch(`${auth.serverUrl}/rest/savePlayQueue.view`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: params.toString(),
     });
   } catch {
-    // Best-effort; ignoramos errores de red al guardar la cola.
+    // Best-effort; ignore network errors when saving the queue.
   }
 }
 
-/** Recupera la cola guardada en el servidor (getPlayQueue). */
+/** Retrieves the saved queue from the server (getPlayQueue). */
 export async function getPlayQueue(auth: SubsonicAuth): Promise<SavedQueue | null> {
   const res = await request<{
     playQueue?: { entry?: Song[]; current?: string; position?: number };
@@ -981,16 +982,16 @@ export async function getPlayQueue(auth: SubsonicAuth): Promise<SavedQueue | nul
   return { entries: pq.entry, current: pq.current, position: pq.position ?? 0 };
 }
 
-/** Informa al servidor de que se ha reproducido una canción (scrobble). */
+/** Notifies the server that a song has been played (scrobble). */
 /**
- * `submission=false` anuncia "reproduciendo ahora" (no cuenta reproducción);
- * `true` registra la escucha de verdad (contadores y Last.fm/ListenBrainz).
+ * `submission=false` announces "now playing" (doesn't count as play);
+ * `true` registers the actual listen (counters and Last.fm/ListenBrainz).
  */
 export async function scrobble(auth: SubsonicAuth, id: string, submission = true): Promise<void> {
   try {
     await request(auth, 'scrobble.view', { id, submission: submission ? 'true' : 'false' });
   } catch {
-    // El scrobble es opcional; ignoramos sus errores.
+    // Scrobbling is optional; ignore its errors.
   }
 }
 
@@ -1001,7 +1002,7 @@ export interface RadioStation {
   homePageUrl?: string;
 }
 
-/** Devuelve las emisoras de radio guardadas en el servidor. */
+/** Returns the radio stations saved on the server. */
 export async function getRadioStations(
   auth: SubsonicAuth,
 ): Promise<RadioStation[]> {
@@ -1012,10 +1013,10 @@ export async function getRadioStations(
 }
 
 /**
- * Crea una emisora de radio por internet en el servidor. Devuelve su id si se
- * puede averiguar: `createInternetRadioStation` no lo devuelve (fuera de spec),
- * así que se busca la recién creada por nombre + URL. Sirve para ponerle
- * carátula al momento (que se guarda en el dispositivo, por id).
+ * Creates an internet radio station on the server. Returns its id if it
+ * can be determined: `createInternetRadioStation` doesn't return it (out of
+ * spec), so we look up the newly created one by name + URL. Used to attach
+ * cover art immediately (which is stored on the device, by id).
  */
 export async function createRadioStation(
   auth: SubsonicAuth,
@@ -1030,8 +1031,8 @@ export async function createRadioStation(
   });
   try {
     const stations = await getRadioStations(auth);
-    // De atrás hacia delante: si hay duplicados de nombre+URL, la última es la
-    // que acabamos de crear.
+    // From back to front: if there are name+URL duplicates, the last one is
+    // the one we just created.
     const match = [...stations].reverse().find((s) => s.name === name && s.streamUrl === streamUrl);
     return match?.id;
   } catch {
@@ -1039,7 +1040,7 @@ export async function createRadioStation(
   }
 }
 
-/** Edita una emisora de radio existente. */
+/** Edits an existing radio station. */
 export async function updateRadioStation(
   auth: SubsonicAuth,
   id: string,
@@ -1055,7 +1056,7 @@ export async function updateRadioStation(
   });
 }
 
-/** Elimina una emisora de radio del servidor. */
+/** Deletes a radio station from the server. */
 export async function deleteRadioStation(
   auth: SubsonicAuth,
   id: string,
@@ -1063,7 +1064,7 @@ export async function deleteRadioStation(
   await request(auth, 'deleteInternetRadioStation.view', { id });
 }
 
-/** URL de la carátula. `id` puede venir de un álbum, canción o playlist. */
+/** Cover art URL. `id` can come from an album, song or playlist. */
 export function coverArtUrl(
   auth: SubsonicAuth,
   id: string | undefined,
@@ -1073,17 +1074,17 @@ export function coverArtUrl(
   return buildUrl(auth, 'getCoverArt.view', { id, size });
 }
 
-/** URL de descarga del fichero original, sin transcodificar. */
+/** Download URL for the original file, without transcoding. */
 export function downloadUrl(auth: SubsonicAuth, id: string): string {
   return buildUrl(auth, 'download.view', { id });
 }
 
 /**
- * URL de streaming de una canción. Si `maxBitRate` > 0, el servidor
- * transcodifica a ese bitrate (kbps) para ahorrar datos. `format` fuerza el
- * códec de salida (p. ej. `opus`); vacío deja el transcoder por defecto del
- * servidor. Solo tiene efecto cuando de verdad se transcodifica (con
- * `maxBitRate` a 0 el servidor sirve el fichero original y lo ignora).
+ * Song streaming URL. If `maxBitRate` > 0, the server transcodes to that
+ * bitrate (kbps) to save data. `format` forces the output codec (e.g.
+ * `opus`); empty leaves the server's default transcoder. Only takes effect
+ * when actually transcoding (with `maxBitRate` at 0 the server serves the
+ * original file and ignores it).
  */
 export function streamUrl(
   auth: SubsonicAuth,
@@ -1096,13 +1097,13 @@ export function streamUrl(
     id,
     maxBitRate: maxBitRate > 0 ? maxBitRate : undefined,
     format: maxBitRate > 0 && format ? format : undefined,
-    // Arrancar la transcodificación en este segundo (extensión OpenSubsonic
-    // `transcodeOffset`): así se puede "buscar" en streams transcodificados.
+    // Start transcoding at this second (OpenSubsonic `transcodeOffset`
+    // extension): this enables "seeking" in transcoded streams.
     timeOffset: timeOffset > 0 ? Math.floor(timeOffset) : undefined,
   });
 }
 
-/** Nombres de las extensiones OpenSubsonic que anuncia el servidor. */
+/** Names of the OpenSubsonic extensions announced by the server. */
 export async function getOpenSubsonicExtensions(auth: SubsonicAuth): Promise<string[]> {
   const res = await request<{ openSubsonicExtensions?: { name: string }[] }>(
     auth,
@@ -1113,18 +1114,18 @@ export async function getOpenSubsonicExtensions(auth: SubsonicAuth): Promise<str
 }
 
 // ── Jukebox ──────────────────────────────────────────────────────────────────
-// API estándar Subsonic `jukeboxControl`: el servidor reproduce por su propio
-// hardware de audio (altavoces/DAC) y la app hace de mando a distancia; no se
-// stremea nada al teléfono. Solo servidores Subsonic con el rol jukebox
-// habilitado por el admin (ver store/jukebox.ts para la integración).
+// Standard Subsonic API `jukeboxControl`: the server plays through its own
+// audio hardware (speakers/DAC) and the app acts as a remote control; nothing
+// is streamed to the phone. Only Subsonic servers with the jukebox role
+// enabled by the admin (see store/jukebox.ts for integration).
 
 export interface JukeboxStatus {
-  /** Índice de la pista actual dentro de la lista del servidor. */
+  /** Index of the current track within the server's list. */
   currentIndex: number;
   playing: boolean;
-  /** Ganancia 0..1. */
+  /** Gain 0..1. */
   gain: number;
-  /** Posición en segundos dentro de la pista actual. */
+  /** Position in seconds within the current track. */
   position: number;
 }
 
@@ -1139,7 +1140,7 @@ function parseJukeboxStatus(raw: unknown): JukeboxStatus {
   };
 }
 
-/** `jukeboxControl.view`: devuelve el estado tras aplicar la acción. */
+/** `jukeboxControl.view`: returns the status after applying the action. */
 async function jukeboxControl(
   auth: SubsonicAuth,
   action: string,
@@ -1150,26 +1151,26 @@ async function jukeboxControl(
     'jukeboxControl.view',
     { action, ...extra },
   );
-  // `get`/`set` responden con jukeboxPlaylist; el resto con jukeboxStatus.
+  // `get`/`set` respond with jukeboxPlaylist; the rest with jukeboxStatus.
   return parseJukeboxStatus(res.jukeboxStatus ?? res.jukeboxPlaylist);
 }
 
 export const jukeboxStatus = (auth: SubsonicAuth) => jukeboxControl(auth, 'status');
-/** Reemplaza la lista del servidor por una sola pista (id de la biblioteca). */
+/** Replaces the server's playlist with a single track (library id). */
 export const jukeboxSet = (auth: SubsonicAuth, id: string) => jukeboxControl(auth, 'set', { id });
 export const jukeboxStart = (auth: SubsonicAuth) => jukeboxControl(auth, 'start');
 export const jukeboxStop = (auth: SubsonicAuth) => jukeboxControl(auth, 'stop');
 export const jukeboxClear = (auth: SubsonicAuth) => jukeboxControl(auth, 'clear');
-/** Salta al índice dado (con offset opcional en segundos dentro de la pista). */
+/** Skips to the given index (with optional offset in seconds within the track). */
 export const jukeboxSkip = (auth: SubsonicAuth, index: number, offsetSec = 0) =>
   jukeboxControl(auth, 'skip', { index, offset: offsetSec > 0 ? Math.floor(offsetSec) : undefined });
 export const jukeboxSetGain = (auth: SubsonicAuth, gain: number) =>
   jukeboxControl(auth, 'setGain', { gain: Math.max(0, Math.min(1, gain)) });
 
 /**
- * ¿El servidor permite el modo jukebox para este usuario? Se deduce del
- * `jukeboxRole` que devuelve `getUser`. Cualquier fallo (endpoint ausente,
- * servidor que no es Subsonic, sin permiso) cuenta como "no disponible".
+ * Does the server allow jukebox mode for this user? Deduced from the
+ * `jukeboxRole` returned by `getUser`. Any failure (missing endpoint,
+ * non-Subsonic server, no permission) counts as "not available".
  */
 export async function hasJukeboxRole(auth: SubsonicAuth): Promise<boolean> {
   try {

@@ -1,7 +1,7 @@
 /**
- * Capa de datos unificada. Las pantallas usan estas funciones en lugar de
- * llamar directamente a la API Subsonic. El módulo decide automáticamente
- * si leer del servidor o del catálogo local según el modo (online/offline).
+ * Unified data layer. Screens use these functions instead of calling the
+ * Subsonic API directly. The module automatically decides whether to read
+ * from the server or the local catalog based on the mode (online/offline).
  */
 import { useAuthStore } from '@/store/auth';
 import { getDownloadsCatalog, useDownloads } from '@/store/downloads';
@@ -22,30 +22,30 @@ import type { Song } from './subsonic';
 function isOffline() { return useAuthStore.getState().offline; }
 function auth() { return useAuthStore.getState().auth!; }
 
-/** Modo offline CON cuenta de servidor (no el perfil local de solo-ficheros):
- *  aquí la Biblioteca es un espejo del servidor (ver store/libraryMirror). */
+/** Offline mode WITH a server account (not the local files-only profile):
+ *  here the Library is a mirror of the server (see store/libraryMirror). */
 function serverOffline(): boolean {
   const s = useAuthStore.getState();
   return s.offline && !!s.auth;
 }
 
 /**
- * Marca cada canción del espejo como disponible o no según las descargas: las
- * descargadas reciben su `localUri` (se reproducen desde disco); el resto quedan
- * `unavailable` (se pintan en gris y no suenan). En offline el conjunto de
- * descargas no cambia, así que la marca es estable durante la sesión.
+ * Marks each song in the mirror as available or not based on downloads:
+ * downloaded ones get their `localUri` (played from disk); the rest get
+ * `unavailable` (shown grayed out and don't play). In offline mode the
+ * set of downloads doesn't change, so the mark is stable during the session.
  *
- * Carátulas: la descargada re-clava `coverArt` a `albumId` (el índice local va
- * por albumId). La NO descargada conserva el `coverArt` del servidor, para que
- * la URL offline coincida con la de online y expo-image la sirva de su caché
- * (o la baje si el offline es manual con red); si no, queda el placeholder.
+ * Album art: downloaded art re-pins `coverArt` to `albumId` (the local index
+ * goes by albumId). Non-downloaded keeps the server `coverArt`, so the
+ * offline URL matches the online one and expo-image serves it from its cache
+ * (or downloads it if offline is manual with network); otherwise the placeholder remains.
  */
 function annotate(songs: Song[]): Song[] {
   const files = useDownloads.getState().files;
-  // Valoraciones hechas offline (outbox): pisan la nota del espejo para que se
-  // vean al momento y persistan tras refrescar o reiniciar, hasta que sincronicen.
+  // Ratings made offline (outbox): override the mirror's rating so they
+  // show immediately and persist after refresh or restart, until synced.
   const ratings = useOfflineQueue.getState().data.ratings ?? {};
-  // Preferencia: esconder las no descargadas en vez de pintarlas en gris.
+  // Setting: hide non-downloaded items instead of showing them grayed out.
   const hideUnavailable = useSettings.getState().hideUnavailableOffline;
   const annotated = songs.map((s0) => {
     const s = ratings[s0.id] !== undefined ? { ...s0, userRating: ratings[s0.id] } : s0;
@@ -57,8 +57,8 @@ function annotate(songs: Song[]): Song[] {
   return hideUnavailable ? annotated.filter((s) => !s.unavailable) : annotated;
 }
 
-/** Carga el espejo y el outbox del perfil, y registra en el índice local las
- *  carátulas de las descargas (sin esto, las carátulas offline no aparecen). */
+/** Loads the mirror and the outbox for the profile, and registers the
+ *  album art of downloads in the local index (without this, offline album art won't appear). */
 async function loadMirror(): Promise<void> {
   await Promise.all([
     useLibraryMirror.getState().load(),
@@ -67,8 +67,8 @@ async function loadMirror(): Promise<void> {
   ]);
 }
 
-/** Busca la metadata de una canción por id en lo disponible offline: outbox
- *  (canciones añadidas a listas), espejo (listas/álbumes/favoritos) y descargas. */
+/** Looks up a song's metadata by id from available offline sources: outbox
+ *  (songs added to playlists), mirror (playlists/albums/favorites), and downloads. */
 function resolveSong(id: string, catalog: { songs: Song[] }): Song | undefined {
   const meta = useOfflineQueue.getState().data.songMeta?.[id];
   if (meta) return meta;
@@ -86,8 +86,8 @@ function resolveSong(id: string, catalog: { songs: Song[] }): Song | undefined {
   return catalog.songs.find((s) => s.id === id);
 }
 
-/** Tracklist final deseado de una lista offline: la edición del outbox si la hay,
- *  o el tracklist del espejo. */
+/** Final desired tracklist for an offline playlist: the outbox edit if any,
+ *  or the mirror's tracklist. */
 async function currentPlaylistSongIds(id: string): Promise<string[]> {
   await loadMirror();
   const edited = useOfflineQueue.getState().data.playlists?.[id]?.songIds;
@@ -100,17 +100,18 @@ export type { Album, AlbumListType, Artist, ArtistInfo, FolderContents, FolderEn
 export { normalizeUrl } from './subsonic';
 
 export function coverArtUrl(id: string | undefined, _size?: number): string | undefined {
-  // Si la carátula está descargada (álbum/artista en disco), úsala aunque
-  // estemos en modo servidor: funciona sin conexión y no gasta datos, igual
-  // que el audio suena desde el fichero descargado.
+  // If the album art is downloaded (album/artist on disk), use it even
+  // when in server mode: it works offline and doesn't use data, just
+  // like audio plays from the downloaded file.
   const local = Local.coverUrl(id);
   if (local) return local;
   if (isOffline()) {
-    // Offline de servidor: la URL del servidor como respaldo. expo-image la sirve
-    // de su caché si ya se vio online (o la baja si el offline es manual con red);
-    // si no, queda el placeholder. Así las canciones/álbumes no descargados
-    // enseñan carátula aunque no se puedan reproducir. El perfil local (sin
-    // cuenta) no tiene servidor, así que ahí no hay respaldo.
+    // Server offline: the server URL as fallback. expo-image serves it
+    // from its cache if it was already seen online (or downloads it if
+    // offline is manual with network); otherwise the placeholder remains.
+    // This way non-downloaded songs/albums show album art even if they
+    // can't be played. The local profile (no account) has no server, so
+    // there is no fallback there.
     return serverOffline() ? Subsonic.coverArtUrl(auth(), id, _size) : undefined;
   }
   return Subsonic.coverArtUrl(auth(), id, _size);
@@ -160,17 +161,17 @@ export function getArtists(): Promise<Subsonic.Artist[]> {
   });
 }
 
-/** Todos los álbumes locales (modo sin conexión). Solo usado offline. */
+/** All local albums (offline mode). Only used offline. */
 export function getAllAlbums(): Promise<Subsonic.Album[]> {
   return Local.getAllAlbums();
 }
 
-/** Vuelve a escanear el catálogo local (modo sin conexión). */
+/** Re-scan the local catalog (offline mode). */
 export function rescanLocal(): Promise<void> {
   return Local.rescan();
 }
 
-/** Géneros del servidor (globales; el API no filtra géneros por biblioteca). */
+/** Server genres (global; the API doesn't filter genres by library). */
 export function getGenres(): Promise<Subsonic.Genre[]> {
   return Subsonic.getGenres(auth());
 }
@@ -191,18 +192,18 @@ export function getAlbumsByGenre(genre: string, size?: number, offset?: number):
   );
 }
 
-// ── Navegación por carpetas (solo servidores Subsonic; la UI la oculta en
-// Jellyfin y offline) ──────────────────────────────────────────────────────
+// ── Folder navigation (Subsonic servers only; the UI hides it on
+// Jellyfin and offline) ───────────────────────────────────────────────────
 export function getMusicFolders(): Promise<Subsonic.MusicFolder[]> {
   return Subsonic.getMusicFolders(auth());
 }
 
-/** Directorios de más alto nivel de una biblioteca (raíz de las carpetas). */
+/** Top-level directories of a library (folder root). */
 export function getFolderIndexes(musicFolderId?: string): Promise<Subsonic.FolderEntry[]> {
   return Subsonic.getIndexes(auth(), musicFolderId);
 }
 
-/** Contenido de un directorio: subcarpetas + canciones. */
+/** Contents of a directory: subfolders + songs. */
 export function getMusicDirectory(id: string): Promise<Subsonic.FolderContents> {
   return Subsonic.getMusicDirectory(auth(), id);
 }
@@ -224,7 +225,7 @@ async function mirrorArtist(
   await loadMirror();
   const d = useLibraryMirror.getState().data.artists?.[id];
   if (!d) return Local.getArtist(id);
-  // Carátulas de los álbumes por su id (así resuelven offline).
+  // Album art resolved by their id (so they work offline).
   return { artist: d.artist, albums: d.albums.map((al) => ({ ...al, coverArt: al.id })) };
 }
 
@@ -233,7 +234,7 @@ export function getArtistInfo(id: string): Promise<Subsonic.ArtistInfo> {
   return Subsonic.getArtistInfo(auth(), id);
 }
 
-/** Álbumes donde el artista aparece sin ser el artista del álbum. */
+/** Albums where the artist appears without being the album artist. */
 export function getAppearsOn(artistId: string, artistName: string): Promise<Subsonic.Album[]> {
   if (isOffline()) return Local.getAppearsOn(artistId);
   const a = auth();
@@ -250,13 +251,13 @@ export function getTopSongs(artist: string, count?: number): Promise<Subsonic.So
   return Subsonic.getTopSongs(auth(), artist, count);
 }
 
-/** Canciones parecidas a una dada (sugerencias). Solo online. */
+/** Songs similar to a given one (suggestions). Online only. */
 export function getSimilarSongs(id: string, count?: number): Promise<Subsonic.Song[]> {
   if (isOffline()) return Promise.resolve([]);
   return Subsonic.getSimilarSongs(auth(), id, count);
 }
 
-/** Canciones más escuchadas (composición sobre álbumes "frequent" en Subsonic). */
+/** Most played songs (composition over "frequent" albums in Subsonic). */
 export function getMostPlayedSongs(size = 50): Promise<Subsonic.Song[]> {
   if (isOffline()) return Local.getMostPlayedSongs(size);
   const a = auth();
@@ -271,11 +272,11 @@ export function getMostPlayedSongs(size = 50): Promise<Subsonic.Song[]> {
 }
 
 /**
- * Canciones al azar de la biblioteca (la mezcla de Inicio).
+ * Random songs from the library (the Home mix).
  *
- * Con varias bibliotecas activas se pide a cada una y se vuelve a barajar el
- * conjunto: si no, saldrían agrupadas por biblioteca, que de aleatorio tiene
- * poco.
+ * With multiple active libraries, each one is queried and the result set
+ * is re-shuffled: otherwise they'd be grouped by library, which isn't very
+ * random.
  */
 export function getRandomSongs(size = 200, genre?: string): Promise<Subsonic.Song[]> {
   if (isOffline()) return Local.getRandomSongs(size);
@@ -295,21 +296,21 @@ export function getPlaylists(): Promise<Subsonic.Playlist[]> {
   }
   return Subsonic.getPlaylists(auth()).then((list) => {
     useLibraryMirror.getState().savePlaylists(list);
-    // Cachea en segundo plano el tracklist de cada lista para que estén
-    // disponibles offline sin abrirlas una a una (no bloquea la respuesta).
+    // Cache each playlist's tracklist in the background so they are
+    // available offline without opening them one by one (non-blocking).
     void prefetchPlaylistDetails(list);
     return list;
   });
 }
 
-/** Evita solapar dos prefetch (getPlaylists puede dispararse varias veces). */
+/** Prevents overlapping prefetch runs (getPlaylists can fire multiple times). */
 let prefetchingPlaylists = false;
 
 /**
- * En segundo plano, cachea el tracklist de las listas del servidor para el modo
- * offline. Salta las que ya tienen detalle con el mismo `changed` (barato tras
- * la primera sincronización) y limita la concurrencia. Best-effort: ignora
- * fallos y escribe el espejo una sola vez al terminar.
+ * In the background, caches the tracklist of server playlists for offline
+ * mode. Skips those that already have details with the same `changed` (cheap
+ * after the first sync) and limits concurrency. Best-effort: ignores
+ * failures and writes the mirror only once when done.
  */
 async function prefetchPlaylistDetails(list: Subsonic.Playlist[]): Promise<void> {
   if (prefetchingPlaylists) return;
@@ -319,7 +320,7 @@ async function prefetchPlaylistDetails(list: Subsonic.Playlist[]): Promise<void>
   try {
     await loadMirror();
     const cached = useLibraryMirror.getState().data.playlistTracks ?? {};
-    // Solo las que faltan o cambiaron en el servidor (por `changed`).
+    // Only those missing or changed on the server (by `changed`).
     const stale = list.filter((p) => {
       const prev = cached[p.id]?.playlist;
       return !prev || (p.changed != null && prev.changed !== p.changed);
@@ -343,10 +344,10 @@ async function prefetchPlaylistDetails(list: Subsonic.Playlist[]): Promise<void>
   }
 }
 
-/** Listas del espejo: TODAS las del servidor que se hayan visto online (aunque
- *  no tengan nada descargado); dentro, las descargadas suenan y el resto salen
- *  en gris. La carátula usa el primer tema descargado (resuelve offline) o la de
- *  la lista. Sin copia aún, cae al comportamiento local. */
+/** Mirror playlists: ALL server playlists that have been seen online (even if
+ *  nothing is downloaded); within those, downloaded ones play and the rest are
+ *  grayed out. Album art uses the first downloaded track (resolves offline) or
+ *  the playlist's own. Without a mirror copy yet, falls back to local behavior. */
 async function mirrorPlaylists(): Promise<Subsonic.Playlist[]> {
   await loadMirror();
   const mirror = useLibraryMirror.getState().data;
@@ -356,7 +357,7 @@ async function mirrorPlaylists(): Promise<Subsonic.Playlist[]> {
   if (!mirror.playlists && Object.keys(qpls).length === 0) return Local.getPlaylists();
 
   const out: Subsonic.Playlist[] = [];
-  // Listas creadas offline (aún con id temporal).
+  // Playlists created offline (still with a temporary id).
   for (const [id, edit] of Object.entries(qpls)) {
     if (!edit.created || edit.deleted) continue;
     const songIds = edit.songIds ?? [];
@@ -370,15 +371,15 @@ async function mirrorPlaylists(): Promise<Subsonic.Playlist[]> {
       public: edit.public,
     });
   }
-  // Listas del servidor con overlay (renombrado/tracklist), menos las borradas.
+  // Server playlists with overlay (rename/tracklist), minus deleted ones.
   for (const p of mirror.playlists ?? []) {
     const edit = qpls[p.id];
     if (edit?.deleted) continue;
     const detailIds = mirror.playlistTracks?.[p.id]?.songs.map((s) => s.id);
     const songIds = edit?.songIds ?? detailIds ?? [];
     const firstDl = songIds.find((sid) => files[sid]);
-    // Con tracklist conocido (detalle cacheado o edición offline) el conteo
-    // real; si no, el que trae la lista del servidor.
+    // With known tracklist (cached details or offline edit) the real count;
+    // otherwise, the count provided by the server playlist.
     const haveTracks = edit?.songIds != null || detailIds != null;
     out.push({
       ...p,
@@ -406,19 +407,19 @@ export function getStarred(): Promise<Subsonic.Starred> {
           albums: dedupeById(parts.flatMap((x) => x.albums)),
           artists: dedupeById(parts.flatMap((x) => x.artists)),
         }));
-  // Copia para el modo offline (Biblioteca como espejo del servidor).
+  // Copy for offline mode (Library as server mirror).
   return p.then((s) => {
     useLibraryMirror.getState().saveStarred(s);
     return s;
   });
 }
 
-/** Favoritos desde el espejo (offline de servidor); si aún no hay copia, cae al
- *  comportamiento local de siempre (derivado de las descargas).
+/** Favorites from the mirror (server offline); if no copy exists yet, falls
+ *  back to the usual local behavior (derived from downloads).
  *
- *  Canciones favoritas: todas, con las no descargadas en gris. Álbumes y
- *  artistas: todos los favoriteados (los álbumes sin descargas se ven igual y
- *  se abren en gris/vacíos, como el resto del contenido no descargado). */
+ *  Favorite songs: all, with non-downloaded ones grayed out. Albums and
+ *  artists: all favorited ones (albums without downloads look the same and
+ *  open gray/empty, like the rest of non-downloaded content). */
 async function mirrorStarred(): Promise<Subsonic.Starred> {
   await loadMirror();
   const mirror = useLibraryMirror.getState().data;
@@ -427,8 +428,8 @@ async function mirrorStarred(): Promise<Subsonic.Starred> {
   const favs = useOfflineQueue.getState().data.favs ?? {};
   const hasQueue = Object.keys(favs).length > 0;
 
-  // Base: la foto del servidor. Si aún no hay copia pero hay cambios offline,
-  // partimos de lo local para no perder los favoritos hechos sin conexión.
+  // Base: the server snapshot. If no copy yet but there are offline changes,
+  // we start from local to avoid losing favorites made offline.
   const base = mirror.starred ?? (hasQueue ? await Local.getStarred() : null);
   if (!base) return Local.getStarred();
 
@@ -436,7 +437,7 @@ async function mirrorStarred(): Promise<Subsonic.Starred> {
   let albums = base.albums ?? [];
   let artists = base.artists ?? [];
 
-  // Overlay del outbox: quitar los desmarcados y añadir los marcados offline.
+  // Outbox overlay: remove unstarred ones and add those starred offline.
   const unstarred = new Set(
     Object.entries(favs).filter(([, v]) => !v.starred).map(([id]) => id),
   );
@@ -462,11 +463,11 @@ async function mirrorStarred(): Promise<Subsonic.Starred> {
     }
   }
 
-  // Álbumes favoriteados: TODOS, aunque no tengan canciones descargadas (se
-  // abren en gris como las canciones no descargadas, o vacíos si nunca se
-  // vieron online). Los descargados usan su carátula local (por id); los no
-  // descargados conservan la del servidor, que sirve la caché de expo-image si
-  // se vio online (o se baja si el offline es manual con red).
+  // Favorited albums: ALL of them, even if they have no downloaded songs (they
+  // open grayed out like non-downloaded songs, or empty if never seen online).
+  // Downloaded ones use their local album art (by id); non-downloaded ones keep
+  // the server URL, served from expo-image's cache if seen online (or downloaded
+  // if offline is manual with network).
   const downloadedAlbumIds = new Set(catalog.albums.map((a) => a.id));
   albums = albums.map((al) =>
     downloadedAlbumIds.has(al.id) ? { ...al, coverArt: al.id } : al,
@@ -477,7 +478,7 @@ async function mirrorStarred(): Promise<Subsonic.Starred> {
 
 export function star(id: string, type?: Subsonic.StarType): Promise<void> {
   if (isOffline()) {
-    // Offline de servidor: se apunta en el outbox y se sube al reconectar.
+    // Server offline: recorded in the outbox and uploaded on reconnect.
     if (serverOffline()) {
       useOfflineQueue.getState().setFav(id, type ?? 'song', true);
       return Promise.resolve();
@@ -499,14 +500,14 @@ export function unstar(id: string, type?: Subsonic.StarType): Promise<void> {
 }
 
 /**
- * Vuelca la cola de acciones offline al servidor (al reconectar). Best-effort:
- * lo que falle se conserva para la próxima reconexión. Fase 1: favoritos.
+ * Flushes the offline action queue to the server (on reconnect). Best-effort:
+ * whatever fails is kept for the next reconnection. Phase 1: favorites.
  */
 export async function flushOfflineQueue(auth: Subsonic.SubsonicAuth): Promise<void> {
   const q = useOfflineQueue.getState();
   await q.load();
 
-  // Favoritos.
+  // Favorites.
   const favs = q.data.favs ?? {};
   const favFailed: [string, { type: Subsonic.StarType; starred: boolean }][] = [];
   for (const [id, op] of Object.entries(favs)) {
@@ -522,7 +523,7 @@ export async function flushOfflineQueue(auth: Subsonic.SubsonicAuth): Promise<vo
     for (const [id, op] of favFailed) q.setFav(id, op.type, op.starred);
   }
 
-  // Valoraciones.
+  // Ratings.
   const ratings = q.data.ratings ?? {};
   const ratingFailed: [string, number][] = [];
   for (const [id, rating] of Object.entries(ratings)) {
@@ -537,14 +538,14 @@ export async function flushOfflineQueue(auth: Subsonic.SubsonicAuth): Promise<vo
     for (const [id, rating] of ratingFailed) q.setRating(id, rating);
   }
 
-  // Listas. Se reescribe el estado final de cada una (crear/borrar/renombrar +
-  // tracklist entero con reorderPlaylist, que evita el lío de índices).
+  // Playlists. Rewrites the final state of each one (create/delete/rename +
+  // full tracklist via reorderPlaylist, which avoids index juggling).
   const playlists = q.data.playlists ?? {};
   const plFailed: [string, QueuePlaylist][] = [];
   for (const [id, edit] of Object.entries(playlists)) {
     try {
       if (edit.created) {
-        if (edit.deleted) continue; // creada y borrada offline: no se sube nada
+        if (edit.deleted) continue; // created and deleted offline: nothing to upload
         const realId = await Subsonic.createPlaylist(auth, edit.name ?? '');
         if (edit.songIds?.length) await Subsonic.reorderPlaylist(auth, realId, edit.songIds);
         if (edit.comment !== undefined || edit.public !== undefined) {
@@ -576,11 +577,11 @@ export async function flushOfflineQueue(auth: Subsonic.SubsonicAuth): Promise<vo
 }
 
 /**
- * Vuelca al espejo el estado actual de la caché de React Query (listas,
- * favoritos, álbumes) justo antes de pasar a offline. Así, si editas algo online
- * (p. ej. quitas una canción de una lista) y luego te vas offline sin que esa
- * query se re-consultara, el espejo refleja lo último visto en vez de quedarse
- * con la copia vieja del servidor.
+ * Snapshots the current state of the React Query cache (playlists,
+ * favorites, albums) into the mirror just before going offline. This way, if
+ * you edit something online (e.g. remove a song from a playlist) and then go
+ * offline without that query being refetched, the mirror reflects the latest
+ * seen state instead of sticking with the old server copy.
  */
 export function snapshotCachesToMirror(): void {
   const mirror = useLibraryMirror.getState();
@@ -606,15 +607,15 @@ export function snapshotCachesToMirror(): void {
       mirror.saveAlbum(id, data.album, data.songs);
     }
   }
-  // Pasar a offline es un momento deliberado: persiste ya (una sola escritura,
-  // gracias al debounce) en vez de esperar al temporizador.
+  // Going offline is a deliberate moment: persist now (a single write,
+  // thanks to the debounce) instead of waiting for the timer.
   mirror.flush();
 }
 
-/** Valora una canción (1-5; 0 quita la valoración). */
+/** Rate a song (1-5; 0 removes the rating). */
 export function setRating(id: string, rating: number): Promise<void> {
   if (isOffline()) {
-    // Offline de servidor: se apunta en el outbox y se sube al reconectar.
+    // Server offline: recorded in the outbox and uploaded on reconnect.
     if (serverOffline()) useOfflineQueue.getState().setRating(id, rating);
     return Promise.resolve();
   }
@@ -622,9 +623,9 @@ export function setRating(id: string, rating: number): Promise<void> {
 }
 
 /**
- * Búsqueda solo de álbumes (para filtrar al explorar). Va al servidor porque
- * la lista de álbumes está paginada: filtrar en cliente solo miraría las
- * páginas ya cargadas.
+ * Album-only search (for filtering while browsing). Goes to the server because
+ * the album list is paginated: filtering client-side would only look at
+ * already-loaded pages.
  */
 export function searchAlbums(query: string, count?: number): Promise<Subsonic.Album[]> {
   if (isOffline()) return Local.searchAlbums(query, count);
@@ -660,7 +661,7 @@ export async function addToPlaylist(playlistId: string, songId: string): Promise
     if (!serverOffline()) return Local.addToPlaylist(playlistId, songId);
     const ids = await currentPlaylistSongIds(playlistId);
     useOfflineQueue.getState().setPlaylist(playlistId, { songIds: [...ids, songId] });
-    // Guarda la metadata de la canción para poder mostrarla en la lista offline.
+    // Save the song's metadata so it can be displayed in the offline playlist.
     const catalog = await getDownloadsCatalog();
     const song = resolveSong(songId, catalog);
     if (song) useOfflineQueue.getState().rememberSongs([song]);
@@ -669,11 +670,11 @@ export async function addToPlaylist(playlistId: string, songId: string): Promise
   return Subsonic.addToPlaylist(auth(), playlistId, songId);
 }
 
-/** Crea una playlist vacía y devuelve su id (temporal si es offline). */
+/** Creates an empty playlist and returns its id (temporary if offline). */
 export function createPlaylist(name: string): Promise<string> {
   if (isOffline()) {
     if (!serverOffline()) return Local.createPlaylist(name);
-    // Id temporal: al reconectar se crea en el servidor y recibe su id real.
+    // Temporary id: on reconnect it's created on the server and gets its real id.
     const tmpId = `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     useOfflineQueue.getState().setPlaylist(tmpId, { created: true, name, songIds: [] });
     return Promise.resolve(tmpId);
@@ -686,7 +687,7 @@ export async function deletePlaylist(id: string): Promise<void> {
     if (!serverOffline()) return Local.deletePlaylist(id);
     await useOfflineQueue.getState().load();
     const entry = useOfflineQueue.getState().data.playlists?.[id];
-    // Creada offline (nunca llegó al servidor): se descarta sin más.
+    // Created offline (never reached the server): just discard it.
     if (entry?.created) useOfflineQueue.getState().removePlaylistEntry(id);
     else useOfflineQueue.getState().setPlaylist(id, { deleted: true });
     return;
@@ -714,7 +715,7 @@ async function mirrorPlaylist(
   const edit = useOfflineQueue.getState().data.playlists?.[id];
   const detail = mirror.playlistTracks?.[id];
 
-  // Metadatos de la lista: creada offline / espejo / al menos su nombre.
+  // Playlist metadata: created offline / mirror / at least its name.
   let playlist: Subsonic.Playlist;
   if (edit?.created) {
     playlist = { id, name: edit.name ?? '', comment: edit.comment, public: edit.public };
@@ -727,16 +728,16 @@ async function mirrorPlaylist(
   if (edit?.comment !== undefined) playlist = { ...playlist, comment: edit.comment };
   if (edit?.public !== undefined) playlist = { ...playlist, public: edit.public };
 
-  // Tracklist: la edición del outbox, o el del espejo.
+  // Tracklist: the outbox edit, or the mirror's.
   const songIds = edit?.songIds ?? detail?.songs.map((s) => s.id);
   if (!songIds) {
-    // Sin tracklist guardado ni edición: no hay canciones offline.
+    // No saved tracklist nor edit: no songs offline.
     return { playlist: { ...playlist, songCount: 0 }, songs: [] };
   }
   const songs = songIds
     .map((sid) => resolveSong(sid, catalog))
     .filter((s): s is Subsonic.Song => !!s);
-  // El conteo refleja lo que se muestra (annotate puede ocultar las no descargadas).
+  // The count reflects what is actually shown (annotate may hide non-downloaded ones).
   const annotated = annotate(songs);
   return { playlist: { ...playlist, songCount: annotated.length }, songs: annotated };
 }
@@ -767,7 +768,7 @@ export async function removeFromPlaylist(id: string, index: number): Promise<voi
   return Subsonic.removeFromPlaylist(auth(), id, index);
 }
 
-/** Reescribe el orden de una lista (arrastrar y soltar). */
+/** Reorder a playlist's tracks (drag and drop). */
 export async function reorderPlaylist(id: string, songIds: string[]): Promise<void> {
   if (isOffline()) {
     if (!serverOffline()) return Local.reorderPlaylist(id, songIds);
@@ -777,12 +778,12 @@ export async function reorderPlaylist(id: string, songIds: string[]): Promise<vo
   return Subsonic.reorderPlaylist(auth(), id, songIds);
 }
 
-// ── Fusión de varias bibliotecas (modo subconjunto) ──
+// ── Multi-library merging (subset mode) ──
 //
-// El API Subsonic solo filtra por una biblioteca por petición, así que cuando
-// hay varias activas se consulta cada una y se fusionan los resultados aquí.
+// The Subsonic API only filters by one library per request, so when multiple
+// are active, each is queried and the results are merged here.
 
-/** Baraja una copia (Fisher-Yates). */
+/** Shuffles a copy (Fisher-Yates). */
 function shuffled<T>(items: T[]): T[] {
   const a = items.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -792,7 +793,7 @@ function shuffled<T>(items: T[]): T[] {
   return a;
 }
 
-/** Quita duplicados por id conservando el primero visto. */
+/** Deduplicates by id, keeping the first seen. */
 function dedupeById<T extends { id: string }>(items: T[]): T[] {
   const seen = new Set<string>();
   const out: T[] = [];
@@ -804,7 +805,7 @@ function dedupeById<T extends { id: string }>(items: T[]): T[] {
   return out;
 }
 
-/** Trae la lista completa de álbumes paginando hasta el final. */
+/** Fetches the full list of albums by paginating to the end. */
 async function fetchAllAlbums(
   fetchPage: (size: number, offset: number) => Promise<Subsonic.Album[]>,
 ): Promise<Subsonic.Album[]> {
@@ -819,11 +820,11 @@ async function fetchAllAlbums(
 }
 
 /**
- * Fusiona las listas por-biblioteca (cada una ya ordenada por el servidor según
- * `type`). Cuando hay clave de orden disponible en el álbum (nombre, artista,
- * favorito) se reordena de verdad; para el resto (recientes/añadidos/frecuentes,
- * cuyos campos no vienen en el álbum) se intercalan en round-robin para no
- * amontonar una biblioteca antes que otra.
+ * Merges per-library lists (each already sorted by the server according to
+ * `type`). When a sort key is available on the album (name, artist,
+ * starred) the list is truly re-sorted; for the rest (recent/added/frequent,
+ * whose fields aren't on the album) they are interleaved round-robin to
+ * avoid piling up one library ahead of another.
  */
 function mergeAlbums(perFolder: Subsonic.Album[][], type: Subsonic.AlbumListType): Subsonic.Album[] {
   if (type === 'alphabeticalByName') {
@@ -837,7 +838,7 @@ function mergeAlbums(perFolder: Subsonic.Album[][], type: Subsonic.AlbumListType
   if (type === 'starred') {
     return dedupeById(perFolder.flat()).sort((a, b) => (b.starred ?? '').localeCompare(a.starred ?? ''));
   }
-  // Intercalado round-robin conservando el orden interno de cada biblioteca.
+  // Round-robin interleaving, preserving each library's internal order.
   const interleaved: Subsonic.Album[] = [];
   const max = Math.max(0, ...perFolder.map((f) => f.length));
   for (let i = 0; i < max; i++) {
@@ -849,9 +850,9 @@ function mergeAlbums(perFolder: Subsonic.Album[][], type: Subsonic.AlbumListType
 }
 
 /**
- * Sirve una página de la lista fusionada de varias bibliotecas. La lista
- * completa se cachea un rato para no rehacer el trabajo en cada página del
- * scroll infinito.
+ * Serves a page of the merged list from multiple libraries. The full list
+ * is cached for a while to avoid redoing the work on each page of the
+ * infinite scroll.
  */
 async function mergedAlbumPage(
   a: Subsonic.SubsonicAuth,

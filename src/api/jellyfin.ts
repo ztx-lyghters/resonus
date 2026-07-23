@@ -1,15 +1,16 @@
 /**
- * Cliente mínimo de la API de Jellyfin (API propia, no compatible Subsonic).
+ * Minimal Jellyfin API client (native API, not Subsonic-compatible).
  *
- * Autenticación por sesión: al iniciar sesión (`makeAuth`) se llama a
- * `/Users/AuthenticateByName` y se guardan el token y el id de usuario en el
- * perfil (`jfToken`/`jfUserId`); cada petición lleva la cabecera
- * `Authorization: MediaBrowser ... Token="..."`. Las URLs que consumen las
- * vistas nativas (carátulas, streaming) no pueden llevar cabeceras, así que
- * usan el parámetro `api_key`.
+ * Session-based authentication: on login (`makeAuth`),
+ * `/Users/AuthenticateByName` is called and the token and user id are saved in
+ * the profile (`jfToken`/`jfUserId`); each request carries the
+ * `Authorization: MediaBrowser ... Token="..."` header. URLs consumed by
+ * native views (cover art, streaming) cannot carry headers, so they use the
+ * `api_key` parameter.
  *
- * Las funciones exportadas replican las firmas de `subsonic.ts`; el módulo
- * `backend.ts` elige una implementación u otra según el tipo de servidor.
+ * The exported functions mirror the signatures of `subsonic.ts`; the
+ * `backend.ts` module picks one implementation or the other based on server
+ * type.
  */
 import * as Crypto from 'expo-crypto';
 
@@ -38,16 +39,16 @@ import {
 const CLIENT_VERSION = '1.0';
 const REQUEST_TIMEOUT_MS = 15000;
 
-/** Un tick de Jellyfin son 100 ns; los tiempos de la API vienen en ticks. */
+/** A Jellyfin tick is 100 ns; API times come in ticks. */
 const TICKS_PER_SECOND = 10_000_000;
 const TICKS_PER_MS = 10_000;
 
-/** Campos extra que hay que pedir explícitamente en cada tipo de item. */
+/** Extra fields that must be requested explicitly for each item type. */
 const ALBUM_FIELDS = 'ChildCount,DateCreated';
 const SONG_FIELDS = 'MediaSources,DateCreated,NormalizationGain,Genres';
 const PLAYLIST_FIELDS = 'ChildCount,DateCreated,DateLastMediaAdded';
 
-/** Subconjunto de BaseItemDto que usa la app. */
+/** Subset of BaseItemDto that the app uses. */
 interface JfItem {
   Id: string;
   Name?: string;
@@ -69,7 +70,7 @@ interface JfItem {
   ImageTags?: { Primary?: string };
   AlbumPrimaryImageTag?: string;
   UserData?: { IsFavorite?: boolean };
-  /** Ganancia de normalización en dB (análisis LUFS del servidor, 10.9+). */
+  /** Normalization gain in dB (server LUFS analysis, 10.9+). */
   NormalizationGain?: number;
   MediaSources?: {
     Container?: string;
@@ -106,7 +107,7 @@ function buildUrl(auth: SubsonicAuth, path: string, params: Params = {}): string
   return `${auth.serverUrl}${path}${qs ? `?${qs}` : ''}`;
 }
 
-/** Petición autenticada; devuelve el JSON (o undefined si no hay cuerpo). */
+/** Authenticated request; returns the JSON (or undefined if no body). */
 async function request<T>(
   auth: SubsonicAuth,
   path: string,
@@ -145,9 +146,9 @@ async function request<T>(
 }
 
 /**
- * Inicia sesión contra `/Users/AuthenticateByName` y construye el perfil.
- * El id de dispositivo se genera aquí y se conserva en el perfil (Jellyfin
- * asocia la sesión a ese id).
+ * Logs in against `/Users/AuthenticateByName` and builds the profile.
+ * The device id is generated here and kept in the profile (Jellyfin
+ * associates the session with that id).
  */
 export async function makeAuth(
   serverUrl: string,
@@ -199,16 +200,16 @@ export async function makeAuth(
   };
 }
 
-/** Comprueba que el token de sesión sigue siendo válido. */
+/** Checks that the session token is still valid. */
 export async function ping(auth: SubsonicAuth): Promise<void> {
   await request(auth, '/Users/Me');
 }
 
-// ── Mapeo de BaseItemDto a los modelos de la app ──
+// ── Mapping BaseItemDto to app models ──
 
 /**
- * Nuestro modelo marca favoritos con la fecha en que se fijaron; Jellyfin no
- * la expone, así que se usa la fecha de alta del item como aproximación.
+ * Our model marks favorites with the date they were set; Jellyfin does not
+ * expose it, so the item's creation date is used as an approximation.
  */
 function favDate(it: JfItem): string | undefined {
   return it.UserData?.IsFavorite ? (it.DateCreated ?? '1970-01-01T00:00:00.000Z') : undefined;
@@ -225,8 +226,8 @@ function toSong(it: JfItem): Song {
     albumId: it.AlbumId,
     artistId: it.ArtistItems?.[0]?.Id ?? it.AlbumArtists?.[0]?.Id,
     artists: (it.ArtistItems ?? it.AlbumArtists)?.map((a) => ({ id: a.Id, name: a.Name ?? '' })),
-    // La carátula de una canción suele ser la de su álbum; la propia solo si
-    // el fichero trae imagen embebida.
+    // A song's cover art is usually its album's; its own only if
+    // the file has embedded art.
     coverArt:
       it.AlbumPrimaryImageTag && it.AlbumId
         ? it.AlbumId
@@ -243,8 +244,8 @@ function toSong(it: JfItem): Song {
     bitDepth: audio?.BitDepth,
     samplingRate: audio?.SampleRate,
     year: it.ProductionYear,
-    // Jellyfin no expone ReplayGain por pista/álbum; su NormalizationGain
-    // (LUFS) hace el mismo papel como ganancia de pista.
+    // Jellyfin does not expose per-track/per-album ReplayGain; its
+    // NormalizationGain (LUFS) serves the same role as track gain.
     replayGain:
       typeof it.NormalizationGain === 'number'
         ? { trackGain: it.NormalizationGain }
@@ -286,7 +287,7 @@ function toPlaylist(it: JfItem): Playlist {
   };
 }
 
-// ── Catálogo ──
+// ── Catalog ──
 
 const ALBUM_SORT: Record<AlbumListType, { SortBy: string; SortOrder?: string; Filters?: string }> =
   {
@@ -299,7 +300,7 @@ const ALBUM_SORT: Record<AlbumListType, { SortBy: string; SortOrder?: string; Fi
     starred: { SortBy: 'SortName', Filters: 'IsFavorite' },
   };
 
-/** Jellyfin tiene sus propias librerías, pero el filtro por carpeta es Subsonic. */
+/** Jellyfin has its own libraries, but folder filtering is Subsonic. */
 export async function getMusicFolders(_auth: SubsonicAuth): Promise<MusicFolder[]> {
   return [];
 }
@@ -393,7 +394,7 @@ export async function getArtist(
   return { artist: toArtist(item), albums: (albums.Items ?? []).map(toAlbum) };
 }
 
-/** Álbumes donde el artista colabora sin ser el artista del álbum ("Aparece en"). */
+/** Albums where the artist collaborates without being the album artist ("Appears on"). */
 export async function getAppearsOn(
   auth: SubsonicAuth,
   artistId: string,
@@ -426,7 +427,7 @@ export async function getArtistInfo(auth: SubsonicAuth, id: string): Promise<Art
   };
 }
 
-/** Canciones más reproducidas de un artista (Jellyfin filtra por nombre). */
+/** Most played songs by an artist (Jellyfin filters by name). */
 export async function getTopSongs(
   auth: SubsonicAuth,
   artist: string,
@@ -444,7 +445,7 @@ export async function getTopSongs(
   return (res.Items ?? []).map(toSong);
 }
 
-/** Canciones más escuchadas (Jellyfin ordena por PlayCount directamente). */
+/** Most listened songs (Jellyfin sorts by PlayCount directly). */
 export async function getMostPlayedSongs(
   auth: SubsonicAuth,
   size = 50,
@@ -462,7 +463,7 @@ export async function getMostPlayedSongs(
   return (res.Items ?? []).map(toSong);
 }
 
-/** Canciones al azar de toda la biblioteca (la mezcla de Inicio). */
+/** Random songs from the entire library (the Home mix). */
 export async function getRandomSongs(
   auth: SubsonicAuth,
   size = 200,
@@ -480,7 +481,7 @@ export async function getRandomSongs(
   return (res.Items ?? []).map(toSong);
 }
 
-/** Canciones parecidas a una dada vía Instant Mix (autoplay / radio). */
+/** Songs similar to a given one via Instant Mix (autoplay / radio). */
 export async function getSimilarSongs(
   auth: SubsonicAuth,
   id: string,
@@ -491,11 +492,11 @@ export async function getSimilarSongs(
     Limit: count + 1,
     Fields: SONG_FIELDS,
   });
-  // El mix incluye la canción semilla; Subsonic no la devuelve.
+  // The mix includes the seed song; Subsonic does not return it.
   return (res.Items ?? []).filter((it) => it.Id !== id).slice(0, count).map(toSong);
 }
 
-/** Búsqueda solo de álbumes: una petición, no las tres de `search`. */
+/** Album-only search: one request, not the three of `search`. */
 export async function searchAlbums(
   auth: SubsonicAuth,
   query: string,
@@ -537,7 +538,7 @@ export async function search(
   };
 }
 
-// ── Favoritos ──
+// ── Favorites ──
 
 export async function getStarred(auth: SubsonicAuth, _musicFolderId?: string): Promise<Starred> {
   const fav = (kind: 'MusicAlbum' | 'Audio') =>
@@ -559,7 +560,7 @@ export async function getStarred(auth: SubsonicAuth, _musicFolderId?: string): P
   };
 }
 
-/** En Jellyfin los favoritos van por item, sin distinguir tipo. */
+/** In Jellyfin, favorites are per item, without distinguishing type. */
 export async function star(auth: SubsonicAuth, id: string, _type: StarType = 'song'): Promise<void> {
   await request(auth, `/Users/${auth.jfUserId}/FavoriteItems/${id}`, {}, { method: 'POST' });
 }
@@ -573,15 +574,15 @@ export async function unstar(
 }
 
 /**
- * Jellyfin no expone la valoración de 1-5 estrellas de Subsonic (solo un
- * me gusta/no me gusta). El rating bar se oculta para estos perfiles, así que
- * esto es un no-op y no debería llegar a llamarse.
+ * Jellyfin does not expose Subsonic's 1-5 star rating (only a
+ * like/dislike). The rating bar is hidden for these profiles, so this is a
+ * no-op and should never be called.
  */
 export function setRating(_auth: SubsonicAuth, _id: string, _rating: number): Promise<void> {
   return Promise.resolve();
 }
 
-// ── Listas de reproducción ──
+// ── Playlists ──
 
 export async function getPlaylists(auth: SubsonicAuth): Promise<Playlist[]> {
   const res = await request<JfItems>(auth, `/Users/${auth.jfUserId}/Items`, {
@@ -635,7 +636,7 @@ export async function deletePlaylist(auth: SubsonicAuth, id: string): Promise<vo
   await request(auth, `/Items/${id}`, {}, { method: 'DELETE' });
 }
 
-/** Renombra la lista (Jellyfin 10.9+; no tiene campo de descripción). */
+/** Renames the playlist (Jellyfin 10.9+; no description field). */
 export async function updatePlaylist(
   auth: SubsonicAuth,
   id: string,
@@ -648,7 +649,7 @@ export async function updatePlaylist(
   await request(auth, `/Playlists/${id}`, {}, { method: 'POST', body });
 }
 
-/** Quita una canción por posición: hay que resolver antes su id de entrada. */
+/** Removes a song by position: its entry id must be resolved first. */
 export async function removeFromPlaylist(
   auth: SubsonicAuth,
   id: string,
@@ -664,7 +665,7 @@ export async function removeFromPlaylist(
   await request(auth, `/Playlists/${id}/Items`, { EntryIds: entryId }, { method: 'DELETE' });
 }
 
-// ── Biblioteca del servidor ──
+// ── Server library ──
 
 interface JfTask {
   Key?: string;
@@ -682,9 +683,9 @@ export async function startScan(auth: SubsonicAuth): Promise<ScanStatus> {
   return { scanning: true, count: 0 };
 }
 
-// ── Letras ──
+// ── Lyrics ──
 
-/** Jellyfin no tiene búsqueda de letra por artista+título. */
+/** Jellyfin has no lyrics search by artist+title. */
 export async function getLyrics(
   _auth: SubsonicAuth,
   _artist: string,
@@ -693,7 +694,7 @@ export async function getLyrics(
   return '';
 }
 
-/** Letra del item (`/Audio/{id}/Lyrics`, 10.9+); tiempos en ticks. */
+/** Item lyrics (`/Audio/{id}/Lyrics`, 10.9+); times in ticks. */
 export async function getLyricsBySongId(
   auth: SubsonicAuth,
   id: string,
@@ -702,7 +703,7 @@ export async function getLyricsBySongId(
   try {
     res = await request(auth, `/Audio/${id}/Lyrics`);
   } catch {
-    return null; // 404 si la canción no tiene letra (o servidor < 10.9)
+    return null; // 404 if the song has no lyrics (or server < 10.9)
   }
   const lines = res?.Lyrics ?? [];
   if (lines.length === 0) return null;
@@ -716,9 +717,9 @@ export async function getLyricsBySongId(
   };
 }
 
-// ── Sin equivalente en Jellyfin ──
+// ── No Jellyfin equivalent ──
 
-/** Jellyfin no guarda la cola en el servidor; queda la copia del dispositivo. */
+/** Jellyfin does not save the queue on the server; the device copy remains. */
 export async function savePlayQueue(
   _auth: SubsonicAuth,
   _ids: string[],
@@ -730,12 +731,12 @@ export async function getPlayQueue(_auth: SubsonicAuth): Promise<SavedQueue | nu
   return null;
 }
 
-/** Jellyfin no tiene emisoras de radio por internet. */
+/** Jellyfin has no internet radio stations. */
 export async function getRadioStations(_auth: SubsonicAuth): Promise<RadioStation[]> {
   return [];
 }
 
-/** Jellyfin no soporta gestionar emisoras de radio. */
+/** Jellyfin does not support managing radio stations. */
 export async function createRadioStation(
   _auth: SubsonicAuth,
   _name: string,
@@ -759,21 +760,21 @@ export async function deleteRadioStation(_auth: SubsonicAuth, _id: string): Prom
   throw new Error('Jellyfin no soporta emisoras de radio');
 }
 
-// ── Reproducción ──
+// ── Playback ──
 
-/** Marca la canción como reproducida (actualiza contador y fecha). */
+/** Marks the song as played (updates counter and date). */
 export async function scrobble(auth: SubsonicAuth, id: string, submission = true): Promise<void> {
-  // Jellyfin no tiene un "now playing" barato (requiere sesiones de
-  // reproducción completas); solo se marca la escucha real.
+  // Jellyfin has no cheap "now playing" (requires full playback
+  // sessions); only actual playback is marked.
   if (!submission) return;
   try {
     await request(auth, `/Users/${auth.jfUserId}/PlayedItems/${id}`, {}, { method: 'POST' });
   } catch {
-    // El scrobble es opcional; ignoramos sus errores.
+    // Scrobbling is optional; ignore its errors.
   }
 }
 
-/** URL de la carátula. `id` puede venir de un álbum, canción o playlist. */
+/** Cover art URL. `id` can come from an album, song, or playlist. */
 export function coverArtUrl(
   auth: SubsonicAuth,
   id: string | undefined,
@@ -788,18 +789,19 @@ export function coverArtUrl(
   });
 }
 
-/** URL de descarga del fichero original, sin transcodificar. */
+/** Download URL of the original file, without transcoding. */
 export function downloadUrl(auth: SubsonicAuth, id: string): string {
   return buildUrl(auth, `/Items/${id}/Download`, { api_key: auth.jfToken });
 }
 
 /**
- * URL de streaming (`/Audio/{id}/universal`): el servidor sirve el fichero
- * tal cual si el contenedor está soportado y cabe en el bitrate máximo, y si
- * no transcodifica a mp3. `maxBitRate` en kbps, como en Subsonic.
+ * Streaming URL (`/Audio/{id}/universal`): the server serves the file as-is
+ * if the container is supported and fits within the max bitrate, otherwise
+ * transcodes to mp3. `maxBitRate` in kbps, as in Subsonic.
  */
-// `_format` (códec Subsonic) no aplica en Jellyfin: su endpoint `universal`
-// negocia contenedor/códec con sus propios parámetros. Se acepta por firma.
+// `_format` (Subsonic codec) does not apply to Jellyfin: its `universal`
+// endpoint negotiates container/codec with its own parameters. Accepted for
+// signature compatibility.
 export function streamUrl(
   auth: SubsonicAuth,
   id: string,

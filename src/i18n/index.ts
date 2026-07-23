@@ -1,13 +1,15 @@
 /**
- * i18n mínimo y reactivo. El texto en INGLÉS es la clave; cada idioma extra
- * tiene su diccionario JSON en `locales/` (clave inglesa → traducción).
- * `useT()` devuelve una función `t` ligada al idioma actual (del store de
- * ajustes), por lo que cambiar el idioma re-renderiza y traduce al vuelo.
+ * Minimal reactive i18n. The ENGLISH text is the key; each extra language has
+ * its JSON dictionary in `locales/` (English key → translation).
+ * `useT()` returns a `t` function bound to the current language (from the
+ * settings store), so changing the language re-renders and translates on the
+ * fly.
  *
- * Para añadir un idioma nuevo: una sola fila en `src/i18n/languages.ts` (la
- * fuente única de idiomas) más su `locales/<code>.json`. Si su regla de plural
- * no es binaria, añade sus formas en `PLURALS` y su función en `PLURAL_RULE`.
- * Ver la guía en TRANSLATING.md. El inglés es la clave; lo no traducido cae a él.
+ * To add a new language: a single row in `src/i18n/languages.ts` (the single
+ * source of truth for languages) plus its `locales/<code>.json`. If its plural
+ * rule is not binary, add its forms in `PLURALS` and its function in
+ * `PLURAL_RULE`. See the guide in TRANSLATING.md. English is the key;
+ * untranslated strings fall back to it.
  */
 import { useCallback } from 'react';
 
@@ -27,24 +29,24 @@ function translate(text: string, lang: Language, vars?: Vars): string {
   return out;
 }
 
-/** Traducción fuera de componentes (p. ej. en stores). Lee el idioma actual. */
+/** Translation outside components (e.g. in stores). Reads the current language. */
 export function tg(text: string, vars?: Vars): string {
   return translate(text, useSettings.getState().language, vars);
 }
 
 export type TFunction = (text: string, vars?: Vars) => string;
 
-/** Hook reactivo: devuelve `t` ligada al idioma actual. */
+/** Reactive hook: returns `t` bound to the current language. */
 export function useT(): TFunction {
   const lang = useSettings((s) => s.language);
   return useCallback((text: string, vars?: Vars) => translate(text, lang, vars), [lang]);
 }
 
 /**
- * Formas plurales por idioma para los contadores. El inglés ('en') es
- * obligatorio (fallback); el resto son opcionales. Cada idioma da tantas formas
- * como categorías use su regla (ver `PLURAL_RULE`): 2 para en/es/ca/de
- * (uno/resto), 3 para idiomas como el ruso (one/few/many).
+ * Per-language plural forms for counters. English ('en') is mandatory
+ * (fallback); the rest are optional. Each language provides as many forms as
+ * its rule uses (see `PLURAL_RULE`): 2 for en/es/ca/de (one/other), 3 for
+ * languages like Russian (one/few/many).
  */
 const PLURALS: Record<string, Partial<Record<Language, string[]>>> = {
   song: { es: ['canción', 'canciones'], en: ['song', 'songs'], de: ['Titel', 'Titel'], ca: ['cançó', 'cançons'], ru: ['композиция', 'композиции', 'композиций'] },
@@ -52,14 +54,14 @@ const PLURALS: Record<string, Partial<Record<Language, string[]>>> = {
 };
 
 /**
- * Regla de plural por idioma: dado `n`, devuelve el índice de forma en PLURALS.
- * Los idiomas que no estén aquí usan la binaria (uno / resto), correcta para
- * en/es/ca/de. Para añadir uno con más formas se registra su función aquí y se
- * dan sus formas en PLURALS.
+ * Per-language plural rule: given `n`, returns the form index in PLURALS.
+ * Languages not listed here use the binary rule (one / other), correct for
+ * en/es/ca/de. To add one with more forms, register its function here and
+ * provide its forms in PLURALS.
  */
 const PLURAL_RULE: Partial<Record<Language, (n: number) => number>> = {
-  // Ruso (CLDR): 3 formas [one, few, many]. one 1,21,31… · few 2–4,22–24… ·
-  // many 0,5–20,25… (los 11–14 caen en many por las excepciones).
+  // Russian (CLDR): 3 forms [one, few, many]. one 1,21,31… · few 2–4,22–24… ·
+  // many 0,5–20,25… (11–14 fall into many due to exceptions).
   ru: (n) => {
     const d = n % 10;
     const c = n % 100;
@@ -76,17 +78,17 @@ function pluralIndex(lang: Language, n: number): number {
 
 function countLabel(kind: keyof typeof PLURALS, n: number, lang: Language): string {
   const forms = PLURALS[kind][lang] ?? PLURALS[kind].en!;
-  // Acota por si la regla pide un índice que ese idioma no rellenó.
+  // Clamp in case the rule asks for an index that language didn't fill in.
   const idx = Math.min(pluralIndex(lang, n), forms.length - 1);
   return `${n} ${forms[idx]}`;
 }
 
-/** "N canción/canciones" (o su equivalente) según idioma. */
+/** "N song/songs" (or equivalent) per language. */
 export function songsLabel(n: number, lang: Language): string {
   return countLabel('song', n, lang);
 }
 
-/** "N álbum/álbumes" (o su equivalente) según idioma. */
+/** "N album/albums" (or equivalent) per language. */
 export function albumsLabel(n: number, lang: Language): string {
   return countLabel('album', n, lang);
 }

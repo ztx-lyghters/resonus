@@ -1,4 +1,4 @@
-/** Fila de una canción dentro de una lista (álbum, playlist, resultados). */
+/** Song row inside a list (album, playlist, search results). */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQueryClient } from '@tanstack/react-query';
 import { memo, useRef } from 'react';
@@ -27,35 +27,35 @@ import { FavoriteButton } from './FavoriteButton';
 interface Props {
   song: Song;
   /**
-   * Número opcional a la izquierda (p. ej. la pista en un álbum). Convive con
-   * la carátula: número y luego portada (estilo "Populares" de Spotify).
+   * Optional number on the left (e.g. the track number on an album). Coexists
+   * with the cover: number then cover (Spotify's "Popular" style).
    */
   position?: number;
   isCurrent?: boolean;
-  /** Contexto de playlist (para permitir "quitar de la lista" en el menú). */
+  /** Playlist context (to allow "remove from list" in the menu). */
   menuContext?: SongMenuContext;
   /**
-   * Permite mostrar el corazón en las canciones favoritas (por defecto sí).
-   * Solo aparece si la canción está marcada como favorita (estilo Spotify).
-   * En offline se pasa `false` (no hay favoritos de servidor).
+   * Allows showing the heart for favorited songs (default true). Only appears
+   * if the song is marked as favorite (Spotify style). Offline passes `false`
+   * (no server favorites).
    */
   showFavorite?: boolean;
-  /** Muestra el botón de menú ⋯ (por defecto sí; funciona también offline). */
+  /** Shows the ⋯ menu button (default true; works offline too). */
   showMenu?: boolean;
-  /** Muestra la mini carátula del álbum a la izquierda (estilo Spotify). */
+  /** Shows the mini album cover on the left (Spotify style). */
   showArtwork?: boolean;
-  /** Modo selección múltiple: círculo de marcado y sin swipe/menú/corazón. */
+  /** Multi-select mode: check circle and no swipe/menu/heart. */
   selecting?: boolean;
-  /** Marcada dentro del modo selección. */
+  /** Marked in selection mode. */
   selected?: boolean;
   onLongPress?: () => void;
   onPress: () => void;
-  /** Inicio de la pulsación (antes de onPress/onLongPress); lo usa la lista
-   *  para descartar el onPress que sigue al long-press de entrar en selección. */
+  /** Press start (before onPress/onLongPress); used by the list to discard the
+   *  onPress that follows the long-press to enter selection. */
   onPressIn?: () => void;
 }
 
-/** Icono de la franja de swipe según la acción configurada. */
+/** Swipe strip icon according to the configured action. */
 const SWIPE_ICON: Record<Exclude<SwipeAction, 'off'>, keyof typeof Ionicons.glyphMap> = {
   queue: 'list',
   next: 'play-forward',
@@ -64,9 +64,9 @@ const SWIPE_ICON: Record<Exclude<SwipeAction, 'off'>, keyof typeof Ionicons.glyp
 };
 
 /**
- * Franja de acción que asoma tras la fila durante el swipe. Invisible en
- * reposo: la fila es transparente (deja pasar el degradado de la cabecera,
- * estilo Spotify), así que la franja solo puede existir mientras dura el gesto.
+ * Action strip that peeks out behind the row during swipe. Invisible at rest:
+ * the row is transparent (lets the header gradient through, Spotify style),
+ * so the strip can only exist while the gesture lasts.
  */
 function SwipeActionPanel({
   progress,
@@ -75,7 +75,7 @@ function SwipeActionPanel({
 }: {
   progress: SharedValue<number>;
   icon: keyof typeof Ionicons.glyphMap;
-  /** Lado donde asoma la franja: el icono se pega al borde por el que entra. */
+  /** Side where the strip peeks out: the icon sticks to the edge it enters from. */
   side: 'left' | 'right';
 }) {
   const visible = useAnimatedStyle(() => ({ opacity: progress.value > 0.01 ? 1 : 0 }));
@@ -118,21 +118,21 @@ function TrackRowBase({
   const toast = useToast((s) => s.show);
   const swipeRef = useRef<SwipeableMethods>(null);
 
-  // Favorito: la lista central de favoritos (`favIds`) es la fuente fiable —
-  // refleja marcar/desmarcar al invalidarse. El `starred` de la canción (que
-  // getAlbum trae pero NO refresca) solo se usa como respaldo mientras esa
-  // lista aún carga; si no, al desmarcar en un álbum el corazón se quedaba
-  // pegado (el OR con `song.starred` nunca dejaba de ser true).
+  // Favorite: the central favorites list (`favIds`) is the reliable source —
+  // it reflects mark/unmark upon invalidation. The song's `starred` (which
+  // getAlbum fetches but does NOT refresh) is only used as a fallback while that
+  // list is still loading; otherwise, unmarking on an album would keep the heart
+  // visible (the OR with `song.starred` never became false).
   const favIds = useFavoriteIds(showFavorite);
   const favorited = showFavorite && (favIds ? favIds.has(song.id) : !!song.starred);
   const downloaded = useDownloads((s) => !!s.files[song.id]);
-  // No descargada en el espejo offline: se ve pero en gris y no se reproduce.
+  // Not downloaded in the offline mirror: visible but grayed out and not playable.
   const unavailable = !!song.unavailable;
 
-  // Swipe a la derecha = acción configurable (gesto estilo Spotify). La fila
-  // vuelve sola a su sitio; la franja de fondo solo asoma durante el gesto.
-  // OJO: el gesto solo convive bien con el scroll si la lista contenedora es
-  // de react-native-gesture-handler (FlatList/ScrollView de esa librería).
+  // Swipe right = configurable action (Spotify-style gesture). The row returns
+  // on its own; the background strip only peaks during the gesture.
+  // NOTE: the gesture only coexists well with scroll if the parent list uses
+  // react-native-gesture-handler (FlatList/ScrollView from that library).
   async function toggleFavoriteSwipe() {
     const next = !favorited;
     try {
@@ -171,7 +171,7 @@ function TrackRowBase({
   return (
     <ReanimatedSwipeable
       ref={swipeRef}
-      // La franja izquierda la abre el swipe a la DERECHA (y viceversa).
+      // The left strip is opened by swiping RIGHT (and vice versa).
       renderLeftActions={(progress) =>
         swipeAction === 'off' ? null : (
           <SwipeActionPanel progress={progress} icon={SWIPE_ICON[swipeAction]} side="left" />
@@ -182,10 +182,10 @@ function TrackRowBase({
           <SwipeActionPanel progress={progress} icon={SWIPE_ICON[swipeLeftAction]} side="right" />
         )
       }
-      // Menos sensible a propósito: `dragOffsetFrom…Edge` obliga a un recorrido
-      // horizontal claro antes de activarse (así un scroll vertical con algo de
-      // lateral ya no lo dispara sin querer), y el `threshold` pide arrastrar
-      // bastante para confirmar la acción.
+      // Intentionally less sensitive: `dragOffsetFrom…Edge` requires a clear
+      // horizontal path before activating (so a vertical scroll with some
+      // lateral movement no longer triggers it accidentally), and the
+      // `threshold` requires a substantial drag to confirm the action.
       dragOffsetFromLeftEdge={30}
       dragOffsetFromRightEdge={30}
       leftThreshold={90}
@@ -195,18 +195,18 @@ function TrackRowBase({
       overshootRight={false}
       enabled={!selecting && !unavailable && (swipeAction !== 'off' || swipeLeftAction !== 'off')}
       onSwipeableWillOpen={(direction) => {
-        // `direction` es la dirección del GESTO (no el lado del panel):
-        // deslizar a la derecha (abre la franja izquierda) llega como RIGHT.
+        // `direction` is the GESTURE direction (not the panel side):
+        // swiping right (opens the left strip) arrives as RIGHT.
         if (direction === SwipeDirection.RIGHT) runSwipeAction(swipeAction);
         else if (direction === SwipeDirection.LEFT) runSwipeAction(swipeLeftAction);
       }}
     >
     <Pressable
-      // Sin feedback visual al pulsar (como Spotify): el "pressed" saltaba con
-      // el dedo al scrollear y parecía que se estaban pulsando las filas.
-      // No descargada: atenuada y con aviso al tocar FUERA de selección; dentro
-      // de selección participa normal (mantener pulsado entra, tocar marca) para
-      // poder añadirla a una lista aunque no se pueda reproducir.
+      // No visual feedback on press (like Spotify): the "pressed" effect
+      // triggered while scrolling and made it look like rows were being tapped.
+      // Not downloaded: dimmed and with warning on tap OUTSIDE selection; inside
+      // selection it behaves normally (long-press enters, tap marks) so it can
+      // be added to a list even though it can't be played.
       style={[styles.row, unavailable && !selecting && styles.dimmed]}
       onPressIn={unavailable && !selecting ? undefined : onPressIn}
       onPress={unavailable && !selecting ? () => toast(t('Not available offline')) : onPress}
@@ -283,15 +283,15 @@ function sameMenuContext(a?: SongMenuContext, b?: SongMenuContext): boolean {
 }
 
 /**
- * Comparación para `memo`: re-renderiza solo si cambia algo que la fila pinta o
- * cómo se comporta. Los callbacks (`onPress`/`onPressIn`) se recrean en cada
- * render del padre, pero su conducta depende solo de `song` y del estado ya
- * comparado aquí (selecting/selected), no de su identidad, así que esa se
- * ignora a propósito; de `onLongPress` solo importa si está activo (permite
- * entrar en selección) o no. Sin esto, cambiar de canción re-renderizaba TODAS
- * las filas visibles (cada una recibe closures nuevas), no solo las dos que
- * cambian de `isCurrent`. Las suscripciones internas (descargas, ajustes,
- * favoritos) siguen re-renderizando su fila por su cuenta cuando toca.
+ * `memo` comparison: re-renders only if something the row paints or how it
+ * behaves changes. Callbacks (`onPress`/`onPressIn`) are recreated on every
+ * parent render, but their behavior depends only on `song` and on the state
+ * already compared here (selecting/selected), not on their identity, so that
+ * is intentionally ignored; for `onLongPress` only whether it's active (allows
+ * entering selection) matters. Without this, changing the current song would
+ * re-render ALL visible rows (each receives new closures), not just the two
+ * whose `isCurrent` changes. Internal subscriptions (downloads, settings,
+ * favorites) keep re-rendering their row on their own when needed.
  */
 function propsEqual(a: Props, b: Props): boolean {
   return (
@@ -316,9 +316,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.sm,
     gap: spacing.md,
-    // Transparente: el degradado de color de la cabecera (álbum/playlist) se
-    // cuela bajo las primeras filas, como en Spotify. La acción de swipe ya no
-    // necesita quedar tapada: se oculta sola en reposo (ver QueueAction).
+    // Transparent: the header color gradient (album/playlist) seeps through
+    // the first rows, like Spotify. The swipe action no longer needs to be
+    // covered: it hides on its own at rest (see QueueAction).
   },
   queueAction: {
     justifyContent: 'center',
@@ -336,9 +336,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Separa el icono de tres puntos del borde derecho y amplía el área de toque
-  // (estilo Spotify): el padding vertical hace que casi todo el alto de la fila
-  // por su lado sea pulsable, así se atina mucho mejor con el dedo.
+  // Separates the three-dot icon from the right edge and expands the touch area
+  // (Spotify style): the vertical padding makes almost the entire row height
+  // on that side tappable, so it's much easier to hit with a finger.
   menuButton: {
     paddingLeft: spacing.md,
     paddingRight: spacing.md,
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 1,
   },
-  // Canción no disponible sin conexión (espejo): atenuada y no pulsable.
+  // Song not available offline (mirror): dimmed and not tappable.
   dimmed: {
     opacity: 0.4,
   },

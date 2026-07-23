@@ -1,7 +1,7 @@
 /**
- * Tarjeta de artista para las cuadrículas y carruseles: foto redonda con el
- * nombre debajo, centrado. El gemelo de `AlbumCard`, que ya existía; los
- * artistas se pintaban a mano en cada pantalla.
+ * Artist card for grids and carousels: round photo with the name below,
+ * centered. The twin of `AlbumCard`, which already existed; artists were
+ * previously drawn by hand on each screen.
  */
 import { Link } from 'expo-router';
 import { Pressable, StyleSheet, Text } from 'react-native';
@@ -20,8 +20,8 @@ export function ArtistCard({ artist, width = 150 }: Props) {
 
   return (
     <Link href={`/artist/${artist.id}`} asChild>
-      {/* expo-router fusiona el estilo del Link en este hijo; debe ser un
-          único objeto, no un array, así que lo aplanamos. */}
+      {/* expo-router merges the Link style into this child; it must be a
+          single object, not an array, so we flatten it. */}
       <Pressable style={StyleSheet.flatten([styles.container, { width }])}>
         <Cover uri={cover} size={width} rounded />
         <Text style={styles.name} numberOfLines={1}>

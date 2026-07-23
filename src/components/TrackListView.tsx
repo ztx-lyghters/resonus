@@ -1,7 +1,7 @@
 /**
- * Cabecera estilo Spotify (degradado de color dominante + carátula que se
- * desvanece al hacer scroll y barra fija que se colapsa) y la lista de
- * canciones. Compartida por las pantallas de álbum y de lista de reproducción.
+ * Spotify-style header (dominant color gradient + cover that fades on scroll
+ * and a collapsing fixed bar) and the song list. Shared by album and playlist
+ * screens.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,8 +20,8 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
-// La lista debe ser de gesture-handler para que el swipe-a-cola de las filas
-// no pelee con el scroll vertical (con la FlatList de RN el gesto sale flaky).
+// The list must use gesture-handler so the row swipe-to-queue doesn't fight
+// the vertical scroll (with RN's FlatList the gesture is flaky).
 import {
   FlatList as GHFlatList,
   Gesture,
@@ -46,11 +46,11 @@ import { TrackRow } from './TrackRow';
 
 const COVER = Math.min(Dimensions.get('window').width * 0.58, 250);
 const TOPBAR_H = 48;
-/** Alto de la barra de búsqueda oculta (estilo "Find in playlist" de Spotify),
- * con el aire de separación respecto a la carátula incluido. */
+/** Height of the hidden search bar ("Find in playlist" Spotify style),
+ * including the separation gap from the cover. */
 const SEARCH_H = 72;
 
-/** Normaliza para buscar: minúsculas y sin acentos. */
+/** Normalizes for searching: lowercase and without accents. */
 function normQ(s: string): string {
   return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
@@ -58,80 +58,80 @@ function normQ(s: string): string {
 interface Props {
   title: string;
   subtitle?: string;
-  /** Si se indica, el subtítulo lleva al artista al pulsarlo. */
+  /** If provided, the subtitle links to the artist when tapped. */
   artistId?: string;
-  /** Artistas del álbum; con varios, el subtítulo abre el selector. */
+  /** Album artists; with multiple, the subtitle opens the picker. */
   artists?: { id: string; name: string }[];
-  /** Foto circular del artista junto al subtítulo (estilo Spotify). */
+  /** Circular artist photo next to the subtitle (Spotify style). */
   artistImageUri?: string;
-  /** Línea de metadatos (p. ej. "Álbum · 2021 · 12 canciones · 48 min"). */
+  /** Metadata line (e.g. "Album · 2021 · 12 songs · 48 min"). */
   meta?: string;
   coverUri?: string;
-  /** Carátula personalizada (p. ej. el arte de Favoritos); sustituye a coverUri. */
+  /** Custom cover art (e.g. Favorites artwork); replaces coverUri. */
   renderCover?: (size: number) => ReactNode;
-  /** Si se pasa, la carátula es pulsable (p. ej. abrir el visor a pantalla completa). */
+  /** If provided, the cover is tappable (e.g. open the fullscreen viewer). */
   onCoverPress?: () => void;
-  /** Oculta la carátula de la cabecera y recupera ese espacio (p. ej. Favoritos). */
+  /** Hides the header cover and reclaims that space (e.g. Favorites). */
   hideCover?: boolean;
-  /** Color del degradado/barra si no hay carátula con color dominante. */
+  /** Gradient/bar color if there's no cover with a dominant color. */
   accentColor?: string;
   songs: Song[];
   currentId?: string;
-  /** Numera las pistas (útil en álbumes). */
+  /** Numbers the tracks (useful on albums). */
   numbered?: boolean;
   /**
-   * Cabecera de disco a pintar ENCIMA de la fila en ese índice (álbumes
-   * multi-disco): mapa índice → etiqueta ("Disc 2", título del disco…). Solo se
-   * usa sin filtro de búsqueda activo (con resultados filtrados no hay discos).
+   * Disc header to render ABOVE the row at that index (multi-disc albums):
+   * index → label map ("Disc 2", disc title...). Only used without an active
+   * search filter (filtered results have no discs).
    */
   discHeaders?: Record<number, string>;
-  /** Si se indica, muestra un corazón para marcar el álbum como favorito. */
+  /** If provided, shows a heart to mark the album as a favorite. */
   favorite?: { id: string; type: StarType; starred: boolean };
-  /** Botón de descarga sin conexión (cabecera de álbum/playlist). */
+  /** Offline download button (album/playlist header). */
   download?: {
     status: 'none' | 'active' | 'done';
-    /** Progreso 0..1 mientras `status` es 'active'. */
+    /** Progress 0..1 while `status` is 'active'. */
     progress: number;
     onPress: () => void;
   };
-  /** Si se indica, muestra un botón ⋯. */
+  /** If provided, shows a ⋯ button. */
   onMenu?: () => void;
-  /** Si se indica, el menú de cada canción permite quitarla de esta playlist. */
+  /** If provided, each song's menu allows removing it from this playlist. */
   playlistId?: string;
-  /** Índice real (en el servidor) de cada canción, por si la lista va reordenada. */
+  /** Real server index for each song, in case the list is reordered. */
   playlistIndices?: number[];
-  /** Si se indica, muestra un botón de orden a la izquierda del ⋯. */
+  /** If provided, shows a sort button to the left of ⋯. */
   onSort?: () => void;
   /**
-   * Fila de acción bajo las demás (estilo Spotify), p. ej. "+ Añadir…" en
-   * Favoritos. El icono es "+" salvo que se indique otro (la mezcla la usa para
-   * rebarajar).
+   * Action row below the others (Spotify style), e.g. "+ Add…" in Favorites.
+   * The icon is "+" unless another is specified (the mix screen uses it to
+   * reshuffle).
    */
   addAction?: { label: string; icon?: keyof typeof Ionicons.glyphMap; onPress: () => void };
-  /** Contenido extra al pie de la lista (p. ej. "Más de este artista"). */
+  /** Extra content at the bottom of the list (e.g. "More from this artist"). */
   footer?: ReactNode;
-  /** Qué mostrar bajo la cabecera cuando no hay canciones (p. ej. playlist vacía). */
+  /** What to show below the header when there are no songs (e.g. empty playlist). */
   emptyState?: ReactNode;
-  /** Muestra la mini carátula del álbum en cada fila (playlists/favoritos). */
+  /** Shows the mini album cover on each row (playlists/favorites). */
   showArtwork?: boolean;
   /**
-   * Barra "buscar en la lista" oculta sobre la cabecera: se revela tirando
-   * hacia abajo desde arriba del todo (gesto estilo Spotify).
+   * Hidden "search in list" bar above the header: revealed by pulling down
+   * from the very top (Spotify-style gesture).
    */
   searchable?: boolean;
-  /** Texto guía de la barra de búsqueda (por defecto "Buscar en la lista"). */
+  /** Search bar hint text (defaults to "Find in playlist"). */
   searchPlaceholder?: string;
   /**
-   * Habilita la selección múltiple (entrar con pulsación larga en una fila).
-   * Cada acción recibe las canciones marcadas; `indices` son sus posiciones
-   * reales (vía `playlistIndices` si la lista va reordenada).
+   * Enables multi-select (enter via long-press on a row). Each action receives
+   * the marked songs; `indices` are their real positions (via `playlistIndices`
+   * if the list is reordered).
    */
   selection?: {
-    /** Quitar de esta lista (playlist: por índice; favoritos: unstar). */
+    /** Remove from this list (playlist: by index; favorites: unstar). */
     onRemove?: (songs: Song[], indices: number[]) => void;
-    /** Añadir a otra playlist. */
+    /** Add to another playlist. */
     onAddTo?: (songs: Song[]) => void;
-    /** Descargar en lote. */
+    /** Bulk download. */
     onDownload?: (songs: Song[]) => void;
   };
   onPlay: (startIndex: number) => void | Promise<void>;
@@ -176,9 +176,9 @@ export function TrackListView({
   const headerColor = accentColor ?? dominant;
   const shuffle = usePlayerStore((s) => s.shuffle);
   const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
-  // El botón de aleatorio se tiñe solo si esta lista es la que está sonando; si
-  // no, el modo aleatorio (global) teñía también los botones de álbumes/listas
-  // ajenos, que despistaba.
+  // The shuffle button gets tinted only if this list is the one playing;
+  // otherwise, the (global) shuffle mode would also tint the buttons of
+  // unrelated albums/playlists, which was confusing.
   const shuffleActive = useMemo(
     () => shuffle && !!currentId && songs.some((s) => s.id === currentId),
     [shuffle, currentId, songs],
@@ -194,22 +194,22 @@ export function TrackListView({
 
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  // ── Búsqueda dentro de la lista ─────────────────────────────────────────
-  // La barra se renderiza plegada (altura 0) encima de la cabecera; un gesto
-  // de tirar hacia abajo con la lista arriba del todo la despliega, y volver
-  // a scrollear la pliega. Como el "Find in playlist" de Spotify.
+  // ── In-list search ──────────────────────────────────────────────────────
+  // The bar is rendered collapsed (height 0) above the header; a pull-down
+  // gesture when the list is at the very top reveals it, and scrolling back
+  // collapses it. Like Spotify's "Find in playlist".
   const listRef = useRef<GHFlatList<Song>>(null);
   const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [revealed, setRevealed] = useState(false);
-  /** Último offset real del scroll (el gesto solo revela estando arriba). */
+  /** Last real scroll offset (the gesture only reveals at the top). */
   const lastOffsetY = useRef(0);
   const searchH = useRef(new Animated.Value(0)).current;
   const searchBar = !!searchable && songs.length > 0;
 
-  // `setRevealed` es asíncrono: el gesto dispara `onChange` muchas veces por
-  // arrastre y varias pasarían el guard `!revealed` antes del re-render, con
-  // una vibración cada una. El ref se actualiza en el acto y corta el resto.
+  // `setRevealed` is async: the gesture fires `onChange` many times per drag,
+  // and several would pass the `!revealed` guard before the re-render, each
+  // triggering haptic. The ref updates instantly and stops the rest.
   const revealedRef = useRef(false);
 
   function revealSearchBar() {
@@ -226,16 +226,16 @@ export function TrackListView({
     Animated.timing(searchH, { toValue: 0, duration: 200, useNativeDriver: false }).start();
   }
 
-  // Pan simultáneo con el scroll de la lista: no roba el gesto, solo observa.
-  // Android no da eventos de overscroll (la lista clava el offset en 0), así
-  // que el "tirar hacia abajo estando arriba" hay que detectarlo aparte. La
-  // simultaneidad se declara en la lista (prop simultaneousHandlers con el ref
-  // del gesto): sin ella el scroll nativo cancela este Pan antes de activarse.
+  // Simultaneous pan with the list scroll: doesn't steal the gesture, just
+  // observes. Android doesn't fire overscroll events (the list clamps offset
+  // at 0), so the "pull down at the top" must be detected separately. The
+  // simultaneity is declared on the list (simultaneousHandlers prop with the
+  // gesture ref): without it, native scroll cancels this Pan before it starts.
   const revealPanRef = useRef<GestureType | undefined>(undefined);
   const revealPan = Gesture.Pan()
     .withRef(revealPanRef)
     .runOnJS(true)
-    // Solo arrastres hacia abajo: los hacia arriba (scroll normal) lo anulan.
+    // Only downward drags: upward ones (normal scroll) cancel it.
     .activeOffsetY(10)
     .failOffsetY(-10)
     .onChange((e) => {
@@ -243,14 +243,14 @@ export function TrackListView({
       if (lastOffsetY.current <= 1 && e.translationY > 60) revealSearchBar();
     });
 
-  // ── Selección múltiple ──────────────────────────────────────────────────
-  // null = modo normal; un Set (aunque esté vacío) = seleccionando.
+  // ── Multi-select ────────────────────────────────────────────────────────
+  // null = normal mode; a Set (even empty) = selecting.
   const [selectedIds, setSelectedIds] = useState<Set<string> | null>(null);
   const selecting = selectedIds !== null;
-  // Id que acaba de entrar en selección por long-press. Al soltar, el `onPress`
-  // de ese mismo gesto llega con `selecting` ya activo y desharía la selección;
-  // lo descartamos una vez. Se resetea en `onPressIn` (arranque de cada pulsa-
-  // ción), así no queda residuo aunque `onPress` no salte tras el long-press.
+  // Id that just entered selection via long-press. On release, the `onPress` of
+  // that same gesture arrives with `selecting` already active and would undo the
+  // selection; we discard it once. Reset in `onPressIn` (start of each press),
+  // so no residue remains even if `onPress` doesn't fire after the long-press.
   const justLongPressed = useRef<string | null>(null);
   const allSelected = selecting && selectedIds.size === songs.length && songs.length > 0;
 
@@ -263,7 +263,7 @@ export function TrackListView({
     });
   }
 
-  /** Ejecuta una acción del modo selección con lo marcado y sale del modo. */
+  /** Runs a selection-mode action with the marked items and exits the mode. */
   function runSelectionAction(fn: (sel: Song[], indices: number[]) => void) {
     const sel: Song[] = [];
     const indices: number[] = [];
@@ -277,13 +277,13 @@ export function TrackListView({
     if (sel.length > 0) fn(sel, indices);
   }
 
-  // Sin carátula la cabecera es más corta: el degradado y el colapso de la
-  // barra se ajustan a una distancia menor para que la transición cuadre.
+  // Without cover, the header is shorter: the gradient and bar collapse adjust
+  // to a smaller distance so the transition fits.
   const cover = hideCover ? 0 : COVER;
   const collapse = hideCover ? 120 : COVER;
-  // La cola del degradado muere más o menos donde acaba la cabecera (título +
-  // acciones): funde el color con el negro de la lista sin llegar a teñir la
-  // primera fila (probado: alargarlo hasta las filas se veía sucio).
+  // The gradient tail dies roughly where the header ends (title + actions):
+  // it blends the color with the list's black without tinting the first row
+  // (tested: extending it to the rows looked messy).
   const gradientH = insets.top + TOPBAR_H + cover + 120;
   const coverOpacity = scrollY.interpolate({
     inputRange: [0, collapse * 0.7],
@@ -301,8 +301,8 @@ export function TrackListView({
     extrapolate: 'clamp',
   });
 
-  // Filtrado en vivo; conserva el índice original de cada canción para que
-  // reproducir/encolar/quitar sigan apuntando a la posición correcta.
+  // Live filtering; preserves each song's original index so play/enqueue/remove
+  // still point to the correct position.
   const filtered = useMemo(() => {
     const q = normQ(query.trim());
     if (!searchable || !q) return null;
@@ -328,20 +328,19 @@ export function TrackListView({
 
   async function shufflePlay() {
     if (songs.length === 0) return;
-    // Arranca en una pista aleatoria y, una vez cargada, activa el modo
-    // aleatorio. Hay que ESPERAR a que playQueue (dentro de onPlay) termine:
-    // si no, su escritura asíncrona del índice pisa el reordenado de
-    // toggleShuffle y el reproductor acaba mostrando una canción distinta de la
-    // que suena. Leemos shuffle fresco con getState() porque playQueue lo
-    // resetea a false.
+    // Starts on a random track and, once loaded, enables shuffle mode. We MUST
+    // WAIT for playQueue (inside onPlay) to finish: otherwise, its async index
+    // write overwrites toggleShuffle's reordering and the player ends up showing
+    // a different song than what's playing. We read shuffle fresh with
+    // getState() because playQueue resets it to false.
     await onPlay(Math.floor(Math.random() * songs.length));
     if (!usePlayerStore.getState().shuffle) toggleShuffle();
   }
 
   return (
     <View style={styles.root}>
-      {/* Degradado de color dominante; hace parallax 1:1 con el scroll. En
-          modo búsqueda no se pinta: la pantalla queda en negro plano. */}
+      {/* Dominant color gradient; scrolls with 1:1 parallax. Hidden in search
+          mode to keep the screen flat black. */}
       {searching ? null : (
         <Animated.View
           pointerEvents="none"
@@ -349,14 +348,14 @@ export function TrackListView({
             styles.gradientWrap,
             {
               height: gradientH,
-              // Sigue el scroll 1:1 y baja con la barra de búsqueda desplegada
-              // (que empuja la cabecera hacia abajo sin mover el offset).
+              // Follows the scroll 1:1 and moves down with the revealed search bar
+              // (which pushes the header down without moving the scroll offset).
               transform: [{ translateY: Animated.add(searchH, Animated.multiply(scrollY, -1)) }],
             },
           ]}
         >
-          {/* Banda de color sobre el degradado: al revelar la barra de búsqueda
-              el contenido baja SEARCH_H px y esto llena el hueco de arriba. */}
+          {/* Color band above the gradient: when the search bar is revealed,
+              content shifts down SEARCH_H px and this fills the gap at the top. */}
           {searchable ? (
             <View style={[styles.gradientAbove, { backgroundColor: headerColor }]} />
           ) : null}
@@ -372,10 +371,10 @@ export function TrackListView({
         ref={listRef}
         simultaneousHandlers={revealPanRef}
         {...listPerf}
-        // Cada fila monta un ReanimatedSwipeable (gestos + reanimated); con
-        // `removeClippedSubviews` (bug conocido de Android) esas filas pesadas
-        // salen en blanco y tardan en aparecer al scrollear listas grandes.
-        // Desactivarlo aquí las mantiene montadas dentro de la ventana virtual.
+        // Each row mounts a ReanimatedSwipeable (gestures + reanimated); with
+        // `removeClippedSubviews` (known Android bug) those heavy rows render
+        // blank and take a while to appear when scrolling large lists.
+        // Disabling it here keeps them mounted within the virtual window.
         removeClippedSubviews={false}
         data={shownSongs}
         keyExtractor={(item) => item.id}
@@ -391,16 +390,16 @@ export function TrackListView({
           listener: (e: NativeSyntheticEvent<NativeScrollEvent>) => {
             const y = e.nativeEvent.contentOffset.y;
             lastOffsetY.current = y;
-            // Scrollear hacia abajo con la barra fuera la vuelve a plegar.
+            // Scrolling down with the bar open collapses it.
             if (revealed && !searching && y > 30) collapseSearchBar();
           },
         })}
         ListHeaderComponent={
           <View>
             {searchBar ? (
-              /* Plegada = altura 0 (invisible); el gesto la despliega. El
-                 recorte va en un contenedor sin padding: cualquier padding
-                 impondría una altura mínima y asomaría una rendija. */
+              /* Collapsed = height 0 (invisible); the gesture reveals it. The clip
+                 goes in a no-padding container: any padding would impose a
+                 minimum height and show a sliver. */
               <Animated.View style={[styles.searchClip, { height: searchH }]}>
               <View style={styles.searchRow}>
                 <View style={styles.searchBox}>
@@ -434,8 +433,8 @@ export function TrackListView({
               </View>
               </Animated.View>
             ) : null}
-            {/* Buscando, la cabecera grande se aparta: los resultados quedan
-                pegados a la barra, que es lo que hace Spotify. */}
+            {/* While searching, the large header is hidden: results stay flush
+                with the bar, which is what Spotify does. */}
             {searching ? null : (
           <View style={styles.header}>
             {hideCover ? null : (
@@ -582,16 +581,16 @@ export function TrackListView({
         }
         extraData={selectedIds}
         renderItem={({ item, index }) => {
-          // Con filtro activo, `index` es la posición en los resultados; todo
-          // lo demás (reproducir, quitar, numerar) usa la posición original.
+          // With an active filter, `index` is the position in results; everything
+          // else (play, remove, numbering) uses the original position.
           const origIndex = filtered ? filtered[index].index : index;
-          // Cabecera de disco (solo sin búsqueda, donde origIndex === index).
+          // Disc header (only when not searching, where origIndex === index).
           const discLabel = filtered ? undefined : discHeaders?.[origIndex];
           const row = (
             <TrackRow
               song={item}
-              // Con carátula visible se omite el número: el álbum queda como
-              // siempre (solo Populares del artista muestra número + portada).
+              // With artwork visible the number is omitted: the album stays as
+              // usual (only the artist's Popular shows number + cover).
               position={numbered && !showArtwork ? item.track ?? origIndex + 1 : undefined}
               isCurrent={currentId === item.id}
               showArtwork={showArtwork}
@@ -615,8 +614,8 @@ export function TrackListView({
                   : undefined
               }
               onPress={() => {
-                // Descarta el onPress que sigue al long-press de seleccionar:
-                // si no, desmarcaría la canción con la que entraste en selección.
+                // Discards the onPress that follows the selection long-press:
+                // otherwise it would deselect the song you entered selection with.
                 if (justLongPressed.current === item.id) return;
                 if (selecting) toggleSelect(item.id);
                 else onPlay(origIndex);
@@ -642,8 +641,8 @@ export function TrackListView({
       />
       </GestureDetector>
 
-      {/* Barra fija superior: el fondo y el título aparecen al colapsar. En
-          modo selección se sustituye por ✕ + contador + seleccionar todo. */}
+      {/* Fixed top bar: the background and title appear on collapse. In
+          selection mode it's replaced by ✕ + counter + select all. */}
       <View style={[styles.bar, { height: insets.top + TOPBAR_H, paddingTop: insets.top }]}>
         {selecting ? (
           <>
@@ -701,8 +700,8 @@ export function TrackListView({
         )}
       </View>
 
-      {/* Barra flotante de acciones del modo selección (sobre el mini player,
-          a la altura del toast). */}
+      {/* Selection mode floating action bar (above the mini player, at
+          toast height). */}
       {selecting ? (
         <View style={[styles.selectionBar, { bottom: insets.bottom + 96 }]}>
           {selection?.onAddTo ? (
@@ -735,7 +734,7 @@ export function TrackListView({
   );
 }
 
-/** Cabecera de disco (separador fino + etiqueta) en álbumes multi-disco. */
+/** Disc header (thin separator + label) for multi-disc albums. */
 function DiscHeader({ label }: { label: string }) {
   return (
     <View style={styles.discHeader}>
@@ -746,7 +745,7 @@ function DiscHeader({ label }: { label: string }) {
   );
 }
 
-/** Botón (icono + etiqueta) de la barra flotante del modo selección. */
+/** Floating selection mode bar button (icon + label). */
 function SelectionAction({
   icon,
   label,
@@ -803,8 +802,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    // La separación con la carátula va dentro del alto animado: así se pliega
-    // junto con la barra (un margen exterior quedaría siempre visible).
+    // The gap to the cover goes inside the animated height: this way it
+    // collapses along with the bar (an external margin would always be visible).
     paddingBottom: spacing.md,
   },
   searchBox: {
@@ -812,7 +811,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    // Translúcido para dejar pasar el color dominante de la cabecera (Spotify).
+    // Translucent to let the header's dominant color through (Spotify).
     backgroundColor: 'rgba(255,255,255,0.14)',
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,

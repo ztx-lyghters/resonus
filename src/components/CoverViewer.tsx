@@ -1,8 +1,8 @@
 /**
- * Visor de carátula a pantalla completa (estilo Spotify de escritorio): al
- * tocar la carátula se abre ampliada y centrada sobre un fondo oscuro. Se
- * cierra tocando en cualquier sitio o con el botón atrás. Admite acciones
- * bajo la imagen (p. ej. "Cambiar carátula" en playlists) y diálogos hijos.
+ * Full-screen cover viewer (desktop Spotify style): tapping the cover opens it
+ * enlarged and centered on a dark background. Closes by tapping anywhere or
+ * with the back button. Supports actions below the image (e.g. "Change cover"
+ * on playlists) and child dialogs.
  */
 import { Image } from 'expo-image';
 import { type ReactNode } from 'react';
@@ -20,13 +20,13 @@ export function CoverViewer({
   uri?: string;
   visible: boolean;
   onClose: () => void;
-  /** Acciones bajo la imagen; tocarlas no cierra el visor. */
+  /** Actions below the image; tapping them doesn't close the viewer. */
   footer?: ReactNode;
-  /** Contenido extra dentro del Modal (p. ej. un Dialog de contraseña). */
+  /** Extra content inside the Modal (e.g. a password Dialog). */
   children?: ReactNode;
 }) {
   const { width, height } = useWindowDimensions();
-  // Cuadrada y lo más grande posible sin tocar los bordes.
+  // Square and as large as possible without touching the edges.
   const size = Math.min(width - spacing.lg * 2, height * 0.72);
 
   return (
@@ -45,8 +45,8 @@ export function CoverViewer({
           transition={150}
         />
         {footer ? (
-          // Pressable sin onPress: absorbe el toque para que pulsar entre los
-          // botones del pie no cierre el visor por el backdrop.
+          // Pressable without onPress: absorbs the touch so that tapping
+          // between the footer buttons doesn't close the viewer via backdrop.
           <Pressable style={styles.footer}>{footer}</Pressable>
         ) : null}
       </Pressable>

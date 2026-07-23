@@ -1,10 +1,10 @@
-/** Tarjeta de color para un género (estilo Spotify). Lleva a /genre/[name]. */
+/** Colored card for a genre (Spotify style). Links to /genre/[name]. */
 import { Link } from 'expo-router';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { colors, fontSize, radius, spacing } from '@/theme';
 
-/** Color estable a partir del nombre del género (oscuro y legible). */
+/** Stable color derived from the genre name (dark and legible). */
 export function genreColor(name: string): string {
   let h = 0;
   for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);

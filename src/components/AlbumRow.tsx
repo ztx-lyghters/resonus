@@ -1,10 +1,9 @@
 /**
- * Fila de álbum para los listados: carátula pequeña, nombre y artista. La
- * hermana de `AlbumCard` para el modo lista; hasta ahora solo existía suelta
- * dentro de la Biblioteca.
+ * Album row for lists: small cover art, name, and artist. The list-mode
+ * sibling of `AlbumCard`; until now it only existed loose inside the Library.
  *
- * La chincheta es opcional porque anclar es cosa de la Biblioteca: al explorar
- * no hay nada anclado que enseñar.
+ * The pin is optional because pinning belongs to the Library: when browsing
+ * there are no pinned items to show.
  */
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Link } from 'expo-router';
@@ -25,8 +24,8 @@ interface Props {
 
 export function AlbumRow({ album, pinned }: Props) {
   const openMenu = useMediaMenu((s) => s.open);
-  // Del store, no de `colors.accent`: sin suscripción la chincheta se quedaría
-  // con el acento anterior mientras la pantalla siga montada.
+  // From the store, not `colors.accent`: without a subscription the pin would
+  // keep the previous accent color while the screen stays mounted.
   const accent = useSettings((s) => s.accentColor);
 
   return (
@@ -67,6 +66,6 @@ const styles = StyleSheet.create({
   name: { color: colors.text, fontSize: fontSize.md, fontWeight: '600' },
   subLine: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   sub: { color: colors.textSecondary, fontSize: fontSize.xs },
-  // La chincheta de MCI viene vertical; girada 45° queda como la de Spotify.
+  // The MCI pin icon is vertical; rotated 45° it looks like Spotify's.
   pin: { transform: [{ rotate: '45deg' }] },
 });

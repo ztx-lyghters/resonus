@@ -1,7 +1,7 @@
 /**
- * Esqueleto de carga para listas de álbumes: filas con carátula cuadrada y dos
- * líneas de texto, pulsando suave, del mismo tamaño que las filas reales
- * (`AlbumRow`: carátula de 56) para que la transición no salte.
+ * Loading skeleton for album lists: rows with a square cover and two lines of
+ * text, softly pulsing, at the same size as real rows (`AlbumRow`: 56pt cover)
+ * so the transition doesn't jump.
  */
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -41,7 +41,7 @@ const block = { backgroundColor: colors.surfaceHighlight } as const;
 const styles = StyleSheet.create({
   list: { paddingHorizontal: spacing.lg, gap: spacing.lg },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  // radius.md, que es el que `Cover` da a las carátulas cuadradas.
+  // radius.md, which is what `Cover` uses for square cover art.
   cover: { ...block, width: 56, height: 56, borderRadius: radius.md },
   info: { flex: 1, gap: spacing.sm },
   bar: { ...block, height: 12, borderRadius: radius.sm },

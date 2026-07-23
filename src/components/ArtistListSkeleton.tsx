@@ -1,7 +1,7 @@
 /**
- * Esqueleto de carga para listas de artistas: filas con foto circular y dos
- * líneas de texto, pulsando suave, con el mismo tamaño que las filas reales
- * (`ArtistRow`: foto redonda de 56) para que la transición no salte.
+ * Loading skeleton for artist lists: rows with a circular photo and two lines
+ * of text, softly pulsing, at the same size as real rows (`ArtistRow`: 56pt
+ * round photo) so the transition doesn't jump.
  */
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';

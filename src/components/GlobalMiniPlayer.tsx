@@ -1,9 +1,8 @@
 /**
- * MiniPlayer global: se muestra en TODAS las pantallas (no solo en las
- * pestañas), igual que en Spotify. Se posiciona encima de la barra de
- * pestañas cuando estamos en ellas, y al fondo en el resto de pantallas.
- * En los modales a pantalla completa (reproductor, cola, letras) se desvanece
- * en vez de desaparecer de golpe, para que no parpadee mientras sube el modal.
+ * Global MiniPlayer: shown on ALL screens (not only in tabs), just like
+ * Spotify. Sits above the tab bar when on tab screens, and at the bottom on
+ * other screens. On full-screen modals (player, queue, lyrics) it fades out
+ * instead of disappearing instantly, to avoid flickering while the modal slides up.
  */
 import { useSegments } from 'expo-router';
 import { useEffect, useRef } from 'react';
@@ -18,7 +17,7 @@ export function GlobalMiniPlayer() {
   const segments = useSegments();
   const root = segments[0];
 
-  // favorites-add también: su barra de búsqueda vive abajo y el mini la taparía.
+  // favorites-add too: its search bar lives at the bottom and the mini would cover it.
   const visible = !(
     root === 'player' ||
     root === 'queue' ||
@@ -28,8 +27,8 @@ export function GlobalMiniPlayer() {
   const inTabs = root === '(tabs)' || root === undefined;
   const bottom = inTabs ? TAB_BAR_HEIGHT + insets.bottom : insets.bottom + spacing.sm;
 
-  // Conserva la última posición visible para que no salte mientras se desvanece
-  // al abrir un modal a pantalla completa.
+  // Keep the last visible position so it doesn't jump while fading out
+  // when opening a full-screen modal.
   const lastBottom = useRef(bottom);
   if (visible) lastBottom.current = bottom;
 

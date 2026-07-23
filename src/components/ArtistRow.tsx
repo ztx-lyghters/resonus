@@ -1,7 +1,7 @@
 /**
- * Fila de artista para los listados: foto redonda pequeña, nombre y cuántos
- * álbumes tiene. La hermana de `ArtistCard` para el modo lista; hasta ahora
- * solo existía suelta dentro de la Biblioteca.
+ * Artist row for lists: small round photo, name, and album count. The
+ * list-mode sibling of `ArtistCard`; until now it only existed loose inside
+ * the Library.
  */
 import { Link } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';

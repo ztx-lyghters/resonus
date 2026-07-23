@@ -1,4 +1,4 @@
-/** Estado vacío rico: icono, título, subtítulo y acción opcionales. */
+/** Rich empty state: icon, title, subtitle, and optional action. */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 

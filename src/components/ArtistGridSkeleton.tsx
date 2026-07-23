@@ -1,7 +1,7 @@
 /**
- * Esqueleto de carga para las cuadrículas de artistas: círculos con una línea
- * de texto debajo, pulsando suave, del mismo tamaño que las tarjetas reales
- * (`ArtistCard`) para que la transición no salte.
+ * Loading skeleton for artist grids: circles with a single line of text below,
+ * softly pulsing, at the same size as real cards (`ArtistCard`) so the
+ * transition doesn't jump.
  */
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';

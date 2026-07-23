@@ -1,4 +1,4 @@
-/** Carátula cuadrada con marcador de posición cuando no hay imagen. */
+/** Square cover art with placeholder when no image. */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image, type ImageStyle } from 'expo-image';
 import { useEffect, useState } from 'react';
@@ -10,9 +10,9 @@ interface Props {
   uri?: string;
   size: number;
   rounded?: boolean;
-  /** Fundido al cargar/cambiar la imagen (ms). 0 para cambios instantáneos. */
+  /** Fade when loading/switching the image (ms). 0 for instant changes. */
   transition?: number;
-  /** Icono del marcador de posición cuando no hay imagen (p. ej. radio). */
+  /** Placeholder icon when no image (e.g. radio). */
   placeholderIcon?: keyof typeof Ionicons.glyphMap;
   style?: StyleProp<ViewStyle | ImageStyle>;
 }
@@ -25,9 +25,9 @@ export function Cover({
   placeholderIcon = 'musical-notes',
   style,
 }: Props) {
-  // Si la imagen no carga (p. ej. offline sin caché ni descarga), caemos al
-  // marcador de posición en vez de dejar un hueco. Se resetea al cambiar de
-  // `uri` porque las listas reciclan la misma instancia con otra canción.
+  // If the image fails to load (e.g. offline without cache or download), we fall
+  // back to the placeholder instead of leaving a gap. Reset on `uri` change
+  // because lists recycle the same instance with a different song.
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     setFailed(false);

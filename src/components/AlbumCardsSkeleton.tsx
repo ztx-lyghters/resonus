@@ -1,8 +1,8 @@
 /**
- * Esqueleto de carga para cuadrículas y carruseles de álbumes: bloques grises
- * con la silueta de la carátula y dos líneas de texto, pulsando suave. En fila
- * (carrusel del inicio) o en rejilla que envuelve (Explorar / Género), con el
- * mismo tamaño que AlbumCard para que no salte al llegar el contenido.
+ * Loading skeleton for album grids and carousels: gray blocks with a cover
+ * art silhouette and two lines of text, softly pulsing. In a row (home
+ * carousel) or wrapping grid (Explore / Genre), at the same size as AlbumCard
+ * so the layout doesn't jump when content arrives.
  */
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -16,10 +16,10 @@ import Animated, {
 import { colors, radius, spacing } from '@/theme';
 
 interface Props {
-  /** Ancho de cada tarjeta (= al de AlbumCard para que no salte). */
+  /** Width of each card (= AlbumCard's so the layout doesn't jump). */
   width?: number;
   count?: number;
-  /** Carrusel horizontal (inicio) en vez de rejilla que envuelve. */
+  /** Horizontal carousel (home) instead of wrapping grid. */
   horizontal?: boolean;
 }
 

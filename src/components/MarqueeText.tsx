@@ -1,14 +1,13 @@
 /**
- * Texto de una línea que, si no cabe, se desplaza en bucle (marquee estilo
- * Spotify): pausa, pasada lineal con una segunda copia persiguiendo al texto
- * y vuelta a empezar. Si cabe, queda como un Text normal que abraza su
- * contenido (así el Pressable que lo envuelva solo es pulsable sobre el
- * texto, no en todo el ancho de la fila).
+ * Single-line text that, if it overflows, scrolls in a loop (Spotify-style
+ * marquee): pause, linear pass with a second copy chasing the text, and start
+ * over. If it fits, it stays as a normal Text that hugs its content (so the
+ * wrapping Pressable is only tappable over the text, not the full row width).
  *
- * La medida fiable del ancho real sale de un ScrollView horizontal invisible:
- * su contenido no está limitado por el ancho del padre. (Un Text suelto
- * dentro de una View mide como mucho el ancho disponible, así que el
- * desbordamiento no se detectaría nunca.)
+ * The reliable real-width measurement comes from an invisible horizontal
+ * ScrollView: its content is not constrained by the parent width. (A bare
+ * Text inside a View measures at most the available width, so overflow would
+ * never be detected.)
  */
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, type StyleProp, type TextStyle } from 'react-native';
@@ -23,11 +22,11 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-/** Hueco entre el final del texto y la copia que lo persigue. */
+/** Gap between the end of the text and the copy chasing it. */
 const GAP = 48;
-/** Velocidad de la pasada (px/s). */
+/** Scrolling speed (px/s). */
 const SPEED = 30;
-/** Espera antes de cada pasada. */
+/** Wait before each pass. */
 const PAUSE_MS = 2500;
 
 export function MarqueeText({
@@ -37,11 +36,11 @@ export function MarqueeText({
 }: {
   text: string;
   style?: StyleProp<TextStyle>;
-  /** Con false no se desplaza nunca: el texto largo se corta con puntos. */
+  /** With false it never scrolls: long text is truncated with ellipsis. */
   enabled?: boolean;
 }) {
-  // Ancho del contenedor (con texto corto ≈ el propio texto; con texto largo,
-  // el hueco disponible, porque maxWidth lo capa) y ancho real del texto.
+  // Container width (with short text ≈ the text itself; with long text, the
+  // available space, because maxWidth caps it) and real text width.
   const [containerW, setContainerW] = useState(0);
   const [textW, setTextW] = useState(0);
   const offset = useSharedValue(0);
@@ -53,8 +52,8 @@ export function MarqueeText({
     offset.value = 0;
     if (!overflows) return;
     const distance = textW + GAP;
-    // reduceMotion Never: sin marquee el título largo queda cortado sin
-    // forma de leerlo, así que se anima también con "reducir movimiento".
+    // reduceMotion Never: without marquee the long title gets cut off with no
+    // way to read it, so it animates even with "reduce motion".
     offset.value = withRepeat(
       withDelay(
         PAUSE_MS,
@@ -77,7 +76,7 @@ export function MarqueeText({
 
   return (
     <View style={styles.hug} onLayout={(e) => setContainerW(e.nativeEvent.layout.width)}>
-      {/* Medidor invisible del ancho real, fuera del flujo. */}
+      {/* Invisible real-width measurer, out of flow. */}
       <ScrollView
         horizontal
         scrollEnabled={false}
@@ -85,7 +84,7 @@ export function MarqueeText({
         pointerEvents="none"
         style={styles.measurer}
       >
-        {/* key: al cambiar el texto se remonta y onLayout re-mide siempre. */}
+        {/* key: when the text changes it remounts and onLayout always re-measures. */}
         <Text
           key={text}
           numberOfLines={1}
@@ -124,7 +123,7 @@ export function MarqueeText({
 }
 
 const styles = StyleSheet.create({
-  // Abraza el contenido sin pasarse del hueco (como el viejo `tapText`).
+  // Hugs the content without exceeding the space (like the old `tapText`).
   hug: { alignSelf: 'flex-start', maxWidth: '100%' },
   measurer: { position: 'absolute', opacity: 0, height: 0 },
   clip: { overflow: 'hidden' },

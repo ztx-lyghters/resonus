@@ -1,4 +1,4 @@
-/** Hoja para crear o editar una emisora de radio: nombre, URL y web opcional. */
+/** Sheet to create or edit a radio station: name, URL, and optional website. */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
@@ -29,14 +29,14 @@ export interface RadioEdit {
 
 interface Props {
   visible: boolean;
-  /** Valores iniciales (para editar); vacíos para crear. */
+  /** Initial values (for editing); empty for creation. */
   initial: RadioEdit;
-  /** true si se está editando una emisora existente (cambia el título). */
+  /** true if editing an existing station (changes the title). */
   editing: boolean;
   /**
-   * Id de la emisora en el servidor (solo al editar): la carátula elegida se
-   * guarda en el acto. Al crear aún no hay id, así que la imagen queda
-   * "pendiente" y se aplica en `onSave` cuando el servidor asigna el id.
+   * Server station ID (editing only): the chosen cover is saved immediately.
+   * When creating there's no ID yet, so the image stays "pending" and is
+   * applied in `onSave` when the server assigns the ID.
    */
   coverId?: string;
   onCancel: () => void;
@@ -49,9 +49,10 @@ export function RadioEditSheet({ visible, initial, editing, coverId, onCancel, o
   const [streamUrl, setStreamUrl] = useState(initial.streamUrl);
   const [homePageUrl, setHomePageUrl] = useState(initial.homePageUrl);
 
-  // Carátula local. Al editar se guarda en el acto (misma idea que la hoja de
-  // playlist). Al crear no hay id todavía: la imagen se queda "pendiente" en
-  // estado local y se sube tras crear (ver onSave del padre).
+  // Local cover. When editing it's saved immediately (same idea as the
+  // playlist sheet). When creating there's no ID yet: the image stays
+  // "pending" in local state and is uploaded after creation (see parent's
+  // onSave).
   const storedCover = useRadioCovers((s) => (coverId ? s.covers[coverId] : undefined));
   const setCover = useRadioCovers((s) => s.setCover);
   const removeCover = useRadioCovers((s) => s.removeCover);
@@ -93,7 +94,7 @@ export function RadioEditSheet({ visible, initial, editing, coverId, onCancel, o
     }
   }
 
-  // Reinicia los campos cada vez que se abre.
+  // Resets fields every time it opens.
   useEffect(() => {
     if (visible) {
       setName(initial.name);

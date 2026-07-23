@@ -1,9 +1,9 @@
 /**
- * Letra estilo Spotify/Apple Music para el player: tarjeta bajo los controles
- * con el color dominante de la carátula. Dentro, karaoke con auto-scroll si la
- * letra viene sincronizada (tocar una línea salta a ese punto) y foco animado
- * en la línea que suena (las demás se atenúan). Botón para expandir a la
- * pantalla completa (/lyrics). Si la canción no tiene letra, no se pinta nada.
+ * Spotify/Apple Music style lyrics for the player: card below the controls
+ * with the cover's dominant color. Inside, karaoke with auto-scroll if the
+ * lyrics are synced (tapping a line seeks to that point) and animated focus on
+ * the current line (the rest are dimmed). Button to expand to full screen
+ * (/lyrics). If the song has no lyrics, nothing is rendered.
  */
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -40,11 +40,11 @@ export function LyricsCard() {
   const router = useRouter();
   const song = usePlayerStore(currentSong);
   const { data } = useLyrics(song ?? undefined);
-  // Mismo ajuste que la pantalla completa; sin color, gris neutro (surface)
-  // para que la tarjeta se siga distinguiendo del fondo del player.
+  // Same setting as the full screen; without color, neutral gray (surface)
+  // so the card still stands out from the player background.
   const colorBackground = useSettings((s) => s.lyricsColorBackground);
   const dominant = useDominantColor(
-    // Sin color no se extrae la paleta (mismo ahorro que hace el player).
+    // Without color the palette is not extracted (same savings the player does).
     colorBackground ? coverArtUrl(song?.coverArt ?? song?.albumId, 600) : undefined,
   );
   const bg = colorBackground ? dominant : colors.surface;
@@ -81,10 +81,10 @@ export function LyricsCard() {
 }
 
 /**
- * Letra en el sitio de la carátula (ajuste «Lyrics on the cover»): ocupa el
- * mismo cuadro que la carátula del reproductor. Mismo karaoke que la tarjeta,
- * con un botón en la esquina para volver a la carátula. Si no hay letra, no se
- * pinta (el que llama solo la monta cuando la hay).
+ * Lyrics in place of the cover art ("Lyrics on the cover" setting): occupies
+ * the same box as the player cover. Same karaoke as the card, with a button
+ * in the corner to go back to the cover. If there are no lyrics, nothing is
+ * rendered (the caller only mounts it when lyrics exist).
  */
 export function CoverLyrics({ size, onClose }: { size: number; onClose: () => void }) {
   const t = useT();
@@ -94,8 +94,8 @@ export function CoverLyrics({ size, onClose }: { size: number; onClose: () => vo
   if (!data) return null;
 
   return (
-    // Fondo transparente: la letra va directa sobre el fondo del reproductor
-    // (la carátula se oculta mientras se muestra).
+    // Transparent background: the lyrics go directly over the player background
+    // (the cover is hidden while showing).
     <View style={[styles.coverBox, { width: size, height: size }]}>
       <View style={styles.coverBody}>
         {data.synced ? (
@@ -124,10 +124,10 @@ export function CoverLyrics({ size, onClose }: { size: number; onClose: () => vo
 }
 
 /**
- * Lista karaoke reutilizable (tarjeta y pantalla completa): la línea que suena
- * se ilumina y crece un poco (resorte), el resto se atenúa. Auto-scroll que
- * mantiene el foco arriba; el scroll manual lo pausa unos segundos. Tocar una
- * línea salta a ese punto de la canción.
+ * Reusable karaoke list (card and full screen): the current line lights up
+ * and grows a little (spring), the rest are dimmed. Auto-scroll keeps the
+ * focus above; manual scroll pauses it for a few seconds. Tapping a line
+ * seeks to that point in the song.
  */
 export function SyncedLyricsView({
   lines,
@@ -136,47 +136,47 @@ export function SyncedLyricsView({
   fadeColor,
 }: {
   lines: LyricLine[];
-  /** Tipografía grande (pantalla completa). */
+  /** Large typography (full screen). */
   large?: boolean;
-  /** Dentro de otro scroll (la tarjeta del player). */
+  /** Inside another scroll (the player card). */
   nested?: boolean;
-  /** Color al que se funden los bordes superior/inferior (el fondo). */
+  /** Color to which the top/bottom edges fade (the background). */
   fadeColor?: string;
 }) {
   const positionSec = usePlayerStore((s) => s.positionSec);
   const seekTo = usePlayerStore((s) => s.seekTo);
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
-  // Posición real del scroll (la mueva quien la mueva: usuario o auto-scroll).
+  // Real scroll position (regardless of who moved it: user or auto-scroll).
   const liveY = useScrollViewOffset(scrollRef);
-  // Objetivo del auto-scroll. Se anima con Reanimated (no con el smooth-scroll
-  // nativo) por dos razones: el nativo respeta la escala de animaciones del
-  // sistema (con "animaciones reducidas" pega un tirón seco) y mientras corre
-  // el ScrollView se traga los taps sobre las líneas.
+  // Auto-scroll target. Animated with Reanimated (not native smooth-scroll) for
+  // two reasons: native respects the system animation scale (with "reduced
+  // motion" it snaps abruptly) and while running, the ScrollView swallows taps
+  // on the lines.
   const targetY = useSharedValue(0);
   const offsets = useRef<{ y: number; h: number }[]>([]);
   const userScroll = useRef(false);
   const resumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // El primer posicionamiento salta directo a la línea que suena (sin animar),
-  // para no hacer un scroll rápido y feo desde arriba al abrir. A partir de ahí
-  // el avance de una línea a la siguiente sí se anima.
+  // The first positioning jumps directly to the current line (no animation),
+  // to avoid a quick, ugly scroll from the top on open. From then on, the
+  // advance from one line to the next IS animated.
   const didInitialScroll = useRef(false);
   const [viewH, setViewH] = useState(0);
 
-  // Pequeño adelanto para que el resalte no llegue tarde al oído.
+  // Small advance so the highlight doesn't lag behind the ear.
   const posMs = positionSec * 1000 + 300;
   let current = -1;
   for (let i = 0; i < lines.length && (lines[i].start ?? 0) <= posMs; i++) current = i;
 
-  // A pantalla completa anclamos la línea activa cerca del centro (y rellenamos
-  // arriba/abajo) para que al empezar la canción la letra arranque centrada y
-  // legible, no pegada al borde superior. En la tarjeta pequeña, más arriba.
+  // In full screen we anchor the active line near the center (and pad
+  // top/bottom) so that when the song starts, the lyrics begin centered and
+  // readable, not stuck to the top edge. On the small card, higher up.
   const anchor = large ? 0.42 : 0.3;
 
   const onMeasure = useCallback((index: number, y: number, h: number) => {
     offsets.current[index] = { y, h };
   }, []);
 
-  // Cada cambio de targetY empuja el scroll desde el hilo de UI.
+  // Each targetY change pushes the scroll from the UI thread.
   useAnimatedReaction(
     () => targetY.value,
     (y, prev) => {
@@ -184,9 +184,9 @@ export function SyncedLyricsView({
     },
   );
 
-  // Tocar una línea es un salto deliberado: se cancela la pausa del auto-scroll
-  // por scroll manual (el usuario suele haber hecho scroll para llegar a la
-  // línea) y así el foco recentra la línea elegida al instante.
+  // Tapping a line is an intentional seek: we cancel the auto-scroll pause
+  // triggered by manual scroll (the user usually scrolled to reach this
+  // line), so the focus recenters on the chosen line instantly.
   const onLineTap = useCallback(
     (sec: number) => {
       if (resumeTimer.current) clearTimeout(resumeTimer.current);
@@ -196,9 +196,9 @@ export function SyncedLyricsView({
     [seekTo],
   );
 
-  // Los taps se detectan con un gesto aparte (no con onPress de cada línea):
-  // el gesto convive con el scroll y funciona aunque el auto-scroll esté en
-  // marcha. La línea se localiza por posición vertical con las medidas reales.
+  // Taps are detected with a separate gesture (not each line's onPress): the
+  // gesture coexists with scroll and works even while auto-scroll is active.
+  // The line is located by vertical position using actual measurements.
   const handleTap = useCallback(
     (yInView: number) => {
       const contentY = yInView + liveY.value;
@@ -226,13 +226,13 @@ export function SyncedLyricsView({
     const dest = Math.max(0, m.y - viewH * anchor);
     cancelAnimation(targetY);
     if (!didInitialScroll.current) {
-      targetY.value = dest; // salto directo, sin animar
+      targetY.value = dest; // direct jump, without animating
       didInitialScroll.current = true;
       return;
     }
-    // Partimos de la posición real (el usuario puede haber hecho scroll) y
-    // animamos nosotros: mismo recorrido en cualquier móvil, ignore o no el
-    // sistema las animaciones.
+    // We start from the real position (the user may have scrolled) and animate
+    // ourselves: same path on any device, regardless of whether the system
+    // ignores animations.
     targetY.value = liveY.value;
     targetY.value = withTiming(dest, {
       duration: 450,
@@ -269,8 +269,8 @@ export function SyncedLyricsView({
         }}
         contentContainerStyle={[
           styles.content,
-          // Relleno para que la primera/última línea puedan quedar en el ancla
-          // (centro) en vez de tope arriba/abajo. Solo a pantalla completa.
+          // Padding so the first/last line can rest at the anchor (center)
+          // instead of being stuck at the top/bottom. Full screen only.
           large && viewH > 0 ? { paddingTop: viewH * anchor, paddingBottom: viewH * (1 - anchor) } : null,
         ]}
         showsVerticalScrollIndicator={false}
@@ -306,7 +306,7 @@ export function SyncedLyricsView({
   );
 }
 
-/** Una línea de letra con foco animado (resorte al activarse). */
+/** A lyric line with animated focus (spring on activation). */
 const LyricRow = memo(({
   index,
   text,
@@ -322,12 +322,12 @@ const LyricRow = memo(({
   large?: boolean;
   onMeasure: (index: number, y: number, h: number) => void;
 }) => {
-  // Solo la línea activa crece (resorte) y se ve al 100 %. El resto se atenúa:
-  // la siguiente que va a sonar un poco, las demás bastante más.
+  // Only the active line grows (spring) and is visible at 100%. The rest are
+  // dimmed: the next one about to play a little, the others much more.
   const focus = useSharedValue(active ? 1 : 0);
   const dim = useSharedValue(active ? 1 : next ? 0.55 : 0.3);
-  // reduceMotion Never: la transición entre líneas (karaoke) es la esencia de
-  // la pantalla; sin esto, los móviles con "reducir movimiento" la saltan.
+  // reduceMotion Never: the transition between lines (karaoke) is the essence
+  // of the screen; without this, devices with "reduce motion" skip it.
   useEffect(() => {
     focus.value = withSpring(active ? 1 : 0, {
       damping: 20,
@@ -342,8 +342,8 @@ const LyricRow = memo(({
       reduceMotion: ReduceMotion.Never,
     });
   }, [active, next, dim]);
-  // El crecimiento (8 %) se compensa con el hueco derecho de `content` para que
-  // la línea activa, al escalar desde la izquierda, no se salga por el borde.
+  // The growth (8%) is compensated by the right margin of `content` so the
+  // active line, scaling from the left, doesn't overflow the edge.
   const anim = useAnimatedStyle(() => ({
     opacity: dim.value,
     transform: [{ scale: 1 + focus.value * 0.08 }],
@@ -360,7 +360,7 @@ const LyricRow = memo(({
 });
 LyricRow.displayName = 'LyricRow';
 
-/** Tipografía compartida por la tarjeta y la pantalla completa. */
+/** Typography shared by the card and the full screen. */
 export const lyricsStyles = StyleSheet.create({
   line: {
     color: colors.text,
@@ -379,19 +379,19 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     marginTop: spacing.lg,
     marginBottom: spacing.xl,
-    // El player ya no tiene padding lateral global (por el slider): el margen
-    // de la tarjeta lo pone ella misma.
+    // The player no longer has global horizontal padding (because of the
+    // slider): the card supplies its own margin.
     marginHorizontal: spacing.xl,
     padding: spacing.lg,
   },
   title: { color: colors.text, fontSize: fontSize.md, fontWeight: '700', marginBottom: spacing.sm },
   body: { height: CARD_BODY_H, overflow: 'hidden' },
-  // Letra en el sitio de la carátula: cuadro del tamaño exacto de la carátula.
+  // Lyrics in place of the cover: box exactly the size of the cover.
   coverBox: { borderRadius: radius.md, overflow: 'hidden', padding: spacing.lg },
   coverBody: { flex: 1, overflow: 'hidden' },
   wrap: { flex: 1 },
-  // Hueco a la derecha para que la línea activa (que crece un 8 % desde la
-  // izquierda) no se recorte contra el borde.
+  // Right margin so the active line (which grows 8% from the left) doesn't get
+  // clipped against the edge.
   content: { paddingBottom: spacing.xl, paddingRight: '10%' },
   leftOrigin: { transformOrigin: 'left center' },
   fade: { position: 'absolute', left: 0, right: 0 },

@@ -1,4 +1,4 @@
-/** Mensaje breve tipo píldora en la parte inferior (estilo Spotify). */
+/** Brief pill-shaped message at the bottom (Spotify style). */
 import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import Animated, { FadeInDown, FadeOut } from 'react-native-reanimated';
@@ -16,7 +16,7 @@ export function Toast() {
 
   useEffect(() => {
     if (!message) return;
-    // Con acción («Deshacer») damos más margen para reaccionar.
+    // With an action ("Undo") we give more time to react.
     const id = setTimeout(hide, actionLabel ? 4000 : 2600);
     return () => clearTimeout(id);
   }, [message, actionLabel, hide]);
@@ -28,7 +28,7 @@ export function Toast() {
       entering={FadeInDown.duration(200)}
       exiting={FadeOut.duration(150)}
       style={[styles.pill, actionLabel ? styles.pillRow : null, { bottom: insets.bottom + 96 }]}
-      // Sin acción el toast es solo informativo y no debe robar toques.
+      // Without an action the toast is purely informational and shouldn't steal touches.
       pointerEvents={actionLabel ? 'box-none' : 'none'}
     >
       <Text style={[styles.text, actionLabel ? styles.textLeft : null]} numberOfLines={2}>
@@ -44,9 +44,9 @@ export function Toast() {
           }}
           style={({ pressed }) => pressed && { opacity: 0.6 }}
         >
-          {/* Acento inline, no en la hoja de estilos: este módulo se importa en
-              el arranque, ANTES de hidratar los ajustes, así que el valor de la
-              hoja quedaba congelado en el verde por defecto para siempre. */}
+          {/* Inline accent, not in the stylesheet: this module is imported at
+              startup, BEFORE hydrating settings, so the stylesheet value would
+              be frozen to the default green forever. */}
           <Text style={[styles.action, { color: colors.accent }]}>{actionLabel}</Text>
         </Pressable>
       ) : null}

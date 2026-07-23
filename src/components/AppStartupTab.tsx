@@ -1,12 +1,12 @@
 /**
- * Pestaña de arranque + reset al reabrir.
+ * Startup tab + reset on reopen.
  *
- * - Al abrir la app en frío, si la pestaña por defecto no es Inicio, salta a ella.
- * - Al volver del segundo plano tras un rato (RESET_AFTER_MS), cierra cualquier
- *   pantalla apilada y vuelve a la pestaña por defecto (como Spotify/YouTube).
- *   Un cambio de app breve conserva dónde estabas.
+ * - On cold start, if the default tab is not Home, jump to it.
+ * - On returning from background after a while (RESET_AFTER_MS), dismiss any
+ *   stacked screens and go back to the default tab (like Spotify/YouTube).
+ *   A brief app switch preserves where you were.
  *
- * No pinta nada; solo orquesta navegación. Se monta con sesión activa.
+ * Renders nothing; only orchestrates navigation. Mounted with an active session.
  */
 import { useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
@@ -21,8 +21,8 @@ const TAB_HREF: Record<DefaultTab, '/' | '/search' | '/library'> = {
   library: '/library',
 };
 
-// Tiempo en segundo plano a partir del cual, al volver, se abre en la pestaña
-// por defecto. Por debajo (cambio de app rápido) se conserva la pantalla actual.
+// Time in background after which, on return, the app opens on the default
+// tab. Below this (quick app switch) the current screen is preserved.
 const RESET_AFTER_MS = 3 * 60 * 1000;
 
 export function AppStartupTab() {
@@ -32,18 +32,18 @@ export function AppStartupTab() {
   const didInitial = useRef(false);
 
   const goToDefaultTab = () => {
-    // Cierra lo que hubiera apilado encima de las pestañas (álbum, ajustes,
-    // player…) y activa la pestaña por defecto.
+    // Dismiss whatever was stacked on top of the tabs (album, settings,
+    // player…) and activate the default tab.
     if (router.canDismiss()) router.dismissAll();
     router.navigate(TAB_HREF[defaultTab]);
   };
 
-  // Arranque en frío: si la pestaña por defecto no es Inicio, saltamos a ella.
+  // Cold start: if the default tab is not Home, jump to it.
   useEffect(() => {
     if (didInitial.current) return;
     didInitial.current = true;
     if (defaultTab !== 'index') goToDefaultTab();
-    // Solo al montar; el valor vive en la ref del guard.
+    // On mount only; the value lives in the guard ref.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -55,8 +55,8 @@ export function AppStartupTab() {
         const since = backgroundedAt.current;
         backgroundedAt.current = null;
         if (since !== null && Date.now() - since > RESET_AFTER_MS) goToDefaultTab();
-        // Al volver, sincroniza las playlists de auto-descarga (pilla lo que se
-        // añadiera desde otro cliente mientras la app estaba en 2º plano).
+        // On return, sync auto-download playlists (catch what was added from
+        // another client while the app was in the background).
         void useAutoDownloads.getState().reconcileAll();
       }
     });

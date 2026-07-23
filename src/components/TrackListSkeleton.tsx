@@ -1,7 +1,7 @@
 /**
- * Esqueleto de carga para las pantallas de álbum/playlist (estilo Spotify):
- * bloques grises con la silueta de la cabecera y las filas, pulsando suave,
- * en lugar de un spinner sobre pantalla vacía.
+ * Loading skeleton for album/playlist screens (Spotify style): gray blocks
+ * with a header and row silhouettes, softly pulsing, instead of a spinner
+ * over an empty screen.
  */
 import { useEffect } from 'react';
 import { Dimensions, StyleSheet, View } from 'react-native';
@@ -15,8 +15,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, radius, spacing } from '@/theme';
 
-// Misma carátula y barra superior que TrackListView para que la transición
-// esqueleto → contenido no salte.
+// Same cover art and top bar as TrackListView so the skeleton → content
+// transition doesn't jump.
 const COVER = Math.min(Dimensions.get('window').width * 0.58, 250);
 const TOPBAR_H = 48;
 

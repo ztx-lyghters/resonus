@@ -1,8 +1,8 @@
 /**
- * Hoja inferior con acciones rápidas para un álbum o playlist (se abre con
- * long-press en sus tarjetas/filas): reproducir, aleatorio, a la cola,
- * descargar y favorito, sin entrar a la pantalla. Las canciones se piden al
- * elegir la acción (misma query que usa la pantalla, así se comparte caché).
+ * Bottom sheet with quick actions for an album or playlist (opened via
+ * long-press on its cards/rows): play, shuffle, queue, download, and
+ * favorite, without entering the screen. Songs are fetched when the action
+ * is chosen (same query the screen uses, so cache is shared).
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -45,7 +45,7 @@ function Action({
   );
 }
 
-/** Canciones del álbum/playlist, compartiendo caché con su pantalla. */
+/** Album/playlist songs, sharing cache with its screen. */
 async function fetchSongs(item: MediaMenuItem): Promise<Song[]> {
   if (item.kind === 'album') {
     const data = await queryClient.fetchQuery({
@@ -89,7 +89,7 @@ export function MediaMenuSheet() {
   const pinKey = album ? `album:${album.id}` : `playlist:${playlist!.id}`;
   const pinned = !!pins[pinKey];
 
-  /** Cierra, pide las canciones y ejecuta la acción (con toast si falla). */
+  /** Closes, fetches the songs, and runs the action (with toast on failure). */
   async function withSongs(fn: (songs: Song[]) => void) {
     close();
     try {
@@ -106,8 +106,8 @@ export function MediaMenuSheet() {
     try {
       if (album.starred) {
         await unstar(album.id, 'album');
-        // Sin favorito el álbum ya no aparece en la Biblioteca, así que su pin
-        // quedaría huérfano ocupando un slot: lo soltamos al desfavoritar.
+        // Without favorite the album no longer appears in the Library, so its
+        // pin would be orphaned taking up a slot: we release it on unfavorite.
         if (pins[pinKey]) togglePin(pinKey);
         toast(t('Removed from favorites'));
       } else {
@@ -155,8 +155,8 @@ export function MediaMenuSheet() {
           label={t('Shuffle')}
           onPress={() =>
             withSongs((songs) => {
-              // Igual que el botón de las pantallas: pista inicial al azar y
-              // modo aleatorio activo (playQueue lo resetea, de ahí el orden).
+              // Same as the screen buttons: random starting track and shuffle
+              // mode active (playQueue resets it, hence the order).
               void playQueue(songs, Math.floor(Math.random() * songs.length), name, href);
               if (!usePlayerStore.getState().shuffle) usePlayerStore.getState().toggleShuffle();
             })
@@ -197,10 +197,10 @@ export function MediaMenuSheet() {
             onPress={() => void toggleFavorite()}
           />
         ) : null}
-        {/* Chincheta diagonal (MaterialCommunity), como la de Spotify; la de
-            Ionicons es otra cosa y queda rara. Solo tiene sentido si el ítem
-            puede aparecer en la Biblioteca: las playlists siempre salen, pero
-            los álbumes solo si son favoritos (la lista viene de getStarred). */}
+        {/* Diagonal pin (MaterialCommunity), like Spotify's; the Ionicons one
+            is something else and looks weird. Only makes sense if the item can
+            appear in the Library: playlists always do, but albums only if
+            favorited (the list comes from getStarred). */}
         {playlist || album?.starred ? (
           <Pressable
             style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
@@ -253,6 +253,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
   actionText: { color: colors.text, fontSize: fontSize.md },
-  // La chincheta de MCI viene vertical; girada 45° queda como la de Spotify.
+  // The MCI pin comes vertical; rotated 45° it looks like Spotify's.
   pinIcon: { transform: [{ rotate: '45deg' }] },
 });

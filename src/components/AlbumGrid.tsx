@@ -1,4 +1,4 @@
-/** Cuadrícula reutilizable de álbumes (N columnas que se reparten el ancho). */
+/** Reusable album grid (N columns that split the available width). */
 import { Dimensions, StyleSheet, View } from 'react-native';
 
 import { type Album } from '@/api/subsonic';

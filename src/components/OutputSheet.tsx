@@ -1,7 +1,7 @@
 /**
- * Selector de salida de audio (estilo Spotify Connect): este teléfono o un
- * renderer UPnP/DLNA de la red. Al abrirse busca renderers (~5 s); el activo
- * aparece marcado como salida actual.
+ * Audio output picker (Spotify Connect style): this phone or a UPnP/DLNA
+ * renderer on the network. When opened it searches for renderers (~5 s); the
+ * active one is shown as the current output.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -40,7 +40,7 @@ export function OutputSheet({ visible, onClose }: { visible: boolean; onClose: (
   const jukeboxAvailable = useJukebox((s) => s.available);
   const phoneActive = !upnpId && !jukeboxActive;
   const { dismiss, backdropStyle, sheetStyle, onSheetLayout } = useBottomSheetAnim(visible);
-  // Cierre animado: la hoja baja y después avisa al padre (que oculta el Modal).
+  // Animated close: the sheet slides down and then notifies the parent (which hides the Modal).
   const close = () => dismiss(onClose);
 
   useEffect(() => {
@@ -59,7 +59,7 @@ export function OutputSheet({ visible, onClose }: { visible: boolean; onClose: (
   async function pickDevice(device: UpnpDevice) {
     close();
     if (device.id === upnpId) return;
-    // Traspaso silencioso entre salidas remotas (no reanuda en local por medio).
+    // Silent handoff between remote outputs (does not resume on local in between).
     if (jukeboxActive) await jukeboxDisconnect(true);
     const ok = await upnpConnect(device);
     if (!ok) toast(t("Couldn't complete the action"));

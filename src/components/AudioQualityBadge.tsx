@@ -1,4 +1,4 @@
-/** Etiqueta discreta con el formato, bitrate y si es lossless/Hi-Res. */
+/** Discreet label with format, bitrate, and whether it's lossless/Hi-Res. */
 import { StyleSheet, Text } from 'react-native';
 
 import { type Song } from '@/api/subsonic';
@@ -19,28 +19,28 @@ function qualityLabel(
   dlBitRate: number | undefined,
   t: (k: string) => string,
 ): string | null {
-  // Sin formato no hay nada que enseñar. Antes también se ocultaba con
-  // `localUri` (local/offline), pero una canción descargada sí tiene specs que
-  // mostrar: el formato real del fichero en disco (por su extensión, vía
-  // `dlUri`) más los datos del servidor. Offline es justo cuando más importa.
+  // Without format there's nothing to show. Previously it was also hidden with
+  // `localUri` (local/offline), but a downloaded song does have specs to
+  // display: the real file format on disk (by its extension, via `dlUri`)
+  // plus the server data. Offline is precisely when it matters most.
   if (!song.suffix) return null;
   const fmt = song.suffix.toUpperCase();
   if (dlUri) {
-    // Descargada → suena desde disco: el límite de streaming no aplica. Si se
-    // bajó transcodificada (la extensión ya no es la del original), las specs
-    // del fichero original tampoco.
+    // Downloaded → plays from disk: the streaming limit doesn't apply. If it was
+    // downloaded transcoded (the extension no longer matches the original), the
+    // original file specs no longer apply either.
     const ext = dlUri.split('.').pop()?.toLowerCase();
     if (ext && ext !== song.suffix.toLowerCase()) {
-      // `dlBitRate` = bitrate que se pidió al transcodificar la descarga (solo lo
-      // llevan las bajadas nuevas; las viejas se quedan sin el número, sin más).
+      // `dlBitRate` = bitrate requested when transcoding the download (only
+      // carried by newer downloads; older ones lack the number).
       return dlBitRate
         ? `${fmt} → ${ext.toUpperCase()} ${dlBitRate} kbps`
         : `${fmt} → ${ext.toUpperCase()}`;
     }
   } else if (!song.url && !song.localUri && maxBitRate > 0 && song.bitRate != null && song.bitRate > maxBitRate) {
-    // Con límite de calidad activo y un original que lo supera, el servidor
-    // transcodifica: la etiqueta refleja lo que suena de verdad, no el fichero
-    // (nada de presumir de Lossless mientras llega un MP3 de 128).
+    // With a quality cap active and an original that exceeds it, the server
+    // transcodes: the label reflects what actually plays, not the file
+    // (no showing off "Lossless" while a 128kbps MP3 is arriving).
     return `${fmt} → ${maxBitRate} kbps`;
   }
   const parts: string[] = [fmt];
@@ -76,7 +76,7 @@ function qualityLabel(
 
 export function AudioQualityBadge({ song }: { song: Song }) {
   const t = useT();
-  // La calidad de streaming depende de la red actual (Wi-Fi o datos móviles).
+  // Streaming quality depends on the current network (Wi-Fi or mobile data).
   const cellular = useNetworkType((s) => s.cellular);
   const maxBitRate = useSettings((s) => (cellular ? s.maxBitRateCellular : s.maxBitRate));
   const dlUri = useDownloads((s) => s.files[song.id]);

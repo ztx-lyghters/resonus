@@ -1,7 +1,7 @@
 /**
- * Hoja inferior para elegir una playlist destino y añadirle canciones en lote
- * (selección múltiple). Permite crear una playlist nueva. Hace el añadido y
- * los toasts ella misma, para reutilizarla desde cualquier pantalla.
+ * Bottom sheet to pick a target playlist and add songs in bulk (multi-select).
+ * Allows creating a new playlist. Handles the addition and toasts itself, so it
+ * can be reused from any screen.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -22,12 +22,12 @@ import { colors, fontSize, radius, spacing } from '@/theme';
 import { Cover } from './Cover';
 import { Dialog } from './Dialog';
 
-/** Alto máximo de la lista de playlists: proporcional a la pantalla para que
- *  no quede compacta en móviles grandes (antes era un fijo de 400). */
+/** Maximum height of the playlist list: proportional to the screen so it
+ *  doesn't look cramped on large phones (previously a fixed 400). */
 const PLAYLISTS_MAX_H = Math.round(Dimensions.get('window').height * 0.6);
 
-/** Instancia global (montada una vez en el layout raíz): la abre cualquier sitio
- *  vía `usePlaylistPicker.open(songs)` sin renderizar su propia hoja. */
+/** Global instance (mounted once in the root layout): any place can open it
+ *  via `usePlaylistPicker.open(songs)` without rendering its own sheet. */
 export function GlobalPlaylistPicker() {
   const songs = usePlaylistPicker((s) => s.songs);
   const close = usePlaylistPicker((s) => s.close);
@@ -40,9 +40,9 @@ export function PlaylistPickerSheet({
   excludeId,
   onClose,
 }: {
-  /** Canciones a añadir; null = hoja oculta. */
+  /** Songs to add; null = sheet hidden. */
   songs: Song[] | null;
-  /** Playlist a ocultar de la lista (la de origen). */
+  /** Playlist to hide from the list (the source one). */
   excludeId?: string;
   onClose: () => void;
 }) {
@@ -54,7 +54,7 @@ export function PlaylistPickerSheet({
   const { dismiss, backdropStyle, sheetStyle, onSheetLayout } = useBottomSheetAnim(visible);
   const close = () => dismiss(onClose);
   const [creating, setCreating] = useState(false);
-  // Aviso "ya está(n) en la playlist" pendiente de confirmar (estilo Spotify).
+  // "Already in the playlist" prompt pending confirmation (Spotify style).
   const [dupPrompt, setDupPrompt] = useState<{ playlistId: string; name: string } | null>(null);
 
   const { data: playlists, isLoading } = useQuery({
@@ -65,14 +65,14 @@ export function PlaylistPickerSheet({
 
   if (!songs || songs.length === 0) return null;
 
-  /** Añade de verdad (sin comprobar duplicados) y cierra con toast. */
+  /** Actually adds (without checking duplicates) and closes with a toast. */
   async function doAdd(playlistId: string, name: string) {
     if (!songs) return;
     close();
     try {
       for (const s of songs) await addToPlaylist(playlistId, s.id);
-      // Conteo optimista en la Biblioteca ('{n} canciones'): sin esto el
-      // subtítulo no cambia hasta recargar esa pantalla.
+      // Optimistic count in the Library ('{n} songs'): without this the
+      // subtitle doesn't update until that screen is reloaded.
       queryClient.setQueryData<{ id: string; songCount?: number }[]>(['playlists'], (list) =>
         list?.map((p) =>
           p.id === playlistId ? { ...p, songCount: (p.songCount ?? 0) + songs.length } : p,
@@ -80,7 +80,7 @@ export function PlaylistPickerSheet({
       );
       queryClient.invalidateQueries({ queryKey: ['playlist', playlistId] });
       queryClient.invalidateQueries({ queryKey: ['playlists'] });
-      // Si la lista es de auto-descarga, baja ya las canciones recién añadidas.
+      // If the list has auto-download, fetch the newly added songs now.
       void useAutoDownloads.getState().reconcile(playlistId, true);
       toast(
         songs.length === 1
@@ -94,8 +94,8 @@ export function PlaylistPickerSheet({
 
   async function addAllTo(playlistId: string, name: string) {
     if (!songs) return;
-    // Aviso de duplicados estilo Spotify: si alguna ya está, preguntar antes.
-    // Si la comprobación falla (red), se añade sin aviso: mejor que bloquear.
+    // Spotify-style duplicate warning: if any already present, ask first. If
+    // the check fails (network), add without warning: better than blocking.
     try {
       const { songs: existing } = await getPlaylist(playlistId);
       const have = new Set(existing.map((s) => s.id));

@@ -1,4 +1,4 @@
-/** Mensaje centrado para estados de error o vacío, con reintento opcional. */
+/** Centered message for error or empty states, with optional retry. */
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useT } from '@/i18n';

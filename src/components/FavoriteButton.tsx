@@ -1,4 +1,4 @@
-/** Corazón para marcar/desmarcar favoritos (star/unstar de Subsonic). */
+/** Heart to mark/unmark favorites (Subsonic star/unstar). */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
@@ -25,9 +25,9 @@ export function FavoriteButton({ id, type = 'song', starred, size = 22 }: Props)
   const [fav, setFav] = useState(!!starred);
   const [busy, setBusy] = useState(false);
 
-  // Re-sincroniza con la canción actual: el mismo componente se reutiliza al
-  // cambiar de pista (mini-player/reproductor), así que sin esto el corazón
-  // se quedaba "pegado" al estado de la canción anterior.
+  // Resync with the current song: the same component is reused when switching
+  // tracks (mini-player/player), so without this the heart would stay "stuck"
+  // to the previous song's state.
   useEffect(() => {
     setFav(!!starred);
   }, [id, starred]);
@@ -37,15 +37,15 @@ export function FavoriteButton({ id, type = 'song', starred, size = 22 }: Props)
     if ((!auth && !offline) || busy) return;
     const nextFav = !fav;
     haptic('medium');
-    setFav(nextFav); // actualización optimista
+    setFav(nextFav); // optimistic update
     setBusy(true);
     try {
       if (nextFav) await star(id, type);
       else await unstar(id, type);
-      // Refresca la lista de favoritos si está abierta.
+      // Refresh the favorites list if it's open.
       queryClient.invalidateQueries({ queryKey: ['starred'] });
     } catch {
-      setFav(!nextFav); // revertir si falla
+      setFav(!nextFav); // revert on failure
     } finally {
       setBusy(false);
     }

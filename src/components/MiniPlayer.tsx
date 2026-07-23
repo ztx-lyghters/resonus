@@ -1,6 +1,6 @@
 /**
- * Barra de reproducción compacta sobre la barra de pestañas. Muestra la
- * canción actual y un botón play/pausa; al tocarla abre el reproductor.
+ * Compact playback bar above the tab bar. Shows the current song and a
+ * play/pause button; tapping it opens the player.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
@@ -34,14 +34,14 @@ import { MarqueeText } from './MarqueeText';
 
 const SCREEN_W = Dimensions.get('window').width;
 const SCREEN_H = Dimensions.get('window').height;
-// Umbrales de gesto: horizontal para cambiar de pista, vertical para descartar.
+// Gesture thresholds: horizontal to change track, vertical to dismiss.
 const SWIPE_X = SCREEN_W * 0.25;
 const DISMISS_Y = 80;
 
 /**
- * Barra de progreso aislada: es lo único que se suscribe a `positionSec` (se
- * actualiza cada 500ms), así el MiniPlayer entero (carátula, título, favorito,
- * play) no se re-renderiza 2×/seg mientras suena algo — solo esta barrita.
+ * Isolated progress bar: the only thing that subscribes to `positionSec`
+ * (updated every 500ms), so the whole MiniPlayer (cover, title, favorite,
+ * play) doesn't re-render 2×/sec while something is playing — only this bar.
  */
 function MiniProgress({ song }: { song: Song }) {
   const positionSec = usePlayerStore((s) => s.positionSec);
@@ -66,10 +66,9 @@ export function MiniPlayer() {
   const reset = usePlayerStore((s) => s.reset);
   const t = useT();
 
-  // Gestos del mini-reproductor: arrastrar hacia la izquierda → siguiente, hacia
-  // la derecha → anterior (igual que el carrusel del reproductor), hacia abajo →
-  // descartar (para y limpia). El pan se bloquea al eje dominante para que no
-  // vaya en diagonal.
+  // Mini-player gestures: swipe left → next, swipe right → previous (same as
+  // the player carousel), swipe down → dismiss (stop and clear). The pan is
+  // locked to the dominant axis to prevent diagonal movement.
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const pan = Gesture.Pan()
@@ -99,36 +98,36 @@ export function MiniPlayer() {
         translateY.value = withSpring(0, { damping: 20, stiffness: 200 });
       }
     });
-  // La tarjeta entera solo se mueve (y desvanece) al descartar hacia abajo.
+  // The entire card only moves (and fades) when dismissed downward.
   const cardStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
     opacity: interpolate(translateY.value, [0, SCREEN_W * 0.6], [1, 0], Extrapolation.CLAMP),
   }));
-  // En horizontal la barra se queda fija: solo se desplazan/atenúan los detalles
-  // de la canción, para que se lea como "cambiar de pista", no como descartar.
+  // On horizontal swipe the bar stays fixed: only the song details slide/fade,
+  // to read as "changing track", not as dismissing.
   const detailsStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
     opacity: interpolate(Math.abs(translateX.value), [0, SCREEN_W * 0.5], [1, 0.15], Extrapolation.CLAMP),
   }));
 
-  // Al cambiar de canción (o volver a sonar algo) devolvemos la tarjeta a su
-  // sitio por si quedó desplazada de un gesto.
+  // When the song changes (or playback resumes) we return the card to its place
+  // in case it was offset from a previous gesture.
   useEffect(() => {
     translateX.value = 0;
     translateY.value = 0;
   }, [song?.id, translateX, translateY]);
 
-  // Emisora de radio: carátula propia del dispositivo (Subsonic no la tiene).
+  // Radio station: device-local cover art (Subsonic doesn't provide it).
   const radioCover = useRadioCovers((s) => (song?.url ? s.covers[song.id] : undefined));
   const cover = song
     ? (song.url ? radioCover : coverArtUrl(song.coverArt ?? song.albumId, 100))
     : undefined;
-  // Color dominante de la carátula, si el ajuste está activo; si no, superficie neutra.
+  // Dominant color from the cover art, if the setting is active; otherwise neutral surface.
   const miniColor = useSettings((s) => s.miniPlayerColorBackground);
   const marqueeTitles = useSettings((s) => s.marqueeTitles);
-  // La paleta se extrae de la MISMA imagen que usa el reproductor (600 px):
-  // con tamaños distintos la cuantización elige colores distintos y el mini
-  // acababa de un color y la pantalla del player de otro para la misma canción.
+  // The palette is extracted from the SAME image the player uses (600px):
+  // with different sizes the quantization picks different colors and the mini
+  // ended up one color and the player screen another for the same song.
   const colorSource = song
     ? (song.url ? radioCover : coverArtUrl(song.coverArt ?? song.albumId, 600))
     : undefined;
@@ -139,8 +138,8 @@ export function MiniPlayer() {
 
   if (!song) return null;
 
-  // La lista central manda cuando está cargada; `song.starred` de la cola se
-  // queda obsoleto (solo reserva para locales o mientras carga).
+  // The central list wins when loaded; `song.starred` from the queue becomes
+  // stale (only kept as backup for local files or while loading).
   const favorited = favIds ? favIds.has(song.id) : !!song.starred;
 
   return (
@@ -172,7 +171,7 @@ export function MiniPlayer() {
           e.stopPropagation();
           toggle();
         }}
-        // Stop de verdad: para y elimina cola, mini player y notificación.
+        // Real stop: stops and clears queue, mini player, and notification.
         onLongPress={() => {
           haptic('medium');
           void usePlayerStore

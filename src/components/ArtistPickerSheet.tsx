@@ -1,6 +1,6 @@
 /**
- * Hoja inferior para elegir a qué artista ir cuando una canción o álbum tiene
- * varios (colaboraciones). Se abre desde el store `artistPicker`.
+ * Bottom sheet for choosing which artist to go to when a song or album has
+ * multiple artists (collaborations). Opened from the `artistPicker` store.
  */
 import { useRouter } from 'expo-router';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';

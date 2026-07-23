@@ -1,4 +1,4 @@
-/** Hoja para editar una lista: carátula, nombre, descripción y visibilidad. */
+/** Sheet to edit a playlist: cover, name, description, and visibility. */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useState } from 'react';
 import {
@@ -32,16 +32,16 @@ interface Props {
   visible: boolean;
   initial: PlaylistEdit;
   coverUri?: string;
-  /** Oculta el interruptor de lista pública (p. ej. en modo local, sin servidor). */
+  /** Hides the public playlist toggle (e.g. in local mode, no server). */
   hidePublic?: boolean;
   /**
-   * Id de la playlist en el servidor: habilita cambiar la carátula con una
-   * imagen local (API nativa de Navidrome ≥ 0.61). Solo perfiles Navidrome.
+   * Server playlist ID: enables changing the cover with a local image
+   * (Navidrome native API >= 0.61). Navidrome profiles only.
    */
   coverUploadId?: string;
   /**
-   * Id de una lista del perfil local: habilita cambiar la carátula copiando
-   * la imagen al almacenamiento de la app (sin servidor de por medio).
+   * Local profile playlist ID: enables changing the cover by copying the image
+   * to the app's storage (no server involved).
    */
   localCoverId?: string;
   onCancel: () => void;
@@ -62,13 +62,13 @@ export function PlaylistEditSheet({
   const [name, setName] = useState(initial.name);
   const [comment, setComment] = useState(initial.comment);
   const [isPublic, setIsPublic] = useState(initial.public);
-  // Cambio de carátula (subida/copia, error inline y diálogo de contraseña):
-  // lógica compartida con el visor de carátula. El error va inline porque un
-  // toast quedaría oculto bajo este Modal.
+  // Cover change (upload/copy, inline error, and password dialog): logic
+  // shared with the cover viewer. Error is inline because a toast would be
+  // hidden under this Modal.
   const cover = usePlaylistCover({ coverUploadId, localCoverId });
   const { reset: resetCover } = cover;
 
-  // Reinicia los campos cada vez que se abre.
+  // Resets fields every time it opens.
   useEffect(() => {
     if (visible) {
       setName(initial.name);

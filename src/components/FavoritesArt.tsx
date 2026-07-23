@@ -1,7 +1,7 @@
 /**
- * Carátula del acceso a Favoritos: degradado índigo → celeste con un corazón,
- * como "Canciones que te gustan" de Spotify. La cabecera de la pantalla de
- * Favoritos usa el índigo oscurecido (ver HEADER_COLOR allí).
+ * Cover art for the Favorites entry point: indigo → sky gradient with a heart,
+ * like Spotify's "Liked Songs". The Favorites screen header uses the darkened
+ * indigo (see HEADER_COLOR there).
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';

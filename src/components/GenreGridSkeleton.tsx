@@ -1,7 +1,7 @@
 /**
- * Esqueleto de carga para la rejilla de géneros de Buscar ("Explorar todo"):
- * tarjetas grises pulsando con el mismo tamaño que las reales, en lugar de un
- * hueco vacío mientras llegan del servidor.
+ * Loading skeleton for the Search genre grid ("Explore all"): gray pulsing
+ * cards at the same size as real ones, instead of an empty gap while data
+ * arrives from the server.
  */
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -32,6 +32,6 @@ export function GenreGridSkeleton({ width, count = 14 }: { width: number; count?
 
 const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  // Mismo alto y radio que GenreCard para que no salte al llegar el contenido.
+  // Same height and border radius as GenreCard so the layout doesn't jump when content arrives.
   card: { height: 88, borderRadius: radius.md, backgroundColor: colors.surfaceHighlight },
 });

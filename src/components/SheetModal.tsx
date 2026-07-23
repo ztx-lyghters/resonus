@@ -1,9 +1,9 @@
 /**
- * Hoja inferior autocontenida: su visibilidad vive aquí dentro y se abre
- * imperativamente vía `openRef`, así mostrarla u ocultarla NO re-renderiza la
- * pantalla (con su lista) que la declara — con estado en la pantalla, abrir el
- * menú tenía un delay visible. El contenido llega como función que recibe
- * `close` para cerrar tras elegir una acción.
+ * Self-contained bottom sheet: its visibility lives here and is opened
+ * imperatively via `openRef`, so showing/hiding it does NOT re-render the
+ * screen (with its list) that declares it — with state in the screen, opening
+ * the menu had a noticeable delay. The content comes as a function receiving
+ * `close` to close after choosing an action.
  */
 import { type MutableRefObject, type ReactNode, useState } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
@@ -15,7 +15,7 @@ export function SheetModal({
   openRef,
   children,
 }: {
-  /** La pantalla guarda un ref y llama `openRef.current()` para abrir. */
+  /** The screen holds a ref and calls `openRef.current()` to open. */
   openRef: MutableRefObject<() => void>;
   children: (close: () => void) => ReactNode;
 }) {

@@ -1,7 +1,7 @@
 /**
- * Diálogo modal sencillo: título, mensaje o campo de texto opcional y botones
- * Cancelar/Confirmar. Sirve para crear/renombrar (con input) y para confirmar
- * acciones destructivas (sin input).
+ * Simple modal dialog: title, message or optional text field, and
+ * Cancel/Confirm buttons. Used for create/rename (with input) and to confirm
+ * destructive actions (without input).
  */
 import { useEffect, useState } from 'react';
 import {
@@ -20,7 +20,7 @@ interface Props {
   visible: boolean;
   title: string;
   message?: string;
-  /** Si se indica, muestra un campo de texto inicializado con `initialValue`. */
+  /** If provided, shows a text field initialized with `initialValue`. */
   input?: { placeholder?: string; initialValue?: string; secure?: boolean };
   confirmLabel: string;
   destructive?: boolean;
@@ -41,7 +41,7 @@ export function Dialog({
   const t = useT();
   const [value, setValue] = useState(input?.initialValue ?? '');
 
-  // Reinicia el texto cada vez que se abre.
+  // Reset the text every time it opens.
   useEffect(() => {
     if (visible) setValue(input?.initialValue ?? '');
   }, [visible, input?.initialValue]);

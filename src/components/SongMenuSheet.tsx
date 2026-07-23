@@ -1,4 +1,4 @@
-/** Hoja inferior con acciones para una canción (menú ⋯). */
+/** Bottom sheet with actions for a song (⋯ menu). */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
@@ -47,20 +47,20 @@ import { Cover } from './Cover';
 import { Dialog } from './Dialog';
 import { StarRating } from './StarRating';
 
-/** Alto máximo de la lista de playlists: proporcional a la pantalla para que
- *  no quede compacta en móviles grandes (antes era un fijo de 360). */
+/** Maximum height of the playlist list: proportional to the screen so it
+ *  doesn't look cramped on large phones (previously a fixed 360). */
 const PLAYLISTS_MAX_H = Math.round(Dimensions.get('window').height * 0.6);
 
 /**
- * Minutos que faltan para el vencimiento, mínimo 1.
+ * Minutes remaining until expiration, minimum 1.
  *
- * Hacia abajo, como cualquier cuenta atrás: con 14:50 por delante se marca 14,
- * igual que un reloj. Redondeando hacia arriba daría 15 hasta que quedaran
- * exactamente 14:00, así que el primer minuto entero repetiría el número que
- * se eligió — justo lo que esta etiqueta viene a evitar.
+ * Rounded down, like any countdown: with 14:50 left it shows 14, same as a
+ * clock. Rounding up would show 15 until exactly 14:00, so the first full
+ * minute would repeat the chosen number — exactly what this label is meant to
+ * avoid.
  *
- * El mínimo de 1 es para el último minuto: "0 min" leería como que ya no hay
- * temporizador, y todavía queda.
+ * The minimum of 1 is for the last minute: "0 min" would read as if the timer
+ * is already gone, and it's still there.
  */
 function minutesLeft(endsAt: number): number {
   return Math.max(1, Math.floor((endsAt - Date.now()) / 60_000));
@@ -98,14 +98,14 @@ export function SongMenuSheet() {
   const showLyrics = useSongMenu((s) => s.showLyrics);
   const closeNow = useSongMenu((s) => s.close);
   const { dismiss, backdropStyle, sheetStyle, onSheetLayout } = useBottomSheetAnim(!!song);
-  // Cierre animado: la hoja baja y después se desmonta el Modal. Todas las
-  // acciones cierran por aquí.
+  // Animated dismiss: the sheet slides down and then the Modal is unmounted.
+  // All actions close through here.
   const close = () => dismiss(closeNow);
   const addToQueue = usePlayerStore((s) => s.addToQueue);
   const playNext = usePlayerStore((s) => s.playNext);
   const startRadio = usePlayerStore((s) => s.startRadio);
-  // Acciones visibles (Ajustes → Aspecto → Menú de canción). Se suma a las
-  // condiciones de cada una: esconderla no reactiva lo que ya no aplicaba.
+  // Visible actions (Settings → Appearance → Song menu). Added to each one's
+  // conditions: hiding it doesn't re-enable what already didn't apply.
   const menu = useSettings((s) => s.songMenuActions);
   const serverType = useAuthStore((s) => s.auth?.serverType);
   const rateSong = usePlayerStore((s) => s.rateSong);
@@ -125,10 +125,10 @@ export function SongMenuSheet() {
 
   const [mode, setMode] = useState<'actions' | 'playlists' | 'sleep' | 'rating'>('actions');
   const [creating, setCreating] = useState(false);
-  // Aviso "ya está en la playlist" pendiente de confirmar (estilo Spotify).
+  // "Already in the playlist" prompt pending confirmation (Spotify style).
   const [dupPrompt, setDupPrompt] = useState<{ playlistId: string; name: string } | null>(null);
 
-  // Al abrir el menú para una canción, volvemos siempre a la vista de acciones.
+  // When opening the menu for a song, always go back to the actions view.
   useEffect(() => {
     if (song) setMode('actions');
   }, [song]);
@@ -146,14 +146,14 @@ export function SongMenuSheet() {
     router.push(path);
   };
 
-  /** Añade de verdad (sin comprobar duplicados) y cierra con toast. */
+  /** Actually adds (without checking duplicates) and closes with a toast. */
   async function doAdd(playlistId: string, playlistName: string) {
     if (!song) return;
     close();
     try {
       await addToPlaylist(playlistId, song.id);
       queryClient.invalidateQueries({ queryKey: ['playlist', playlistId] });
-      // Si la lista es de auto-descarga, baja ya la canción recién añadida.
+      // If the list has auto-download, fetch the newly added song now.
       void useAutoDownloads.getState().reconcile(playlistId, true);
       toast(t('Added to “{name}”', { name: playlistName }));
     } catch {
@@ -163,8 +163,8 @@ export function SongMenuSheet() {
 
   async function addTo(playlistId: string, playlistName: string) {
     if ((!auth && !offline) || !song) return;
-    // Aviso de duplicado estilo Spotify: si ya está, preguntar antes. Si la
-    // comprobación falla (red), se añade sin aviso: mejor que bloquear.
+    // Spotify-style duplicate warning: if already present, ask first. If the
+    // check fails (network), add without warning: better than blocking.
     try {
       const { songs } = await getPlaylist(playlistId);
       if (songs.some((s) => s.id === song.id)) {
@@ -196,9 +196,9 @@ export function SongMenuSheet() {
     close();
     const { playlistId, index } = context;
     const key = ['playlist', playlistId];
-    // Optimista: la canción desaparece ya de la lista; el borrado real se
-    // difiere hasta que el toast caduca. «Deshacer» lo cancela y la restaura
-    // en su posición (el servidor no llegó a enterarse).
+    // Optimistic: the song disappears from the list immediately; the real
+    // deletion is delayed until the toast expires. «Undo» cancels it and
+    // restores it in its position (the server never knew about it).
     const prev = queryClient.getQueryData<{ playlist: unknown; songs: Song[] }>(key);
     const prevList = queryClient.getQueryData<{ id: string; songCount?: number }[]>(['playlists']);
     if (prev) {
@@ -213,10 +213,11 @@ export function SongMenuSheet() {
       commit: () => {
         void (async () => {
           try {
-            // Reescribimos la lista al estado final (sin la quitada) en vez de
-            // quitar por índice: es un "set", idéntico online y offline, así que
-            // no hay doble borrado si el commit diferido cae ya en offline. Si
-            // era la última canción (lista a 0), el método por índice es lo probado.
+              // We rewrite the list to the final state (without the removed song)
+              // instead of removing by index: it's a "set", identical online and
+              // offline, so there's no double deletion if the deferred commit
+              // falls already in offline mode. If it was the last song (list at
+              // 0), the index method is the proven one.
             if (prev) {
               const finalIds = prev.songs.filter((_, i) => i !== index).map((s) => s.id);
               if (finalIds.length > 0) await reorderPlaylist(playlistId, finalIds);
@@ -383,8 +384,8 @@ export function SongMenuSheet() {
                 onPress={() => {
                   const targets = artistTargets(song);
                   if (targets.length > 1) {
-                    // Cerramos la hoja y, tras su animación de salida, abrimos el
-                    // selector (evita dos Modals visibles a la vez).
+                    // We close the sheet and, after its exit animation, open the
+                    // picker (avoids two visible Modals at once).
                     dismiss(() => {
                       closeNow();
                       openArtistPicker(targets);
@@ -416,9 +417,9 @@ export function SongMenuSheet() {
                 onPress={() => go('/lyrics')}
               />
             ) : null}
-            {/* Con las de reproducción, no con las de organizar: esto cambia la
-                cola y se pone a sonar. Solo online (las parecidas las busca el
-                servidor) y no en emisoras (`url`), que no tienen "parecidas". */}
+            {/* With playback actions, not organization ones: this changes the
+                queue and starts playing. Online only (similar songs are found by
+                the server) and not for stations (`url`), which have no "similar". */}
             {menu.mix && !offline && !song.url ? (
               <Action
                 icon="sparkles-outline"
@@ -464,9 +465,9 @@ export function SongMenuSheet() {
                 }}
               />
             ) : null}
-            {/* Valorar (setRating de Subsonic): cuenta de servidor no-Jellyfin y
-                no radio. Offline se apunta y se sube al reconectar (el perfil
-                local no tiene cuenta, así que ahí no aparece). */}
+            {/* Rate (Subsonic setRating): non-Jellyfin server account and not
+                radio. Offline is recorded and uploaded on reconnect (the local
+                profile has no account, so it doesn't appear there). */}
             {menu.rating && !!auth && serverType !== 'jellyfin' && !song.url ? (
               <Action icon="star-outline" label={t('Rate')} onPress={() => setMode('rating')} />
             ) : null}
@@ -476,7 +477,7 @@ export function SongMenuSheet() {
                 label={t('Remove download')}
                 onPress={() => {
                   // El fichero se borra ya; «Deshacer» vuelve a descargarlo
-                  // (sin conexión no se ofrece: no habría de dónde bajarlo).
+                  // (offline not offered: there'd be nowhere to download from).
                   void deleteDownloads([song.id]);
                   toast(
                     t('Download removed'),

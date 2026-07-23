@@ -1,4 +1,4 @@
-/** Tarjeta de álbum para las cuadrículas/carruseles del inicio y la búsqueda. */
+/** Album card for home and search grids/carousels. */
 import { Link } from 'expo-router';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
@@ -11,7 +11,7 @@ import { Cover } from './Cover';
 interface Props {
   album: Album;
   width?: number;
-  /** Se llama al tocar la tarjeta (además de navegar al álbum). */
+  /** Called when the card is tapped (in addition to navigating to the album). */
   onPress?: () => void;
 }
 
@@ -21,8 +21,8 @@ export function AlbumCard({ album, width = 150, onPress }: Props) {
 
   return (
     <Link href={`/album/${album.id}`} asChild>
-      {/* expo-router fusiona el estilo del Link en este hijo; debe ser un
-          único objeto, no un array, así que lo aplanamos. */}
+      {/* expo-router merges the Link style into this child; it must be a
+          single object, not an array, so we flatten it. */}
       <Pressable
         style={StyleSheet.flatten([styles.container, { width }])}
         onPress={onPress}

@@ -1,7 +1,7 @@
 /**
- * Sección "Más de <artista>" al pie del detalle de álbum: un carrusel con
- * los demás álbumes del artista y un enlace ("Show all") a la discografía
- * completa en lista vertical.
+ * "More from <artist>" section at the bottom of album detail: a carousel with
+ * the artist's other albums and a link ("Show all") to the full discography
+ * in a vertical list.
  */
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'expo-router';
@@ -59,8 +59,8 @@ export function MoreFromArtist({ artistId, artistName, currentAlbumId }: Props) 
 }
 
 const styles = StyleSheet.create({
-  // Anula el padding horizontal del contenedor de la lista para que el
-  // carrusel ocupe todo el ancho.
+  // Negates the list container's horizontal padding so the carousel
+  // spans the full width.
   section: { marginTop: spacing.xl, marginHorizontal: -spacing.lg },
   header: {
     flexDirection: 'row',

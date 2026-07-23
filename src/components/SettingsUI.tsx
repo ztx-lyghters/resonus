@@ -1,8 +1,8 @@
 /**
- * Piezas compartidas por la pantalla de Ajustes y sus sub-pantallas: filas
- * dentro de cajas redondeadas (surface sobre el fondo, más legibles), con la
- * descripción gris dentro de la fila, switch a la derecha y selectores que
- * abren un menú flotante compacto.
+ * Shared pieces for the Settings screen and its sub-screens: rows inside
+ * rounded boxes (surface on background, more readable), with the description
+ * in gray inside the row, a switch on the right, and selectors that open a
+ * compact floating menu.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Slider from '@react-native-community/slider';
@@ -24,18 +24,18 @@ import { useSettings } from '@/store/settings';
 import { colors, fontSize, radius, spacing, SCREEN_BOTTOM_PADDING } from '@/theme';
 
 /**
- * Acento vivo, leído del store en vez de la constante global.
+ * Live accent, read from the store instead of the global constant.
  *
- * `colors.accent` se muta al elegir otro acento, pero eso no repinta nada por
- * sí solo: las pantallas de Ajustes que quedan montadas debajo del selector no
- * se enteran y siguen enseñando el color anterior hasta salir y volver a
- * entrar. Suscribiéndose aquí se repintan todas a la vez.
+ * `colors.accent` is mutated when choosing another accent, but that alone
+ * doesn't repaint anything: Settings screens mounted below the selector
+ * don't notice and keep showing the previous color until you exit and
+ * re-enter. Subscribing here repaints everything at once.
  */
 function useAccent(): string {
   return useSettings((s) => s.accentColor);
 }
 
-/** Cabecera con flecha de volver y título centrado. */
+/** Header with back arrow and centered title. */
 export function ScreenHeader({ title }: { title: string }) {
   const router = useRouter();
   return (
@@ -49,7 +49,7 @@ export function ScreenHeader({ title }: { title: string }) {
   );
 }
 
-/** Contenedor de pantalla de ajustes (safe-area + cabecera). */
+/** Settings screen container (safe-area + header). */
 export function SettingsPage({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <SafeAreaView style={settingsStyles.safe} edges={['top']}>
@@ -60,8 +60,8 @@ export function SettingsPage({ title, children }: { title: string; children: Rea
 }
 
 /**
- * Fila plana de ajustes: etiqueta blanca, descripción gris debajo y lo que
- * toque a la derecha (chevron con `onPress`, texto en `right`, o ambos).
+ * Flat settings row: white label, gray description below, and whatever goes
+ * on the right (chevron with `onPress`, `right` text, or both).
  */
 export function SettingRow({
   label,
@@ -75,13 +75,13 @@ export function SettingRow({
   label: string;
   description?: string;
   /**
-   * Icono a la izquierda: lo llevan las filas de ACCIÓN (escanear, limpiar…)
-   * para distinguirse a simple vista de los datos de solo lectura.
+   * Left icon: used by ACTION rows (scan, clear…) to visually stand out from
+   * read-only data rows.
    */
   icon?: keyof typeof Ionicons.glyphMap;
-  /** Texto gris a la derecha (valor actual, "Próximamente"…). */
+  /** Gray text on the right (current value, "Coming soon"…). */
   right?: string;
-  /** Flecha a la derecha: solo para filas que navegan a otra pantalla. */
+  /** Right arrow: only for rows that navigate to another screen. */
   chevron?: boolean;
   destructive?: boolean;
   onPress?: () => void;
@@ -118,16 +118,15 @@ export function SettingRow({
   );
 }
 
-/** Alto aproximado de cada opción del menú flotante (para calcular si cabe). */
+/** Approximate height of each floating menu option (to calculate if it fits). */
 const MENU_ITEM_H = 42;
 
 /**
- * Selector "elige una" compacto: una sola fila con el valor actual ("Calidad
- * de streaming · Original ⌄") que al tocarla abre un menú flotante pequeño
- * anclado a la derecha (estilo dropdown de Android) con las opciones; elegir
- * lo cierra. Con `collapsible: false` se pinta como lista de radios siempre a
- * la vista (p. ej. la pantalla de Idioma). Las etiquetas llegan ya traducidas
- * desde quien lo usa.
+ * Compact "choose one" selector: a single row with the current value ("Streaming
+ * quality · Original ⌄") that opens a small floating menu anchored to the right
+ * (Android-style dropdown) with the options; choosing one closes it. With
+ * `collapsible: false` it renders as a visible radio list (e.g. Language screen).
+ * Labels come already translated from the caller.
  */
 export function SelectList<T extends string | number | boolean>({
   options,
@@ -147,44 +146,44 @@ export function SelectList<T extends string | number | boolean>({
   const accent = useAccent();
   const frame = useSafeAreaFrame();
   const insets = useSafeAreaInsets();
-  // Posición de la fila en pantalla (medida al abrir) y alto natural del menú
-  // (medido al pintarse): con ambos se ancla exacto, pegado a la fila.
+  // The row's position on screen (measured on open) and the menu's natural
+  // height (measured on render): with both we anchor exactly, flush to the row.
   const [anchor, setAnchor] = useState<{ y: number; h: number } | null>(null);
   const [menuH, setMenuH] = useState(0);
   const rowRef = useRef<View>(null);
   const active = options.find((o) => o.value === value) ?? options[0];
 
   function openMenu() {
-    // `measureInWindow` mide desde el contenido de la ventana, es decir BAJO la
-    // barra de estado, mientras que el Modal pinta a pantalla completa, desde
-    // arriba del todo. Son dos orígenes separados justo `insets.top`, y no
-    // sumarlo dejaba el menú esa distancia demasiado alto. Se convierte aquí,
-    // una sola vez, para que el resto del cálculo viva entero en coordenadas de
-    // pantalla (que es en las que va `frame`).
+    // `measureInWindow` measures from the window content, i.e. BELOW the status
+    // bar, while the Modal renders full-screen from the very top. These are two
+    // different origins separated by exactly `insets.top`, and not adding it
+    // placed the menu that distance too high. We convert here, once, so the rest
+    // of the calculation lives entirely in screen coordinates (which is what
+    // `frame` uses).
     rowRef.current?.measureInWindow((_x, y, _w, h) => setAnchor({ y: y + insets.top, h }));
   }
 
   /**
-   * Sitúa el menú pegado a la fila: debajo si cabe y, si no, encima.
+   * Places the menu flush to the row: below if it fits, otherwise above.
    *
-   * Todo va en coordenadas de pantalla (las del Modal y las de `frame`); la
-   * `y` de la fila ya llega convertida desde `openMenu`. Los límites salen del
-   * frame de safe-area y no de `Dimensions.get('window')`, que es de otro
-   * espacio y hacía saltar el "no cabe" antes de tiempo.
+   * Everything is in screen coordinates (the Modal's and `frame`'s); the
+   * row's `y` already comes converted from `openMenu`. The limits come from
+   * the safe-area frame and not from `Dimensions.get('window')`, which is a
+   * different space and would trigger the "doesn't fit" check too early.
    *
-   * Devuelve también el hueco del lado elegido como tope de altura: con el menú
-   * limitado (y con scroll) siempre existe una posición pegada a la fila, así
-   * que nunca hay que despegarlo al borde de la pantalla.
+   * Also returns the available space on the chosen side as a height cap: with
+   * the menu capped (and scrollable) there's always a position flush to the
+   * row, so we never need to detach it to the screen edge.
    */
   function menuLayout(a: { y: number; h: number }, mh: number): { top: number; maxHeight: number } {
     const limitTop = insets.top + spacing.sm;
     const limitBottom = frame.height - insets.bottom - spacing.sm;
-    const belowTop = a.y + a.h - spacing.xs; // pegado bajo la fila
-    const aboveBottom = a.y + spacing.xs; // pegado sobre la fila
+    const belowTop = a.y + a.h - spacing.xs; // flush below the row
+    const aboveBottom = a.y + spacing.xs; // flush above the row
     const roomBelow = limitBottom - belowTop;
     const roomAbove = aboveBottom - limitTop;
-    // Abajo si cabe; si no, arriba si cabe; si no cabe en ninguno, el lado con
-    // más hueco (el scroll se encarga del resto).
+    // Below if it fits; if not, above if it fits; if neither, the side with
+    // more room (the scroll handles the rest).
     const useBelow = mh <= roomBelow || (mh > roomAbove && roomBelow >= roomAbove);
     if (useBelow) return { top: belowTop, maxHeight: Math.max(0, roomBelow) };
     return { top: aboveBottom - Math.min(mh, roomAbove), maxHeight: Math.max(0, roomAbove) };
@@ -242,9 +241,8 @@ export function SelectList<T extends string | number | boolean>({
         <Ionicons name="chevron-down" size={18} color={colors.textMuted} />
       </Pressable>
 
-      {/* `statusBarTranslucent` deja el Modal a pantalla completa, que es el
-          espacio en el que está hecha la cuenta de `menuLayout` (el mismo que
-          mide `useSafeAreaFrame`). */}
+      {/* `statusBarTranslucent` makes the Modal full-screen, which is the space
+          `menuLayout`'s math is done in (same space as `useSafeAreaFrame`). */}
       <Modal
         transparent
         statusBarTranslucent
@@ -255,21 +253,21 @@ export function SelectList<T extends string | number | boolean>({
         <Pressable style={StyleSheet.absoluteFill} onPress={() => setAnchor(null)} />
         {menu != null ? (
           <View
-            // Invisible el primer frame (aún sin alto medido): evita verlo
-            // saltar de sitio cuando abre hacia arriba.
+            // Invisible on the first frame (before height is measured): avoids
+            // seeing it jump when it opens upward.
             style={[
               settingsStyles.menu,
               { top: menu.top, maxHeight: menu.maxHeight, opacity: menuH > 0 ? 1 : 0 },
             ]}
           >
             <ScrollView
-              // El alto se mide aquí y no con `onLayout` del menú: al llevar
-              // tope, `onLayout` devolvería el alto ya recortado y se
-              // realimentaría. El tamaño del contenido es el natural, que es lo
-              // que hay que comparar con el hueco. Se le suma el relleno del
-              // menú, que queda fuera del ScrollView.
+              // The height is measured here and not via `onLayout` on the menu:
+              // with a cap, `onLayout` would return the already-clipped
+              // height and feed back on itself. The content size is the natural
+              // size, which is what we need to compare with the available space.
+              // We add the menu's padding, which lies outside the ScrollView.
               onContentSizeChange={(_w, h) => setMenuH(h + spacing.sm * 2)}
-              // Solo hace scroll si el menú no cabe entero; si cabe, ni se nota.
+              // Only scrolls if the menu doesn't fit in full; if it fits, it's invisible.
               bounces={false}
               showsVerticalScrollIndicator={false}
             >
@@ -300,9 +298,9 @@ export function SelectList<T extends string | number | boolean>({
 }
 
 /**
- * Fila con slider debajo (estilo crossfade de Spotify): etiqueta y valor
- * actual arriba, barra deslizante debajo. El valor mostrado sigue al dedo
- * mientras se arrastra; el cambio se aplica al soltar.
+ * Row with a slider below (Spotify crossfade style): label and current value
+ * on top, slider bar below. The shown value tracks the finger while dragging;
+ * the change is applied on release.
  */
 export function SliderRow({
   label,
@@ -320,7 +318,7 @@ export function SliderRow({
   min?: number;
   max: number;
   step?: number;
-  /** Texto del valor actual (llega ya traducido desde quien lo usa). */
+  /** Text for the current value (already translated by the caller). */
   formatValue: (value: number) => string;
   onChange: (value: number) => void;
 }) {
@@ -355,7 +353,7 @@ export function SliderRow({
   );
 }
 
-/** Grupo de interruptores, uno por fila, con su ayuda dentro de la fila. */
+/** Group of toggles, one per row, with inline help text. */
 export function SwitchList({
   options,
 }: {
@@ -389,10 +387,10 @@ export function SwitchList({
   );
 }
 
-/** Pareja etiqueta/valor para datos de solo lectura. */
+/** Label/value pair for read-only data. */
 /**
- * Fila con un campo de texto editable. El contador de caracteres solo aparece
- * cerca del tope: mientras sobra sitio no es información, es ruido.
+ * Row with an editable text field. The character counter only appears near the
+ * limit: when there's plenty of space it's noise, not information.
  */
 export function TextRow({
   label,
@@ -460,7 +458,7 @@ export const settingsStyles = StyleSheet.create({
   },
   headerTitle: { color: colors.text, fontSize: fontSize.lg, fontWeight: '700' },
   content: { padding: spacing.lg, gap: spacing.sm, paddingBottom: SCREEN_BOTTOM_PADDING },
-  // Título de grupo estilo Spotify: negrita clara, con aire por encima.
+  // Spotify-style group title: bold, light, with air above.
   sectionTitle: {
     color: colors.text,
     fontSize: fontSize.lg,
@@ -473,7 +471,7 @@ export const settingsStyles = StyleSheet.create({
     fontSize: fontSize.xs,
     marginBottom: spacing.xs,
   },
-  // Caja redondeada sobre el fondo (las filas viven dentro, más legibles).
+  // Rounded box on the background (rows live inside, more readable).
   cardBox: { backgroundColor: colors.surface, borderRadius: radius.md, overflow: 'hidden' },
   row: {
     flexDirection: 'row',
@@ -503,7 +501,7 @@ export const settingsStyles = StyleSheet.create({
     marginBottom: spacing.sm,
     height: 32,
   },
-  // Menú flotante anclado a la derecha (estilo dropdown de Android).
+  // Floating menu anchored to the right (Android-style dropdown).
   menu: {
     position: 'absolute',
     right: spacing.lg,
@@ -528,7 +526,7 @@ export const settingsStyles = StyleSheet.create({
   field: { paddingVertical: spacing.md, paddingHorizontal: spacing.lg },
   fieldLabel: { color: colors.textMuted, fontSize: fontSize.xs, marginBottom: 2 },
   fieldValue: { color: colors.text, fontSize: fontSize.md },
-  // Botón píldora blanco centrado (el "Cerrar sesión" de Spotify).
+  // Centered white pill button (Spotify's "Log out").
   pillButton: {
     alignSelf: 'center',
     backgroundColor: colors.text,

@@ -1,8 +1,9 @@
 /**
- * Indicador sutil de "sin conexión" para las cabeceras (Biblioteca, Buscar…).
- * Recuerda, fuera de Inicio, por qué el contenido está limitado a lo descargado.
- * Solo con cuenta de servidor en modo offline; en un perfil local "offline" es
- * el estado normal y no hace falta avisar. Inicio no lo usa: ya tiene su banner.
+ * Subtle "offline" indicator for headers (Library, Search…).
+ * Outside Home, it reminds why content is limited to downloads.
+ * Only for server accounts in offline mode; on a local profile "offline" is
+ * the normal state and doesn't need a warning. Home doesn't use it: it already
+ * has its banner.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { StyleSheet, Text, View } from 'react-native';
@@ -25,8 +26,8 @@ export function OfflineIndicator() {
 }
 
 const styles = StyleSheet.create({
-  // Solo icono + texto apagados, sin fondo: presente pero sin robar atención, y
-  // coherente sobre cualquier superficie (cabecera o barra de búsqueda).
+  // Just dim icon + text, no background: present but not attention-grabbing, and
+  // consistent on any surface (header or search bar).
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   text: { color: colors.textMuted, fontSize: fontSize.xs, fontWeight: '600' },
 });

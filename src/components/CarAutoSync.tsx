@@ -1,11 +1,11 @@
 /**
- * Mantiene Android Auto sincronizado con la reproducción:
- *  - Empuja el árbol de navegación (al iniciar y al cambiar de perfil).
- *  - Refleja la pista actual / cola / estado hacia el módulo nativo.
- *  - Recibe los toques (play) y botones de transporte del coche y los aplica
- *    al store del reproductor (que conduce expo-audio).
+ * Keeps Android Auto in sync with playback:
+ *  - Pushes the browse tree (on mount and when the profile changes).
+ *  - Mirrors the current track / queue / state to the native module.
+ *  - Receives touch (play) and car transport buttons and applies them
+ *    to the player store (which drives expo-audio).
  *
- * No renderiza nada. En plataformas sin el módulo nativo es un no-op.
+ * Renders nothing. On platforms without the native module it is a no-op.
  */
 import { useEffect } from 'react';
 
@@ -44,7 +44,7 @@ export function CarAutoSync() {
     let cancelled = false;
     let rebuildTimer: ReturnType<typeof setTimeout> | null = null;
 
-    // ── Árbol de navegación ──
+    // ── Browse tree ──
     const rebuild = () => {
       if (rebuildTimer) clearTimeout(rebuildTimer);
       rebuildTimer = setTimeout(async () => {
@@ -57,7 +57,7 @@ export function CarAutoSync() {
     rebuild();
     const unsubAuth = useAuthStore.subscribe(rebuild);
 
-    // ── Espejo del estado de reproducción ──
+    // ── Mirror playback state ──
     const pushNowPlaying = () => {
       const { queue, index } = usePlayerStore.getState();
       const current = queue[index] ?? null;
@@ -95,7 +95,7 @@ export function CarAutoSync() {
     });
     const interval = setInterval(pushState, POSITION_PUSH_MS);
 
-    // ── Eventos desde el coche ──
+    // ── Events from the car ──
     const playSub = onPlay((e) => {
       void handleBrowsePlay(e.mediaId, e.parentId);
     });
@@ -124,7 +124,7 @@ export function CarAutoSync() {
           if (Boolean(e.value) !== store.shuffle) store.toggleShuffle();
           break;
         case 'repeat': {
-          // El store cicla off→all→one; lo avanzamos hasta el objetivo.
+          // The store cycles off→all→one; advance until the target is reached.
           for (let i = 0; i < 3 && usePlayerStore.getState().repeat !== e.value; i++) {
             usePlayerStore.getState().cycleRepeat();
           }

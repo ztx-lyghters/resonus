@@ -196,3 +196,16 @@ tripped you up and isn't here, tell us.
 | `Nothing here is downloaded` | Toast when playing something not downloaded (offline) |
 | `Try exploring another genre.` | Empty-state subtitle on a genre screen |
 | `Unknown` | Fallback for a missing artist / album / title |
+
+## Translation contributors
+
+Thanks to everyone who has contributed translations:
+
+| Language | Contributor(s) |
+| --- | --- |
+| English | [juananzzz](https://github.com/juananzzz) |
+| Español | [juananzzz](https://github.com/juananzzz) |
+| Deutsch | [Psychotoxical](https://github.com/Psychotoxical) |
+| Català | [juananzzz](https://github.com/juananzzz) |
+| Русский | [ztx-lyghters](https://github.com/ztx-lyghters) |
+| Italiano | [Anakin-bb8](https://github.com/Anakin-bb8) |

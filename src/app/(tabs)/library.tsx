@@ -11,6 +11,7 @@ import {
   Modal,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -592,7 +593,12 @@ export default function LibraryScreen() {
         onConfirm={onCreate}
       />
 
-      <View style={styles.segments}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.segments}
+        contentContainerStyle={styles.segmentsContent}
+      >
         {visibleSegments.map((s) => {
           const active = s.key === activeSegment;
           return (
@@ -607,7 +613,7 @@ export default function LibraryScreen() {
             </Pressable>
           );
         })}
-      </View>
+      </ScrollView>
 
       {/* Sort/layout controls don't apply to Folders. */}
       {activeSegment === 'folders' ? null : (
@@ -648,10 +654,12 @@ const styles = StyleSheet.create({
   heading: { color: colors.text, fontSize: fontSize.xxl, fontWeight: '800' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
   segments: {
-    flexDirection: 'row',
+    flexGrow: 0,
+    paddingBottom: spacing.md,
+  },
+  segmentsContent: {
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
   },
   segment: {
     paddingVertical: spacing.xs,

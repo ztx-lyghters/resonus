@@ -45,11 +45,11 @@ Also available on [Obtainium](https://obtainium.imranr.dev/redirect?r=obtainium:
 - **Make it yours**: reorder and show/hide Home sections and explore chips, accent colors, app fonts, configurable swipe and ⋯ menu actions
 - **Android Auto**
 - **Queue sync across devices**
-- **In 4 languages**: English, Spanish, German, Catalan
+- **In 6 languages**: English, Spanish, German, Catalan, Russian, Italian
 
 ## Translations
 
-Available in **English, Spanish, German, and Catalan**. More languages are
+Available in **English, Spanish, German, Catalan, Russian, and Italian**. More languages are
 welcome via pull request — see [TRANSLATING.md](./TRANSLATING.md) for how to add
 one, plus context for the trickier strings.
 

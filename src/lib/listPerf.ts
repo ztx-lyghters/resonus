@@ -1,7 +1,7 @@
 /**
- * Props de virtualización compartidas para FlatList. Hacen el scroll más fluido
- * y reducen memoria en listas largas (favoritos, explorar, cola) sin cambiar el
- * comportamiento: solo controlan cuántos elementos se montan a la vez.
+ * Shared FlatList virtualization props. Make scrolling smoother and reduce
+ * memory in long lists (favorites, browse, queue) without changing behavior:
+ * they only control how many items are mounted at once.
  */
 export const listPerf = {
   removeClippedSubviews: true,

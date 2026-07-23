@@ -4,15 +4,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MINI_PLAYER_HEIGHT, spacing, TAB_BAR_HEIGHT } from '@/theme';
 
 /**
- * Espacio inferior que una lista o scroll debe reservar para no quedar tapada
- * por el MiniPlayer flotante (y, en las pestañas, por la barra de navegación).
+ * Bottom space that a list or scroll view must reserve to avoid being covered
+ * by the floating MiniPlayer (and, in the tab screens, by the navigation bar).
  *
- * Sustituye a la constante fija SCREEN_BOTTOM_PADDING, que ignoraba el
- * safe-area inferior: con navegación por 3 botones (o pantallas/fuentes
- * grandes) ese inset crece y el MiniPlayer acababa tapando el último elemento.
+ * Replaces the fixed SCREEN_BOTTOM_PADDING constant, which ignored the bottom
+ * safe area: with 3-button navigation (or large screens/fonts) that inset grows
+ * and the MiniPlayer would end up covering the last item.
  *
- * El cálculo replica la posición del MiniPlayer en `GlobalMiniPlayer`: encima
- * de la barra de pestañas cuando estamos en ellas, y al fondo en el resto.
+ * The calculation mirrors the MiniPlayer position in `GlobalMiniPlayer`: above
+ * the tab bar when we're in the tabs, and at the bottom everywhere else.
  */
 export function useScreenBottomPadding(): number {
   const insets = useSafeAreaInsets();

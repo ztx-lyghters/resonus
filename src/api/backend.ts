@@ -1,10 +1,10 @@
 /**
- * Despacho por tipo de servidor. Expone la misma superficie que `subsonic.ts`
- * pero eligiendo implementación según el perfil activo: Jellyfin tiene API
- * propia (`jellyfin.ts`); Navidrome, OpenSubsonic y Ampache hablan Subsonic.
+ * Dispatch by server type. Exposes the same surface as `subsonic.ts`
+ * but chooses the implementation based on the active profile: Jellyfin has its
+ * own API (`jellyfin.ts`); Navidrome, OpenSubsonic, and Ampache speak Subsonic.
  *
- * Los stores y pantallas que necesitan pasar `auth` explícito importan de
- * aquí (los demás usan `data.ts`, que además resuelve el modo offline).
+ * Stores and screens that need to pass explicit `auth` import from
+ * here (others use `data.ts`, which also handles offline mode).
  */
 import * as Jellyfin from './jellyfin';
 import * as Subsonic from './subsonic';
@@ -33,7 +33,7 @@ export type {
 } from './subsonic';
 export { normalizeUrl, SubsonicRequestError } from './subsonic';
 
-/** Implementación que corresponde al perfil (misma firma en ambas). */
+/** Implementation matching the profile (same signature in both). */
 function api(auth: SubsonicAuth) {
   return auth.serverType === 'jellyfin' ? Jellyfin : Subsonic;
 }
@@ -52,10 +52,10 @@ export function makeAuth(
 export const ping = (auth: SubsonicAuth) => api(auth).ping(auth);
 
 /**
- * ¿Responde el servidor en `serverUrl` con estas credenciales? Sonda corta
- * (para elegir entre varias URLs candidatas al cambiar de red). El `ping`
- * interno aborta a los 15 s; aquí cortamos antes con una carrera contra el
- * timeout para no esperar tanto por una URL inalcanzable.
+ * Does the server at `serverUrl` respond with these credentials? Short probe
+ * (to choose among several candidate URLs when switching networks). The internal
+ * `ping` aborts after 15 s; here we cut earlier with a race against the
+ * timeout to avoid waiting too long for an unreachable URL.
  */
 export async function reachable(
   auth: SubsonicAuth,
@@ -78,8 +78,8 @@ export async function reachable(
 
 export const getMusicFolders = (auth: SubsonicAuth) => api(auth).getMusicFolders(auth);
 
-// Navegación por carpetas: solo protocolo Subsonic (Jellyfin no la usa; la UI
-// oculta la sección para ese backend), así que se delega directo a Subsonic.
+// Folder navigation: Subsonic protocol only (Jellyfin doesn't use it; the UI
+// hides the section for that backend), so it delegates directly to Subsonic.
 export const getIndexes = (auth: SubsonicAuth, musicFolderId?: string) =>
   Subsonic.getIndexes(auth, musicFolderId);
 
@@ -180,8 +180,8 @@ export const updatePlaylist = (
 export const removeFromPlaylist = (auth: SubsonicAuth, id: string, index: number) =>
   api(auth).removeFromPlaylist(auth, id, index);
 
-// Reordenar: solo protocolo Subsonic (Jellyfin usa IDs de entrada distintos y
-// movimientos por ítem; la UI oculta la opción para ese backend).
+// Reordering: Subsonic protocol only (Jellyfin uses different entry IDs and
+// per-item moves; the UI hides the option for that backend).
 export const reorderPlaylist = (auth: SubsonicAuth, id: string, songIds: string[]) =>
   Subsonic.reorderPlaylist(auth, id, songIds);
 
@@ -240,7 +240,7 @@ export const streamUrl = (
   format?: string,
 ) => api(auth).streamUrl(auth, id, maxBitRate, timeOffset, format);
 
-/** Extensiones OpenSubsonic del servidor (Jellyfin no las tiene: lista vacía). */
+/** Server OpenSubsonic extensions (Jellyfin doesn't have them: empty list). */
 export const getOpenSubsonicExtensions = (auth: SubsonicAuth): Promise<string[]> =>
   auth.serverType === 'jellyfin'
     ? Promise.resolve([])

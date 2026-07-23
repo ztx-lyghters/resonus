@@ -1,13 +1,13 @@
 /**
- * Vibración háptica centralizada, respetando el ajuste del usuario.
- * Solo en acciones clave (favorito, long-press, arrastrar, deslizar para
- * encolar); nunca en toques corrientes, que cansan.
+ * Centralized haptic feedback, respecting the user setting.
+ * Only for key actions (favorite, long-press, drag, swipe-to-queue);
+ * never on regular taps, which get tiring.
  *
- * En Android NO usamos los presets de expo-haptics: vibran a amplitud 30-50
- * (de 255) y en muchos motores no se sienten. `Vibration` de RN core vibra a
- * la amplitud por defecto del dispositivo — pulsos cortos para que sean un
- * tick, no un zumbido. expo-haptics queda para iOS (roadmap) y por su permiso
- * VIBRATE en el manifest.
+ * On Android we DON'T use expo-haptics presets: they vibrate at amplitude
+ * 30-50 (out of 255) and on many motors you can't feel them. `Vibration`
+ * from RN core vibrates at the device's default amplitude — short pulses
+ * so they feel like a tick, not a buzz. expo-haptics remains for iOS
+ * (roadmap) and for its VIBRATE permission in the manifest.
  */
 import * as Haptics from 'expo-haptics';
 import { Platform, Vibration } from 'react-native';
@@ -16,7 +16,7 @@ import { useSettings } from '@/store/settings';
 
 type HapticKind = 'light' | 'medium' | 'success';
 
-/** Duración (ms) o patrón [espera, vibra, …] por tipo, para Android. */
+/** Duration (ms) or pattern [wait, vibrate, ...] per type, for Android. */
 const ANDROID_PATTERN: Record<HapticKind, number | number[]> = {
   light: 15,
   medium: 30,
@@ -34,7 +34,7 @@ export function haptic(kind: HapticKind = 'light'): void {
     try {
       Vibration.vibrate(ANDROID_PATTERN[kind]);
     } catch {
-      // sin vibrador (tablets, TV): silencio
+      // no vibrator (tablets, TV): silent
     }
     return;
   }

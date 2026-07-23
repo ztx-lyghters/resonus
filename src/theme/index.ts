@@ -1,10 +1,10 @@
 /**
- * Tema visual de Resonus. Estética oscura tipo Spotify; el único color
- * configurable es el acento (elegible en Ajustes → Theme). El acento se muta en
- * caliente con `applyAccent`; los usos inline lo cogen al re-renderizar.
+ * Resonus visual theme. Dark, Spotify-like aesthetic; the only customizable
+ * color is the accent (selectable in Settings → Theme). The accent is hot-
+ * swapped via `applyAccent`; inline usages pick it up on re-render.
  */
 
-/** Acento por defecto (verde Spotify). */
+/** Default accent (Spotify green). */
 export const DEFAULT_ACCENT = '#1DB954';
 
 export const colors = {
@@ -18,11 +18,11 @@ export const colors = {
   accent: DEFAULT_ACCENT,
   accentPressed: '#1AA34A',
   danger: '#E03131',
-  // Verde de estado "correcto" (independiente del acento, que es configurable).
+  // "Success" state green (independent of the configurable accent).
   success: '#2F9E44',
 };
 
-/** Oscurece un hex (por defecto ~14%) para el estado "pressed". */
+/** Darkens a hex color (~14% by default) for the "pressed" state. */
 function darken(hex: string, amount = 0.14): string {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
   if (!m) return hex;
@@ -35,7 +35,7 @@ function darken(hex: string, amount = 0.14): string {
   return `#${to(r)}${to(g)}${to(b)}`;
 }
 
-/** Cambia el acento en caliente (accent + su tono "pressed"). */
+/** Hot-swaps the accent (accent + its "pressed" variant). */
 export function applyAccent(hex: string): void {
   colors.accent = hex;
   colors.accentPressed = darken(hex);
@@ -66,19 +66,19 @@ export const fontSize = {
   xxl: 32,
 } as const;
 
-/** Altura de la barra de pestañas (sin contar el safe-area inferior). */
+/** Height of the tab bar (not including the bottom safe area). */
 export const TAB_BAR_HEIGHT = 60;
 
-/** Altura aproximada del MiniPlayer flotante (carátula de 44 + padding). */
+/** Approximate height of the floating MiniPlayer (44px artwork + padding). */
 export const MINI_PLAYER_HEIGHT = 60;
 
 /**
- * Espacio inferior fijo para listas de pantallas SIN barra de pestañas: el
- * MiniPlayer flota al fondo y este hueco lo despeja con margen de sobra.
+ * Fixed bottom spacing for screen lists WITHOUT a tab bar: the MiniPlayer
+ * floats at the bottom and this gap clears it with extra margin.
  *
- * En las pantallas de pestañas (Inicio, Buscar, Biblioteca) el MiniPlayer se
- * apila encima de la barra, así que necesitan además el safe-area inferior
- * real (que varía según gestos vs. 3 botones); esas usan
- * `useScreenBottomPadding()`, no esta constante.
+ * On tab screens (Home, Search, Library) the MiniPlayer stacks on top of the
+ * tab bar, so they additionally need the actual bottom safe area (which varies
+ * between gesture nav vs. 3-button nav); those screens use
+ * `useScreenBottomPadding()`, not this constant.
  */
 export const SCREEN_BOTTOM_PADDING = 140;

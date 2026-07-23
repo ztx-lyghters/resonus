@@ -1,8 +1,9 @@
 /**
- * Animación de hoja inferior dentro de un `Modal` (animationType="none"):
- * el fondo se funde y la hoja desliza desde abajo al abrir (240 ms) y baja al
- * cerrar (160 ms). `dismiss(after)` reproduce la salida y luego ejecuta el
- * cierre real (quien cierra el Modal), así la hoja no desaparece de golpe.
+ * Bottom sheet animation inside a `Modal` (animationType="none"):
+ * the backdrop fades and the sheet slides up from the bottom on open (240 ms)
+ * and slides down on close (160 ms). `dismiss(after)` plays the exit animation
+ * and then runs the actual close (whoever closes the Modal), so the sheet
+ * doesn't vanish abruptly.
  */
 import { useEffect } from 'react';
 import { Dimensions, type LayoutChangeEvent } from 'react-native';
@@ -15,10 +16,10 @@ import {
   withTiming,
 } from 'react-native-reanimated';
 
-// Las hojas siempre animan, aunque el sistema tenga "quitar animaciones":
-// sin transición aparecen de golpe con un salto de layout visible (además
-// Reanimated solo lee ese ajuste al arrancar, así que ni siquiera refleja
-// cambios hechos con la app abierta). Igual que el player y las letras.
+// Sheets always animate, even when the system has "remove animations" enabled:
+// without a transition they appear abruptly with a visible layout jump (and
+// Reanimated only reads that setting at startup, so it doesn't even reflect
+// changes made while the app is open). Same as the player and lyrics.
 const TIMING_IN = { duration: 240, easing: Easing.out(Easing.cubic), reduceMotion: ReduceMotion.Never };
 const TIMING_OUT = { duration: 160, easing: Easing.in(Easing.cubic), reduceMotion: ReduceMotion.Never };
 
@@ -26,8 +27,8 @@ const SCREEN_H = Dimensions.get('window').height;
 
 export function useBottomSheetAnim(open: boolean) {
   const progress = useSharedValue(0);
-  // Altura real de la hoja (medida en el primer layout); hasta entonces, una
-  // pantalla entera para que el primer frame quede seguro fuera de vista.
+  // Actual sheet height (measured on first layout); until then, a full screen
+  // height so the first frame stays safely out of view.
   const sheetH = useSharedValue(SCREEN_H);
 
   useEffect(() => {

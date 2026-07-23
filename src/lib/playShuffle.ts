@@ -1,20 +1,20 @@
 /**
- * Reproduce canciones al azar de la biblioteca (o de un género) al momento.
+ * Plays random songs from the library (or a genre) instantly.
  *
- * Es una ACCIÓN, no un destino: "aleatorio" significa literalmente "no me hagas
- * elegir", así que enseñar una lista antes de sonar contradice lo que se pidió.
- * Lo que va a sonar se ve en la cola, que ya existe y además deja reordenar y
- * quitar — era mejor pantalla que la que había aquí.
+ * This is an ACTION, not a destination: "random" literally means "don't make
+ * me choose", so showing a list before playing contradicts what was asked.
+ * Whatever plays is visible in the queue, which already exists and also lets
+ * you reorder and remove — it was a better screen than whatever was here.
  */
 import { getRandomSongs } from '@/api/data';
 import { tg } from '@/i18n';
 import { usePlayerStore } from '@/store/player';
 import { useToast } from '@/store/toast';
 
-/** No es la biblioteca entera: el endpoint topa ~500 y una cola así no se usa. */
+/** Not the entire library: the endpoint caps ~500 and a queue that size is unusable. */
 const SHUFFLE_SIZE = 200;
 
-/** `genre` vacío = toda la biblioteca. Los géneros son cosa del servidor. */
+/** Empty `genre` = entire library. Genres are server-side. */
 export async function playShuffle(genre?: string): Promise<void> {
   let songs;
   try {
@@ -27,7 +27,7 @@ export async function playShuffle(genre?: string): Promise<void> {
     useToast.getState().show(tg('Nothing to shuffle yet'));
     return;
   }
-  // Ya vienen en orden azaroso del servidor: ni barajar aquí ni activar el modo
-  // aleatorio, que sería rebarajar lo ya barajado.
+  // The server already returns them in random order: no shuffling here nor
+  // enabling shuffle mode, which would re-shuffle the already-shuffled.
   await usePlayerStore.getState().playQueue(songs, 0, genre || tg('Shuffle'));
 }

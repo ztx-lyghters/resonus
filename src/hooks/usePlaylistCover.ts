@@ -1,9 +1,8 @@
 /**
- * Cambiar/quitar la carátula de una playlist con una imagen del dispositivo.
- * Reúne las dos vías (API nativa de Navidrome ≥ 0.61 para perfiles de
- * servidor; copia local para el perfil sin conexión) y el diálogo de
- * contraseña de los perfiles antiguos que no la tienen guardada. Lo comparten
- * la hoja de edición de playlist y el visor de carátula.
+ * Change/remove a playlist cover using an image from the device. Combines both
+ * paths (native Navidrome API ≥ 0.61 for server profiles; local copy for the
+ * offline profile) and the password dialog for older profiles that don't have
+ * it saved. Shared by the playlist edit sheet and the cover viewer.
  */
 import { useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
@@ -16,16 +15,16 @@ import { useAuthStore } from '@/store/auth';
 
 type PickedImage = { uri: string; name: string; type: string };
 
-/** Acción de carátula a la espera de la contraseña (perfiles antiguos). */
+/** Cover action pending a password (older profiles). */
 type CoverAction = { kind: 'upload'; image: PickedImage } | { kind: 'remove' };
 
 export function usePlaylistCover({
   coverUploadId,
   localCoverId,
 }: {
-  /** Id en el servidor (solo perfiles Navidrome): sube vía su API nativa. */
+  /** Server id (Navidrome profiles only): uploads via its native API. */
   coverUploadId?: string;
-  /** Id de lista del perfil local: copia la imagen al almacenamiento de la app. */
+  /** Playlist id for the local profile: copies the image to app storage. */
   localCoverId?: string;
 }) {
   const t = useT();
@@ -38,8 +37,8 @@ export function usePlaylistCover({
   const [askPassword, setAskPassword] = useState(false);
   const [pendingAction, setPendingAction] = useState<CoverAction | null>(null);
 
-  /** Vuelve al estado inicial (p. ej. al reabrir la hoja que lo usa).
-   * Estable (useCallback) para poder ir en deps de efectos sin re-disparos. */
+  /** Resets to initial state (e.g. when re-opening the sheet that uses it).
+   * Stable (useCallback) so it can go in effect deps without re-triggers. */
   const reset = useCallback(() => {
     setPickedUri(null);
     setError(null);
@@ -48,7 +47,7 @@ export function usePlaylistCover({
     setPendingAction(null);
   }, []);
 
-  /** Abre la galería y, si se elige imagen, la sube/copia como carátula. */
+  /** Opens the gallery and, if an image is picked, uploads/copies it as the cover. */
   async function pickAndUpload() {
     setError(null);
     const res = await ImagePicker.launchImageLibraryAsync({
@@ -76,7 +75,7 @@ export function usePlaylistCover({
   async function runAction(action: CoverAction) {
     setError(null);
     if (localCoverId) {
-      // Lista del perfil local: la carátula se copia/borra en el dispositivo.
+      // Local profile playlist: the cover is copied/deleted on the device.
       setUploading(true);
       try {
         if (action.kind === 'upload') {
@@ -97,7 +96,7 @@ export function usePlaylistCover({
     }
     if (!coverUploadId || !auth) return;
     if (!auth.ndPassword) {
-      // Perfil de antes de guardar la contraseña: pedirla una vez.
+      // Profile from before the password was saved: ask for it once.
       setPendingAction(action);
       setAskPassword(true);
       return;
@@ -120,7 +119,7 @@ export function usePlaylistCover({
       void queryClient.invalidateQueries({ queryKey: ['playlists'] });
     } catch (e) {
       if (e instanceof NavidromeError && e.kind === 'auth') {
-        // Contraseña mala guardada: se olvida para volver a pedirla.
+        // Bad saved password: forget it so it will be asked again.
         void saveNativePassword('');
         setError(t('Wrong password'));
       } else if (e instanceof NavidromeError && e.kind === 'unsupported') {
@@ -135,7 +134,7 @@ export function usePlaylistCover({
     }
   }
 
-  /** Respuesta del diálogo de contraseña: la guarda y reintenta la acción. */
+  /** Password dialog response: saves it and retries the action. */
   async function confirmPassword(password: string) {
     setAskPassword(false);
     const action = pendingAction;
@@ -151,7 +150,7 @@ export function usePlaylistCover({
   }
 
   return {
-    /** Hay alguna vía disponible para cambiar la carátula. */
+    /** There is some available path to change the cover. */
     enabled: !!(coverUploadId || localCoverId),
     pickedUri,
     error,

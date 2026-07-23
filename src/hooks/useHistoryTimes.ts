@@ -1,10 +1,9 @@
 /**
- * Última escucha por álbum y por artista, según el historial de reproducción.
+ * Last played time per album and per artist, based on the playback history.
  *
- * Complementa a `useLastPlayed`, que solo sabe de lo que se abrió desde su
- * pantalla (`/album/x`, `/artist/y`): esto también cuenta lo que sonó dentro de
- * una lista, de favoritos o de una mezcla. Quien ordene por "recientes" quiere
- * los dos.
+ * Complements `useLastPlayed`, which only knows about what was opened from its
+ * own screen (`/album/x`, `/artist/y`): this also counts what played inside a
+ * playlist, favorites, or a mix. Anyone sorting by "recent" wants both.
  */
 import { useMemo } from 'react';
 

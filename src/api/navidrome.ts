@@ -1,12 +1,12 @@
 /**
- * Cliente mínimo de la API nativa de Navidrome (no Subsonic). Solo se usa
- * para lo que la API Subsonic no cubre: hoy, la carátula personalizada de
- * playlists (Navidrome ≥ 0.61). Necesita usuario y contraseña en claro para
- * obtener un JWT (`auth.ndPassword`); ver SubsonicAuth.
+ * Minimal Navidrome native API client (non-Subsonic). Only used for what
+ * the Subsonic API doesn't cover: currently, custom playlist cover art
+ * (Navidrome ≥ 0.61). Requires cleartext username and password to obtain
+ * a JWT (`auth.ndPassword`); see SubsonicAuth.
  */
 import { type SubsonicAuth } from './subsonic';
 
-/** Error tipado para poder dar mensajes útiles en la UI. */
+/** Typed error to provide useful messages in the UI. */
 export class NavidromeError extends Error {
   constructor(
     message: string,
@@ -16,7 +16,7 @@ export class NavidromeError extends Error {
   }
 }
 
-/** Inicia sesión en la API nativa y devuelve el JWT. */
+/** Logs into the native API and returns the JWT. */
 async function ndLogin(auth: SubsonicAuth): Promise<string> {
   if (!auth.ndPassword) throw new NavidromeError('Sin contraseña guardada', 'auth');
   let res: Response;
@@ -36,7 +36,7 @@ async function ndLogin(auth: SubsonicAuth): Promise<string> {
   return json.token;
 }
 
-/** Petición autenticada a la API nativa, con errores mapeados a NavidromeError. */
+/** Authenticated request to the native API, with errors mapped to NavidromeError. */
 async function ndFetch(auth: SubsonicAuth, path: string, init: RequestInit): Promise<void> {
   const token = await ndLogin(auth);
   let res: Response;
@@ -58,10 +58,10 @@ async function ndFetch(auth: SubsonicAuth, path: string, init: RequestInit): Pro
 }
 
 /**
- * Sube una imagen local como carátula de la playlist.
- * Endpoint: POST /api/playlist/{id}/image, multipart con campo "image"
- * (jpeg/png/gif/webp). 403 si el upload está deshabilitado o la playlist no
- * es del usuario; 404 en servidores sin soporte (< 0.61).
+ * Uploads a local image as the playlist cover art.
+ * Endpoint: POST /api/playlist/{id}/image, multipart with "image" field
+ * (jpeg/png/gif/webp). 403 if upload is disabled or the playlist doesn't
+ * belong to the user; 404 on unsupported servers (< 0.61).
  */
 export async function uploadPlaylistImage(
   auth: SubsonicAuth,
@@ -69,7 +69,7 @@ export async function uploadPlaylistImage(
   image: { uri: string; name: string; type: string },
 ): Promise<void> {
   const form = new FormData();
-  // RN admite ficheros locales en FormData con {uri, name, type}.
+  // RN supports local files in FormData with {uri, name, type}.
   form.append('image', image as unknown as Blob);
   await ndFetch(auth, `/api/playlist/${encodeURIComponent(playlistId)}/image`, {
     method: 'POST',
@@ -77,7 +77,7 @@ export async function uploadPlaylistImage(
   });
 }
 
-/** Quita la carátula personalizada; Navidrome vuelve al mosaico por defecto. */
+/** Removes the custom cover art; Navidrome falls back to the default mosaic. */
 export async function deletePlaylistImage(
   auth: SubsonicAuth,
   playlistId: string,

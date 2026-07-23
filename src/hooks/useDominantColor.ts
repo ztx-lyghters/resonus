@@ -1,9 +1,9 @@
 /**
- * Extrae un color de fondo a partir de la carátula (color dominante) y lo
- * normaliza a un tono oscuro y agradable: se recorta la saturación (para que no
- * salga un neón) y la luminosidad a un rango medio-oscuro, de forma que el texto
- * blanco y los controles siempre se lean bien, sea cual sea la portada. Es lo
- * que hacen Spotify/Apple Music con el color de la carátula.
+ * Extracts a background color from the cover art (dominant color) and
+ * normalizes it to a pleasant dark tone: saturation is clamped (to avoid neon)
+ * and lightness is clamped to a medium-dark range, so that white text and
+ * controls are always legible regardless of the cover art. This is what
+ * Spotify/Apple Music do with the cover color.
  */
 import { useEffect, useState } from 'react';
 import { getColors } from 'react-native-image-colors';
@@ -65,7 +65,7 @@ function hslToHex(h: number, s: number, l: number): string {
   return `#${to(r)}${to(g)}${to(b)}`;
 }
 
-/** Recorta saturación y luminosidad a un rango oscuro legible. */
+/** Clamps saturation and lightness to a readable dark range. */
 function normalize(hex: string): string {
   const rgb = hexToRgb(hex);
   if (!rgb) return hex;
@@ -86,8 +86,8 @@ export function useDominantColor(uri?: string): string {
       .then((res) => {
         if (!active) return;
         let c: string = theme.surfaceHighlight;
-        // Preferimos un tono vivo y lo oscurecemos en `normalize`; así conserva
-        // el carácter de la portada sin quedar apagado ni demasiado claro.
+        // Prefer a vibrant tone and darken it in `normalize`; this preserves
+        // the character of the cover art without looking dull or too bright.
         if (res.platform === 'android') {
           c = res.vibrant || res.darkVibrant || res.muted || res.dominant || c;
         } else if (res.platform === 'ios') {

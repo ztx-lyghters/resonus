@@ -1,11 +1,11 @@
 /**
- * Letras para la música local/offline, en orden de preferencia:
+ * Lyrics for local/offline music, in order of preference:
  *
- * 1. Fichero `.lrc` junto al audio (mismo nombre). Cubre también las
- *    descargas: al bajar una canción se cachea ahí la letra del servidor.
- * 2. Letra embebida en el propio fichero (frame ID3 USLT).
- * 3. LRCLIB (lrclib.net), solo si el usuario activa el ajuste: manda artista
- *    y título fuera. El resultado se cachea en disco para no repetir la red.
+ * 1. `.lrc` file next to the audio file (same name). Also covers downloads:
+ *    when downloading a song the server lyrics are cached there.
+ * 2. Embedded lyrics in the file itself (ID3 USLT frame).
+ * 3. LRCLIB (lrclib.net), only if the user enables the setting: sends artist
+ *    and title externally. The result is cached to disk to avoid re-fetching.
  */
 import * as FileSystem from 'expo-file-system/legacy';
 
@@ -16,13 +16,13 @@ import { parseLrc } from './lrc';
 const LRCLIB_CACHE_DIR = FileSystem.documentDirectory + 'lyrics-cache/';
 const AUDIO_EXT_RE = /\.[a-z0-9]{1,5}$/i;
 
-/** URI del `.lrc` hermano de un audio (vale para `file://` y SAF). */
+/** URI of the sibling `.lrc` next to an audio file (works for `file://` and SAF). */
 export function siblingLrcUri(audioUri: string): string | null {
   if (!AUDIO_EXT_RE.test(audioUri)) return null;
   return audioUri.replace(AUDIO_EXT_RE, '.lrc');
 }
 
-/** Lee un fichero de texto; null si no existe o no se puede leer. */
+/** Reads a text file; null if it doesn't exist or can't be read. */
 async function readTextIfExists(uri: string): Promise<string | null> {
   try {
     const text = await FileSystem.readAsStringAsync(uri);
@@ -35,26 +35,26 @@ async function readTextIfExists(uri: string): Promise<string | null> {
 export async function getLocalLyrics(song: Song, allowOnline: boolean): Promise<SongLyrics | null> {
   const uri = song.localUri;
   if (uri) {
-    // 1) .lrc junto al fichero.
+    // 1) .lrc next to the audio file.
     const lrcUri = siblingLrcUri(uri);
     const lrcText = lrcUri ? await readTextIfExists(lrcUri) : null;
     const fromFile = lrcText ? parseLrc(lrcText) : null;
     if (fromFile) return fromFile;
 
-    // 2) USLT embebido (puede traer timestamps estilo LRC dentro).
+    // 2) Embedded USLT (may contain LRC-style timestamps inside).
     const tags = await readTags(uri);
     const fromTag = tags?.lyrics ? parseLrc(tags.lyrics) : null;
     if (fromTag) return fromTag;
   }
 
-  // 3) LRCLIB, si el usuario lo permite.
+  // 3) LRCLIB, if the user allows it.
   if (allowOnline) return getOnlineLyrics(song);
   return null;
 }
 
 /**
- * Letra desde LRCLIB con caché en disco. También sirve de último recurso para
- * canciones de servidor cuyo servidor no tiene letra.
+ * Lyrics from LRCLIB with disk cache. Also serves as last resort for server
+ * songs whose server doesn't have lyrics.
  */
 export async function getOnlineLyrics(song: Song): Promise<SongLyrics | null> {
   const file = `${LRCLIB_CACHE_DIR}${hashKey(song.id)}.lrc`;
@@ -66,7 +66,7 @@ export async function getOnlineLyrics(song: Song): Promise<SongLyrics | null> {
     await FileSystem.makeDirectoryAsync(LRCLIB_CACHE_DIR, { intermediates: true }).catch(() => {});
     await FileSystem.writeAsStringAsync(file, text);
   } catch {
-    // Sin caché seguimos funcionando; solo repetiría la petición.
+    // Without cache we still work; it would just repeat the request.
   }
   return parseLrc(text);
 }
@@ -82,13 +82,13 @@ function pickLrclibText(r: LrclibResult | undefined): string | null {
   return r.syncedLyrics?.trim() || r.plainLyrics?.trim() || null;
 }
 
-/** Busca la letra en LRCLIB por artista+título. Devuelve el texto LRC/plano. */
+/** Searches LRCLIB for lyrics by artist+title. Returns LRC/plain text. */
 async function fetchLrclib(song: Song): Promise<string | null> {
   if (!song.title || !song.artist) return null;
   const headers = { 'Lrclib-Client': 'Resonus (https://github.com/juananzzz/resonus)' };
   try {
-    // /api/get exige la firma completa (álbum + duración); si la tenemos, es
-    // la vía más precisa. Si no (o si da 404), /api/search y el primer match.
+    // /api/get requires the full signature (album + duration); if we have it,
+    // it's the most precise path. If not (or 404), /api/search and the first match.
     if (song.album && song.duration) {
       const params = new URLSearchParams({
         artist_name: song.artist,
@@ -112,6 +112,6 @@ async function fetchLrclib(song: Song): Promise<string | null> {
     }
     return null;
   } catch {
-    return null; // sin red o API caída: simplemente no hay letra
+    return null; // no network or API down: simply no lyrics
   }
 }

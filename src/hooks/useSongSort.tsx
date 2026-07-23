@@ -1,11 +1,11 @@
 /**
- * Orden reutilizable de una lista de canciones (Recientes/Alfabético +
- * dirección) con su menú inferior. Lo usan playlist y favoritos.
+ * Reusable sort for a song list (Recent/Alphabetical + direction) with its
+ * bottom sheet menu. Used by playlist and favorites.
  *
- * Devuelve la lista ya ordenada, el mapeo a los índices originales (para
- * acciones como "quitar de la lista"), un disparador para abrir el menú y el
- * propio menú como nodo a renderizar. Con `persistKey` el orden elegido se
- * guarda en disco y se recuerda entre visitas.
+ * Returns the already-sorted list, the mapping to original indices (for actions
+ * like "remove from list"), a trigger to open the menu, and the menu itself as
+ * a node to render. With `persistKey` the chosen sort is saved to disk and
+ * remembered across visits.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { memo, type ReactNode, useMemo, useRef, useState } from 'react';
@@ -33,37 +33,38 @@ const SORT_LABEL: Record<SortField, string> = {
   downloaded: 'Downloaded',
 };
 
-/** Campos ofrecidos por defecto (favoritos): 'recent' = orden del servidor. */
+/** Default offered fields (favorites): 'recent' = server order. */
 const DEFAULT_FIELDS: SortField[] = ['recent', 'alpha', 'artist', 'album', 'downloaded'];
 
 interface SortOptions {
-  /** Qué campos ofrecer y en qué orden (el primero es el equivalente a "sin ordenar"). */
+  /** Which fields to offer and in which order (the first is equivalent to "unsorted"). */
   fields?: SortField[];
-  /** Etiquetas a medida por campo (p. ej. 'recent' → "Personalizado" en playlists). */
+  /** Custom labels per field (e.g. 'recent' → "Custom" in playlists). */
   labels?: Partial<Record<SortField, string>>;
-  /** Orden por defecto si el usuario no ha elegido ninguno. */
+  /** Default sort if the user hasn't chosen one. */
   defaultSort?: SortPref;
 }
 
 interface SortResult {
-  /** Canciones en el orden visible. */
+  /** Songs in the visible order. */
   songs: Song[];
-  /** Índice original (en el servidor) de cada canción visible. */
+  /** Original index (on the server) of each visible song. */
   indices: number[];
-  /** Abre el menú de orden. */
+  /** Opens the sort menu. */
   openSort: () => void;
-  /** El menú de orden, para renderizar en el árbol. */
+  /** The sort menu, to render in the tree. */
   sortSheet: ReactNode;
-  /** Preferencia de orden actual (campo + dirección). */
+  /** Current sort preference (field + direction). */
   sort: SortPref;
-  /** Cambia la preferencia de orden (p. ej. forzar el orden manual). */
+  /** Changes the sort preference (e.g. force manual order). */
   setSort: (pref: SortPref) => void;
 }
 
 /**
- * El menú vive en su propio componente (SheetModal, con su estado dentro):
- * abrirlo o cerrarlo solo re-renderiza el modal, no la pantalla (con su lista)
- * que usa el hook. Ese re-render era un delay visible al pulsar "Ordenar".
+ * The menu lives in its own component (SheetModal, with its state inside):
+ * opening or closing it only re-renders the modal, not the screen (with its
+ * list) that uses the hook. That re-render was a visible delay when pressing
+ * "Sort".
  */
 const SortSheet = memo(function SortSheet({
   fields,
@@ -153,28 +154,28 @@ export function useSongSort(
   const openRef = useRef<() => void>(() => {});
 
   const { field, dir } = persistKey ? (stored ?? fallback) : local;
-  // Para el orden 'downloaded' (agrupar las descargadas juntas).
+  // For the 'downloaded' sort (group downloaded songs together).
   const files = useDownloads((s) => s.files);
   function update(next: SortPref) {
     if (persistKey) setPref(persistKey, next, fallback);
     else setLocal(next);
   }
 
-  // 'recent' deja el orden crudo del servidor (= orden manual de la playlist).
-  // Memoizado: ordenar en cada render se nota en listas grandes.
+  // 'recent' leaves the raw server order (= manual playlist order).
+  // Memoized: sorting on every render is noticeable in large lists.
   const ordered = useMemo(() => {
     const cmp = (a?: string, b?: string) => (a ?? '').localeCompare(b ?? '');
     const arr = source.map((song, idx) => ({ song, idx }));
-    // 'added' = orden en que se añaden a la playlist. El servidor las añade al
-    // final, así que su posición ya lo codifica: invertir = la última arriba.
+    // 'added' = order in which they are added to the playlist. The server adds
+    // them at the end, so their position already encodes it: reverse = latest on top.
     if (field === 'added') arr.reverse();
     if (field === 'alpha') arr.sort((a, b) => cmp(a.song.title, b.song.title));
     if (field === 'artist')
       arr.sort((a, b) => cmp(a.song.artist, b.song.artist) || cmp(a.song.title, b.song.title));
     if (field === 'album')
-      // albumId separa álbumes homónimos de artistas distintos; disco antes
-      // que pista porque en álbumes multi-disco los `track` se repiten por
-      // disco y sin esa clave las canciones se entrelazan "al azar".
+      // albumId separates same-name albums from different artists; disc before
+      // track because in multi-disc albums `track` values repeat per disc,
+      // and without that key the songs interleave "randomly".
       arr.sort(
         (a, b) =>
           cmp(a.song.album, b.song.album) ||
@@ -183,8 +184,8 @@ export function useSongSort(
           (a.song.track ?? 0) - (b.song.track ?? 0) ||
           cmp(a.song.title, b.song.title),
       );
-    // 'downloaded' agrupa las descargadas arriba conservando el orden original
-    // dentro de cada grupo (sort estable en Hermes). Con dir 'desc' pasan abajo.
+    // 'downloaded' groups downloaded songs at the top preserving the original
+    // order within each group (stable sort in Hermes). With dir 'desc' they go to the bottom.
     if (field === 'downloaded')
       arr.sort((a, b) => (files[a.song.id] ? 0 : 1) - (files[b.song.id] ? 0 : 1));
     if (dir === 'desc') arr.reverse();
@@ -202,7 +203,7 @@ export function useSongSort(
     />
   );
 
-  // Identidad estable para que el FlatList que los recibe no re-evalúe filas.
+  // Stable identity so the FlatList that receives them doesn't re-evaluate rows.
   const songs = useMemo(() => ordered.map((o) => o.song), [ordered]);
   const indices = useMemo(() => ordered.map((o) => o.idx), [ordered]);
 

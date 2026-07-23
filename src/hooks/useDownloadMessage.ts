@@ -1,12 +1,13 @@
 /**
- * Mensaje del diálogo que confirma una descarga. Además de cuántas canciones
- * son, dice cuánto van a ocupar: "8,3 GB" informa mucho más que "1.247
- * canciones", y es la diferencia entre aceptar a ciegas o no. Y si no cabe en
- * el aparato, lo avisa — mejor eso que una descarga que muere al 80 %.
+ * Message for the download confirmation dialog. Besides how many songs there
+ * are, it says how much space they will take: "8.3 GB" is far more informative
+ * than "1,247 songs", and it's the difference between accepting blindly or not.
+ * And if it doesn't fit on the device, it warns — better that than a download
+ * that dies at 80 %.
  *
- * No hay umbral ni "¿seguro que quieres?": el tamaño ya se ve, y regañar por
- * descargas grandes sobra cuando la app tiene un ajuste de "solo Wi-Fi" para
- * expresar justo esa preocupación.
+ * There is no threshold and no "are you sure?": the size is right there, and
+ * scolding for large downloads is unnecessary when the app already has a
+ * "Wi-Fi only" setting for expressing exactly that concern.
  */
 import { Paths } from 'expo-file-system';
 import { useMemo } from 'react';
@@ -17,31 +18,32 @@ import { formatBytes } from '@/lib/format';
 import { useSettings } from '@/store/settings';
 
 /**
- * Lo que ocuparán estas canciones, o null si no se puede saber sin inventar.
+ * What these songs will take up, or null if it can't be known without guessing.
  *
- * Con calidad reducida el servidor transcodifica a ese bitrate exacto, así que
- * basta la duración y sale casi clavado. Con calidad original hace falta el
- * bitrate de cada canción; en FLAC es el medio, así que la cifra baila algo.
+ * With reduced quality the server transcodes to that exact bitrate, so duration
+ * alone is enough and it comes out nearly exact. With original quality the
+ * bitrate of each song is needed; for FLAC it's variable, so the figure bounces
+ * a bit.
  */
 export function estimateDownloadBytes(songs: Song[], downloadBitRate: number): number | null {
   let bytes = 0;
   for (const s of songs) {
-    // Las de radio y las que ya son locales no se bajan.
+    // Radio songs and songs that are already local are not downloaded.
     if (s.url || s.localUri) continue;
     const kbps = downloadBitRate > 0 ? downloadBitRate : s.bitRate;
-    if (!s.duration || !kbps) return null; // sin dato fiable, no se dice nada
+    if (!s.duration || !kbps) return null; // no reliable data, don't say anything
     bytes += (s.duration * kbps * 1000) / 8;
   }
   return bytes;
 }
 
-/** Espacio libre del aparato, o null si el sistema no lo expone. */
+/** Free space on the device, or null if the system doesn't expose it. */
 function freeBytes(): number | null {
   try {
     const free = Paths.availableDiskSpace;
     return free >= 0 ? free : null;
   } catch {
-    return null; // p. ej. plataforma sin soporte
+    return null; // e.g. unsupported platform
   }
 }
 

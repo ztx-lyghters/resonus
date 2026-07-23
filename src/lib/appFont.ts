@@ -1,15 +1,15 @@
 /**
- * Fuente global de la interfaz. React Native no hereda `fontFamily` a nivel de
- * app y su `Text` (RN 0.83) es un componente de función sin `render` ni
- * `defaultProps` (React 19 los quitó), así que no se puede parchear el
- * componente. En su lugar se envuelve el runtime JSX (`jsx`/`jsxs` y su
- * variante de desarrollo `jsxDEV`): cada vez que se crea un `<Text>` o
- * `<TextInput>` se le inyecta la familia elegida por debajo de su estilo (el
- * estilo propio gana; ninguno fija `fontFamily`, así que la familia manda).
+ * Global UI font. React Native doesn't inherit `fontFamily` at the app level
+ * and its `Text` (RN 0.83) is a function component without `render` or
+ * `defaultProps` (React 19 removed them), so the component can't be patched.
+ * Instead we wrap the JSX runtime (`jsx`/`jsxs` and its development variant
+ * `jsxDEV`): every time a `<Text>` or `<TextInput>` is created, the chosen
+ * family is injected below its own style (own style wins; none set
+ * `fontFamily`, so the injected family applies).
  *
- * La familia se lee de una variable de módulo en cada creación de elemento, de
- * modo que cambiar el ajuste la aplica a todo lo que se vuelva a pintar. Con la
- * opción por defecto (`undefined`) no se toca nada: fuente del sistema tal cual.
+ * The family is read from a module variable on every element creation, so
+ * changing the setting applies it to everything that gets re-painted. With
+ * the default option (`undefined`) nothing is touched: system font as-is.
  */
 /* eslint-disable @typescript-eslint/no-require-imports */
 import { Text, TextInput } from 'react-native';
@@ -17,12 +17,12 @@ import { Text, TextInput } from 'react-native';
 let currentFamily: string | undefined;
 let installed = false;
 
-/** Cambia la fuente global. `undefined` = fuente por defecto del sistema. */
+/** Sets the global font. `undefined` = system default font. */
 export function setAppFont(family: string | undefined): void {
   currentFamily = family || undefined;
 }
 
-/** Envuelve una función `jsx(type, props, ...rest)` para inyectar la fuente. */
+/** Wraps a `jsx(type, props, ...rest)` function to inject the font. */
 function wrapJsx(orig: (...args: any[]) => any) {
   return function wrapped(type: unknown, props: any, ...rest: any[]) {
     if (currentFamily && (type === Text || type === TextInput) && props) {
@@ -32,7 +32,7 @@ function wrapJsx(orig: (...args: any[]) => any) {
   };
 }
 
-/** Aplica el envoltorio a un módulo de runtime JSX ya requerido. */
+/** Applies the wrapper to an already-required JSX runtime module. */
 function patchRuntime(rt: any): void {
   if (!rt) return;
   if (typeof rt.jsx === 'function') rt.jsx = wrapJsx(rt.jsx);
@@ -40,19 +40,19 @@ function patchRuntime(rt: any): void {
   if (typeof rt.jsxDEV === 'function') rt.jsxDEV = wrapJsx(rt.jsxDEV);
 }
 
-/** Instala el envoltorio una sola vez, sobre los dos runtimes posibles.
- * Requires literales: Metro no resuelve `require` con variable. */
+/** Installs the wrapper once, over both possible runtimes.
+ * Requires literals: Metro can't resolve `require` with a variable. */
 export function installAppFont(): void {
   if (installed) return;
   installed = true;
   try {
     patchRuntime(require('react/jsx-runtime'));
   } catch {
-    // Sin runtime de producción (p. ej. en dev): se ignora.
+      // No production runtime (e.g. in dev): ignored.
   }
   try {
     patchRuntime(require('react/jsx-dev-runtime'));
   } catch {
-    // Sin runtime de desarrollo (p. ej. en producción): se ignora.
+      // No development runtime (e.g. in production): ignored.
   }
 }

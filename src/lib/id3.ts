@@ -1,7 +1,7 @@
 /**
- * Parser ID3 para React Native (Hermes).
- * Soporta ID3v2 (cabecera) e ID3v1 (final del fichero, como fallback).
- * Lee título, artista, álbum, nº de pista, año y carátula embebida (ID3v2).
+ * ID3 parser for React Native (Hermes).
+ * Supports ID3v2 (header) and ID3v1 (end of file, as fallback).
+ * Reads title, artist, album, track number, year and embedded cover art (ID3v2).
  */
 function synchsafeToInt(b: Uint8Array, offset: number): number {
   return (
@@ -27,9 +27,9 @@ function decodeLatin1(bytes: Uint8Array): string {
 }
 
 /**
- * Decodifica UTF-16 manualmente (Hermes no soporta `TextDecoder('utf-16le')`
- * y lanzaría excepción, haciendo fallar todo el parseo ID3v2). Lee unidades de
- * 2 bytes; los pares suplentes se reconstruyen solos al concatenar.
+ * Manually decodes UTF-16 (Hermes doesn't support `TextDecoder('utf-16le')`
+ * and would throw, breaking the entire ID3v2 parse). Reads 2-byte units;
+ * surrogate pairs are reconstructed automatically on concatenation.
  */
 function decodeUtf16(bytes: Uint8Array, littleEndian: boolean): string {
   let out = '';
@@ -42,7 +42,7 @@ function decodeUtf16(bytes: Uint8Array, littleEndian: boolean): string {
   return out;
 }
 
-/** Decodifica los bytes de un frame según su byte de codificación ID3. */
+/** Decodes frame bytes according to its ID3 encoding byte. */
 function decodeWithEncoding(enc: number, data: Uint8Array): string {
   switch (enc) {
     case 0x00:
@@ -56,7 +56,7 @@ function decodeWithEncoding(enc: number, data: Uint8Array): string {
       return decodeUtf16(data.subarray(2), littleEndian);
     }
     case 0x02:
-      return decodeUtf16(data, false); // UTF-16BE sin BOM
+      return decodeUtf16(data, false); // UTF-16BE without BOM
     default:
       return decodeLatin1(data);
   }
@@ -65,10 +65,10 @@ function decodeWithEncoding(enc: number, data: Uint8Array): string {
 function decodeText(b: Uint8Array, start: number, end: number): string {
   if (start >= end) return '';
   const text = decodeWithEncoding(b[start], b.subarray(start + 1, end));
-  // En ID3v2.4 los frames de texto pueden contener varios valores separados
-  // por un byte nulo (p. ej. TPE1 = "6ix9ine\0Anuel AA"). Antes los nulos se
-  // borraban y los valores quedaban pegados ("6ix9ineAnuel AA"); ahora nos
-  // quedamos con el primer valor (el principal), que es lo que se muestra.
+  // In ID3v2.4 text frames may contain multiple values separated by a null
+  // byte (e.g. TPE1 = "6ix9ine\0Anuel AA"). Previously nulls were removed
+  // and values got stuck together ("6ix9ineAnuel AA"); now we take the first
+  // value (the primary one), which is what gets displayed.
   const first = text.split('\0').map((s) => s.trim()).find((s) => s.length > 0);
   return first ?? '';
 }
@@ -83,18 +83,18 @@ function nullTerminatedIndex(b: Uint8Array, start: number, max: number): number 
 export interface ID3Tags {
   title?: string;
   artist?: string;
-  /** Artista del álbum (TPE2); más fiable para agrupar que el de pista. */
+  /** Album artist (TPE2); more reliable for grouping than the track artist. */
   albumArtist?: string;
   album?: string;
   track?: number;
   year?: number;
   coverMime?: string;
   coverBase64?: string;
-  /** Letra embebida (frame USLT); puede venir en formato LRC con timestamps. */
+  /** Embedded lyrics (USLT frame); may come in LRC format with timestamps. */
   lyrics?: string;
   /**
-   * Id del frame que no cabía entero en el buffer: el tag llegó cortado y de
-   * ahí en adelante no se leyó nada. `undefined` si se parseó el tag completo.
+   * Frame id that didn't fit fully in the buffer: the tag was truncated and
+   * nothing beyond this point was read. `undefined` if the full tag was parsed.
    */
   cutFrame?: string;
 }
@@ -133,11 +133,11 @@ function parseID3v2(buffer: Uint8Array): ID3Tags {
 
     const dataStart = offset + 10;
     if (dataStart >= tagEnd) break;
-    // El frame no cabe entero en lo leído. Es lo normal en la primera pasada
-    // del escaneo, que solo pide la cabecera del tag para saltarse la carátula
-    // (ver `readTags` en localLibrary). Ni un JPEG a medias ni un título a
-    // medias valen para nada, así que paramos y dejamos anotado en `cutFrame`
-    // por dónde se cortó, para que quien llama decida si merece releer.
+    // The frame doesn't fully fit in what was read. This is normal on the
+    // first scan pass, which only requests the tag header to skip the cover
+    // art (see `readTags` in localLibrary). Neither a half JPEG nor a half
+    // title is useful, so we stop and record in `cutFrame` where the cut
+    // happened, so the caller can decide whether to re-read.
     if (dataStart + frameSize > tagEnd) {
       tags.cutFrame = frameId;
       break;
@@ -191,14 +191,14 @@ function parseID3v2(buffer: Uint8Array): ID3Tags {
         if (picData.length > 0) {
           tags.coverMime = mime;
           tags.coverBase64 = uint8ToBase64(picData);
-          // Si la carátula es grande, saltamos frames posteriores para no
-          // perderlos — pero ya estamos dentro del tagEnd así que es seguro.
+          // If the cover is large, we skip further frames to avoid losing
+          // them — but we're already within tagEnd so it's safe.
         }
         break;
       }
     }
 
-    // Evita bucle infinito si frameSize = 0
+    // Prevents infinite loop if frameSize = 0
     if (dataEnd === offset && frameId === prevFrameId) break;
     prevFrameId = frameId;
     offset = dataEnd;
@@ -207,11 +207,11 @@ function parseID3v2(buffer: Uint8Array): ID3Tags {
   return tags;
 }
 
-/** Parsea los últimos 128 bytes como ID3v1 (fallback). */
+/** Parses the last 128 bytes as ID3v1 (fallback). */
 function parseID3v1(buffer: Uint8Array): ID3Tags {
   const tags: ID3Tags = {};
   if (buffer.length < 128) return tags;
-  // "TAG" está en los últimos 128 bytes
+  // "TAG" is in the last 128 bytes
   const start = buffer.length - 128;
   if (buffer[start] !== 0x54 || buffer[start + 1] !== 0x41 || buffer[start + 2] !== 0x47) return tags;
 
@@ -222,7 +222,7 @@ function parseID3v1(buffer: Uint8Array): ID3Tags {
   const yearNum = parseInt(yearRaw, 10);
   if (!isNaN(yearNum)) tags.year = yearNum;
 
-  // Pista (ID3v1.1): si comment[28] == 0, comment[29] es el track
+  // Track (ID3v1.1): if comment[28] == 0, comment[29] is the track
   if (buffer[start + 125] === 0 && buffer[start + 126] !== 0) {
     tags.track = buffer[start + 126];
   }
@@ -232,10 +232,9 @@ function parseID3v1(buffer: Uint8Array): ID3Tags {
 export function parseID3(buffer: Uint8Array): ID3Tags {
   try {
     const v2 = parseID3v2(buffer);
-    if (v2.title) return v2; // ID3v2 tiene prioridad si encontró título
-    // Si ID3v2 no encontró nada útil, intenta ID3v1
-    const v1 = parseID3v1(buffer);
-    return { ...v1, ...v2 }; // v2 pisa v1 donde haya datos
+    if (v2.title) return v2; // ID3v2 takes priority if it found a title
+    // If ID3v2 found nothing useful, try ID3v1
+    return { ...v1, ...v2 }; // v2 overrides v1 where data exists
   } catch {
     return {};
   }

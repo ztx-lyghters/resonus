@@ -1,12 +1,12 @@
 /**
- * Formato LRC (letras con timestamps `[mm:ss.xx]`). Se usa para los ficheros
- * `.lrc` junto a la música local, la letra embebida USLT (que a menudo trae
- * timestamps) y para cachear en disco las letras del servidor o de LRCLIB.
- * Un texto sin timestamps también vale: sale como letra sin sincronizar.
+ * LRC format (lyrics with `[mm:ss.xx]` timestamps). Used for `.lrc` files
+ * next to local music, embedded USLT lyrics (which often contain timestamps),
+ * and for caching server or LRCLIB lyrics to disk.
+ * Text without timestamps also works: returned as unsynced lyrics.
  */
 import { type LyricLine, type SongLyrics } from '@/api/subsonic';
 
-/** Tags de metadatos LRC que se ignoran (menos `offset`, que sí se aplica). */
+/** LRC metadata tags that are ignored (except `offset`, which is applied). */
 const META_RE = /^\[(ar|ti|al|au|by|la|re|ve|tool|length|id|#):[^\]]*\]$/i;
 const STAMP_RE = /\[(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?\]/y;
 
@@ -24,7 +24,7 @@ export function parseLrc(text: string): SongLyrics | null {
       offset = parseInt(off[1], 10) || 0;
       continue;
     }
-    // Timestamps al inicio (una línea puede llevar varios: estribillos).
+    // Timestamps at the start (a line can have several: choruses).
     const starts: number[] = [];
     let pos = 0;
     for (;;) {
@@ -32,7 +32,7 @@ export function parseLrc(text: string): SongLyrics | null {
       const m = STAMP_RE.exec(line);
       if (!m) break;
       const frac = m[3] ?? '';
-      // 1 dígito = décimas, 2 = centésimas, 3 = milisegundos.
+      // 1 digit = tenths, 2 = hundredths, 3 = milliseconds.
       const ms = frac ? parseInt(frac, 10) * [100, 10, 1][frac.length - 1] : 0;
       starts.push((parseInt(m[1], 10) * 60 + parseInt(m[2], 10)) * 1000 + ms);
       pos = STAMP_RE.lastIndex;
@@ -46,8 +46,8 @@ export function parseLrc(text: string): SongLyrics | null {
   }
 
   if (timed.length > 0) {
-    // `offset` positivo = la letra debe aparecer antes (misma convención que
-    // el offset de OpenSubsonic).
+    // Positive `offset` = lyrics should appear earlier (same convention as
+    // OpenSubsonic offset).
     timed.sort((a, b) => a.start! - b.start!);
     return {
       synced: true,
@@ -58,7 +58,7 @@ export function parseLrc(text: string): SongLyrics | null {
   return null;
 }
 
-/** Serializa a texto LRC (o texto plano si la letra no está sincronizada). */
+/** Serializes to LRC text (or plain text if lyrics are unsynced). */
 export function serializeLrc(lyrics: SongLyrics): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return lyrics.lines

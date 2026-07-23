@@ -1,4 +1,4 @@
-/** Convierte segundos a "m:ss" (o "h:mm:ss" si supera la hora). */
+/** Converts seconds to "m:ss" (or "h:mm:ss" if over an hour). */
 export function formatDuration(totalSeconds: number | undefined): string {
   if (!totalSeconds || totalSeconds < 0 || !Number.isFinite(totalSeconds)) {
     return '0:00';
@@ -14,9 +14,9 @@ export function formatDuration(totalSeconds: number | undefined): string {
 }
 
 /**
- * Duración total legible para una lista/álbum: "45 min", "1 h 30 min",
- * "2 h", "1 d 3 h 20 min". Muestra horas a partir de 60 min y días a partir
- * de 24 h. Las abreviaturas (d/h/min) son convencionales en ambos idiomas.
+ * Human-readable total duration for a list/album: "45 min", "1 h 30 min",
+ * "2 h", "1 d 3 h 20 min". Shows hours from 60 min and days from
+ * 24 h. Abbreviations (d/h/min) are conventional in both languages.
  */
 export function formatTotalDuration(totalSeconds: number | undefined): string {
   const s = totalSeconds && Number.isFinite(totalSeconds) ? Math.max(0, Math.floor(totalSeconds)) : 0;
@@ -26,12 +26,12 @@ export function formatTotalDuration(totalSeconds: number | undefined): string {
   const parts: string[] = [];
   if (days > 0) parts.push(`${days} d`);
   if (hours > 0) parts.push(`${hours} h`);
-  // Minutos: si hay, o si no hay nada más (duración menor de 1 min).
+  // Minutes: if present, or if nothing else (duration under 1 min).
   if (minutes > 0 || parts.length === 0) parts.push(`${minutes} min`);
   return parts.join(' ');
 }
 
-/** Bytes en la unidad que toque ("1,2 GB", "340 MB"). */
+/** Bytes in the appropriate unit ("1.2 GB", "340 MB"). */
 export function formatBytes(n: number): string {
   if (n >= 1024 ** 3) return `${(n / 1024 ** 3).toFixed(1)} GB`;
   if (n >= 1024 ** 2) return `${Math.round(n / 1024 ** 2)} MB`;

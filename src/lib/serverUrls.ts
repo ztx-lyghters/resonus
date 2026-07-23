@@ -1,17 +1,18 @@
 /**
- * Heurística de prioridad entre las URLs candidatas de un perfil. Al sondear
- * cuál usar (ver `store/autoUrl.ts`) probamos primero las de red local: en casa
- * gana la IP local (rápida, sin salir a internet) y, cuando deja de responder,
- * cae sola a la remota (dominio, Tailscale…). Así el usuario no tiene que
- * ordenar nada a mano.
+ * Priority heuristic across a profile's candidate URLs. When probing which
+ * one to use (see `store/autoUrl.ts`) we try local network ones first: at
+ * home the local IP wins (fast, no internet roundtrip) and, when it stops
+ * responding, it automatically falls back to the remote one (domain,
+ * Tailscale...). This way the user doesn't have to order anything manually.
  */
 
 import type { SubsonicAuth } from '@/api/subsonic';
 
 /**
- * URL principal del perfil (identidad estable). `serverUrl` es la URL ACTIVA y
- * cambia al conmutar de red; para claves de almacenamiento por perfil (cola,
- * descargas, historial…) hay que usar esta, no la activa, o se partirían.
+ * Primary profile URL (stable identity). `serverUrl` is the ACTIVE URL and
+ * changes when switching networks; for per-profile storage keys (queue,
+ * downloads, history...) you must use this one, not the active one, or
+ * they'd split.
  */
 export function primaryUrl(auth: Pick<SubsonicAuth, 'urls' | 'serverUrl'>): string {
   return auth.urls?.[0] ?? auth.serverUrl;
@@ -22,14 +23,14 @@ function hostOf(url: string): string | null {
   return m ? m[1].toLowerCase() : null;
 }
 
-/** ¿La URL apunta a una dirección de red local (LAN)? */
+/** Does the URL point to a local network (LAN) address? */
 export function isLanUrl(url: string): boolean {
   const host = hostOf(url);
   if (!host) return false;
   if (host === 'localhost' || host.endsWith('.local')) return true;
-  // Rangos privados RFC 1918 + loopback. Ojo: Tailscale (100.64.0.0/10) NO
-  // cuenta como LAN a propósito: es alcanzable también por datos, así que debe
-  // ir DESPUÉS de la LAN de verdad para que en casa se prefiera la local.
+  // RFC 1918 private ranges + loopback. Note: Tailscale (100.64.0.0/10)
+  // does NOT count as LAN on purpose: it's reachable over mobile data too,
+  // so it must go AFTER the real LAN so at home the local one is preferred.
   return (
     /^127\./.test(host) ||
     /^10\./.test(host) ||
@@ -39,9 +40,9 @@ export function isLanUrl(url: string): boolean {
 }
 
 /**
- * Copia ordenada por prioridad de sondeo: LAN primero, conservando el orden
- * relativo dentro de cada grupo (Array.sort es estable). No muta la entrada;
- * el orden guardado en el perfil sigue siendo el de inserción.
+ * Copy sorted by probe priority: LAN first, preserving relative order
+ * within each group (Array.sort is stable). Does not mutate the input;
+ * the stored profile order remains insertion order.
  */
 export function byProbePriority(urls: string[]): string[] {
   return [...urls].sort((a, b) => Number(isLanUrl(b)) - Number(isLanUrl(a)));

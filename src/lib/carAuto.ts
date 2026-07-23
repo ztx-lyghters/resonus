@@ -1,15 +1,15 @@
 /**
- * Puente JS ↔ módulo nativo `CarAuto` (Android Auto / Automotive OS).
+ * JS ↔ `CarAuto` native module bridge (Android Auto / Automotive OS).
  *
- * El módulo nativo mantiene UNA MediaLibrarySession (Media3) que da los
- * controles del coche y el árbol navegable. Desde JS:
- *  - `setNodes` empuja el árbol de navegación (root → álbumes/artistas/…).
- *  - `setNowPlaying`/`setQueue`/`setQueueIndex`/`setPlaybackState` mantienen la
- *    sesión del coche sincronizada con la reproducción real.
- *  - `onPlay` se dispara cuando se toca una hoja reproducible en el coche.
- *  - `onTransport` se dispara con los botones de transporte (play/pausa/next…).
+ * The native module holds ONE MediaLibrarySession (Media3) that provides the
+ * car controls and the browse tree. From JS:
+ *  - `setNodes` pushes the browse tree (root → albums/artists/...).
+ *  - `setNowPlaying`/`setQueue`/`setQueueIndex`/`setPlaybackState` keep the
+ *    car session in sync with actual playback.
+ *  - `onPlay` fires when a playable leaf is tapped in the car.
+ *  - `onTransport` fires with transport buttons (play/pause/next...).
  *
- * En plataformas sin el módulo (web, iOS) todo es no-op.
+ * On platforms without the module (web, iOS) everything is a no-op.
  */
 import { requireOptionalNativeModule } from 'expo-modules-core';
 
@@ -22,15 +22,15 @@ export interface CarNode {
   id: string;
   title: string;
   subtitle?: string;
-  /** http(s) → la descarga el host; file:// → se embebe; data: no soportada. */
+  /** http(s) → downloaded by host; file:// → embedded; data: unsupported. */
   artworkUrl?: string;
-  /** true = hoja reproducible; false = carpeta navegable. */
+  /** true = playable leaf; false = browsable folder. */
   playable: boolean;
-  /** Cómo dibujar los hijos de un navegable: "list" | "grid". */
+  /** How to render children of a browsable node: "list" | "grid". */
   contentStyle?: 'list' | 'grid';
 }
 
-/** Árbol: mapa de parentId → hijos. La raíz es la clave "root". */
+/** Tree: parentId → children map. Root is the "root" key. */
 export interface CarTree {
   nodes: Record<string, CarNode[]>;
 }

@@ -1,6 +1,6 @@
 /**
- * Resuelve a qué artista(s) puede ir una canción o álbum. Cuando hay una sola
- * opción se navega directo; con varias (colaboraciones) se abre el selector.
+ * Resolves which artist(s) a song or album can navigate to. A single
+ * option navigates directly; multiple (collaborations) opens the picker.
  */
 import { type Album, type Song } from '@/api/subsonic';
 
@@ -9,7 +9,7 @@ export interface ArtistTarget {
   name: string;
 }
 
-/** Lista de artistas navegables, sin duplicados ni ids vacíos. */
+/** Navigable artist list, no duplicates or empty ids. */
 export function artistTargets(item: Pick<Song | Album, 'artist' | 'artistId' | 'artists'>): ArtistTarget[] {
   const list = (item.artists ?? []).filter((a) => a.id);
   if (list.length > 0) {

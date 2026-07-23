@@ -1,8 +1,8 @@
 /**
- * Almacenamiento persistente multiplataforma.
+ * Cross-platform persistent storage.
  *
- * En móvil usa expo-secure-store (cifrado). En web ese módulo no existe, así
- * que recurrimos a localStorage para poder probar la app en el navegador.
+ * Uses expo-secure-store (encrypted) on mobile. That module doesn't exist on
+ * web, so we fall back to localStorage to test the app in the browser.
  */
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
@@ -25,7 +25,7 @@ export async function setItem(key: string, value: string): Promise<void> {
     try {
       globalThis.localStorage?.setItem(key, value);
     } catch {
-      // En web sin localStorage simplemente no persistimos.
+      // On web without localStorage we simply don't persist.
     }
     return;
   }
@@ -37,7 +37,7 @@ export async function deleteItem(key: string): Promise<void> {
     try {
       globalThis.localStorage?.removeItem(key);
     } catch {
-      // ignorar
+      // ignore
     }
     return;
   }

@@ -1,13 +1,13 @@
 /**
- * Construye el árbol de navegación de Android Auto desde la capa de datos
- * (online Subsonic u offline local, indistintamente) y resuelve qué reproducir
- * cuando el coche toca un elemento.
+ * Builds the Android Auto browse tree from the data layer (online Subsonic
+ * or offline local, interchangeably) and resolves what to play when the car
+ * taps an item.
  *
- * El árbol es un mapa plano parentId → hijos que se empuja entero al módulo
- * nativo (`setNodes`), porque el servicio nativo no hace fetch: lee del árbol
- * cacheado. Por eso prefetcheamos las canciones de cada álbum/lista.
+ * The tree is a flat parentId → children map pushed in full to the native
+ * module (`setNodes`), because the native service doesn't fetch: it reads
+ * from the cached tree. That's why we prefetch each album/playlist's tracks.
  *
- * Adaptado del patrón de wavio (github.com/Joel-Mercier/wavio, MIT).
+ * Adapted from the wavio pattern (github.com/Joel-Mercier/wavio, MIT).
  */
 import * as data from '@/api/data';
 import { type Album, type Artist, type Song } from '@/api/subsonic';
@@ -19,12 +19,12 @@ const ROOT = 'root';
 const HOME_SIZE = 15;
 const CONCURRENCY = 4;
 
-// ── Snapshot para resolver los toques sin volver a pedir datos ──────────────
+// ── Snapshot to resolve taps without refetching data ─────────────────────────
 const songById = new Map<string, Song>();
-/** parentId → mediaIds de pista (en orden) para encolar la colección al tocar. */
+/** parentId → track mediaIds (in order) to queue the collection on tap. */
 const parentTracks = new Map<string, string[]>();
 
-/** Ejecuta `fn` sobre `items` con como mucho `n` en paralelo (evita 429). */
+/** Runs `fn` over `items` with at most `n` in parallel (avoids 429). */
 async function mapConcurrent<T>(items: T[], n: number, fn: (item: T) => Promise<void>): Promise<void> {
   let i = 0;
   const workers = Array.from({ length: Math.min(n, items.length) }, async () => {
@@ -36,7 +36,7 @@ async function mapConcurrent<T>(items: T[], n: number, fn: (item: T) => Promise<
   await Promise.all(workers);
 }
 
-// El mediaId de pista lleva su padre embebido para saber qué colección encolar.
+// Track mediaId embeds its parent to know which collection to queue.
 function trackMediaId(parentId: string, songId: string): string {
   return `track|${parentId}|${songId}`;
 }
@@ -77,7 +77,7 @@ function artistNode(a: Artist): CarNode {
   };
 }
 
-// El título se resuelve dentro de buildBrowseTree (i18n ya cargado), no aquí.
+// Title is resolved inside buildBrowseTree (i18n already loaded), not here.
 const HOME_SECTIONS: { id: string; titleKey: string; type: 'newest' | 'frequent' | 'random' }[] = [
   { id: 'home:newest', titleKey: 'Recently added', type: 'newest' },
   { id: 'home:frequent', titleKey: 'Most played', type: 'frequent' },
@@ -89,7 +89,7 @@ export async function buildBrowseTree(): Promise<CarTree> {
   parentTracks.clear();
   const tree: Record<string, CarNode[]> = {};
 
-  // Raíz: pestañas Inicio / Biblioteca.
+  // Root: Home / Library tabs.
   tree[ROOT] = [
     { id: 'tab:home', title: tg('Home'), playable: false, contentStyle: 'list' },
     { id: 'tab:library', title: tg('Library'), playable: false, contentStyle: 'list' },
@@ -97,7 +97,7 @@ export async function buildBrowseTree(): Promise<CarTree> {
 
   const albumIds = new Set<string>();
 
-  // Inicio → secciones de álbumes.
+  // Home → album sections.
   tree['tab:home'] = HOME_SECTIONS.map((s) => ({
     id: s.id,
     title: tg(s.titleKey),
@@ -112,7 +112,7 @@ export async function buildBrowseTree(): Promise<CarTree> {
     }),
   );
 
-  // Biblioteca → Favoritos (canciones) + Álbumes favoritos + Artistas favoritos.
+  // Library → Favorites (songs) + Starred albums + Starred artists.
   const starred = await data
     .getStarred()
     .catch(() => ({ songs: [] as Song[], albums: [] as Album[], artists: [] as Artist[] }));
@@ -131,7 +131,7 @@ export async function buildBrowseTree(): Promise<CarTree> {
 
   tree['lib:artists'] = starred.artists.map(artistNode);
 
-  // Prefetch de las canciones de cada álbum (para poder navegarlas en el coche).
+  // Prefetch songs for each album (to browse them in the car).
   await mapConcurrent(Array.from(albumIds), CONCURRENCY, async (id) => {
     try {
       const { songs } = await data.getAlbum(id);
@@ -143,7 +143,7 @@ export async function buildBrowseTree(): Promise<CarTree> {
     }
   });
 
-  // Prefetch de artistas favoritos: top canciones + álbumes (y sus pistas).
+  // Prefetch for starred artists: top songs + albums (and their tracks).
   await mapConcurrent(starred.artists.map((a) => a.id), CONCURRENCY, async (id) => {
     try {
       const { artist, albums } = await data.getArtist(id);
@@ -172,17 +172,17 @@ export async function buildBrowseTree(): Promise<CarTree> {
   return { nodes: tree };
 }
 
-// ── Resolución de reproducción al tocar en el coche ─────────────────────────
+// ── Playback resolution on car tap ───────────────────────────────────────────
 
 function songIdFromTrackMediaId(mediaId: string): string {
-  // formato: track|<parentId>|<songId>
+  // format: track|<parentId>|<songId>
   return mediaId.split('|').slice(2).join('|');
 }
 
 /**
- * Maneja un toque del coche: si es una pista dentro de una colección, encola la
- * colección entera empezando por la tocada; si es un álbum/lista/artista/favoritos,
- * reproduce todo.
+ * Handles a car tap: if it's a track within a collection, queues the whole
+ * collection starting from the tapped one; if it's an album/playlist/artist/favorites,
+ * plays everything.
  */
 export async function handleBrowsePlay(mediaId: string, parentId?: string): Promise<void> {
   const store = usePlayerStore.getState();

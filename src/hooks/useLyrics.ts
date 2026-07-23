@@ -1,15 +1,15 @@
 /**
- * Letra de la canción actual.
+ * Lyrics for the current song.
  *
- * - Servidor: extensión OpenSubsonic `songLyrics` (líneas con timestamp si el
- *   servidor tiene letra sincronizada) con fallback al endpoint clásico por
- *   artista+título para servidores viejos (p. ej. Ampache 6).
- * - Local/offline (canciones con `localUri`): `.lrc` junto al fichero y letra
- *   embebida USLT.
- * - En ambos modos, si el usuario activa el ajuste, LRCLIB como último recurso.
+ * - Server: OpenSubsonic `songLyrics` extension (timestamped lines if the
+ *   server has synced lyrics) with fallback to the classic artist+title
+ *   endpoint for old servers (e.g. Ampache 6).
+ * - Local/offline (songs with `localUri`): `.lrc` alongside the file and
+ *   embedded USLT lyrics.
+ * - In both modes, if the user enables the setting, LRCLIB as a last resort.
  *
- * `prefetchLyrics` calienta la query al empezar a sonar cada canción, para que
- * la tarjeta de letra aparezca al instante al abrir el player.
+ * `prefetchLyrics` warms the query when each song starts playing, so the lyrics
+ * card appears instantly when opening the player.
  */
 import { useQuery } from '@tanstack/react-query';
 
@@ -28,9 +28,9 @@ import { useSettings } from '@/store/settings';
 
 function lyricsQueryOptions(song: Song, auth: SubsonicAuth | null, onlineFallback: boolean) {
   return {
-    // El toggle de LRCLIB entra en la clave: al activarlo se reintenta.
+    // The LRCLIB toggle goes in the key: enabling it triggers a retry.
     queryKey: ['lyrics', song.id, onlineFallback] as const,
-    // La letra de una canción no cambia: no re-pedirla en toda la sesión.
+    // A song's lyrics don't change: don't re-fetch for the entire session.
     staleTime: Infinity,
     queryFn: async (): Promise<SongLyrics | null> => {
       if (song.localUri) return getLocalLyrics(song, onlineFallback);
@@ -39,17 +39,18 @@ function lyricsQueryOptions(song: Song, auth: SubsonicAuth | null, onlineFallbac
           const structured = await getLyricsBySongId(auth!, song.id);
           if (structured) return structured;
         } catch {
-          // Servidor sin la extensión songLyrics: probamos el endpoint clásico.
+          // Server without the songLyrics extension: try the classic endpoint.
         }
         const plain = await getLyrics(auth!, song.artist ?? '', song.title ?? '');
         if (plain) return { synced: false, lines: plain.split('\n').map((value) => ({ value })) };
-        // El servidor no tiene letra: LRCLIB si el usuario lo permite.
+        // Server has no lyrics: LRCLIB if the user allows it.
         if (onlineFallback) return getOnlineLyrics(song);
         return null;
       } catch (e) {
-        // Aquí solo se llega sin red (con conexión, el catch interior ya
-        // absorbe servidores sin extensión). Si la canción está descargada,
-        // cada descarga cacheó un .lrc junto al fichero: se usa ese.
+        // This path is only reached without a network (with a connection, the
+        // inner catch already absorbs servers without the extension). If the
+        // song is downloaded, each download cached an .lrc alongside the file:
+        // that one is used.
         const dl = useDownloads.getState().files[song.id];
         if (dl) return getLocalLyrics({ ...song, localUri: dl }, onlineFallback);
         throw e;
@@ -58,7 +59,7 @@ function lyricsQueryOptions(song: Song, auth: SubsonicAuth | null, onlineFallbac
   };
 }
 
-/** ¿Tiene sentido pedir letra para esta canción en el estado actual? */
+/** Does it make sense to fetch lyrics for this song in the current state? */
 function canFetch(song: Song | undefined, auth: SubsonicAuth | null): song is Song {
   return !!song && !song.url && (!!song.localUri || !!auth);
 }
@@ -73,7 +74,7 @@ export function useLyrics(song?: Song) {
   });
 }
 
-/** Precarga la letra en segundo plano (al empezar a sonar la canción). */
+/** Prefetches the lyrics in the background (when the song starts playing). */
 export function prefetchLyrics(song: Song | undefined): void {
   const auth = useAuthStore.getState().auth;
   if (!canFetch(song, auth)) return;

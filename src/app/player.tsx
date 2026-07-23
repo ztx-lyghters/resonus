@@ -330,8 +330,10 @@ export default function PlayerScreen() {
   // a non-Jellyfin server account; not applicable to radio (direct url) or
   // the local profile (no account). Offline queues and uploads on reconnect.
   const canRate = showRating && hasAccount && serverType !== 'jellyfin' && !song.url;
-  // Album · year under the title (optional). Radio doesn't have it: only if there's something.
-  const albumLine = [song.album, song.year].filter(Boolean).join(' · ');
+  // Artist · Album · Year in a single line.
+  const artistText = showAlbumInfo
+    ? [song.artist ?? t('Unknown artist'), song.album, song.year].filter(Boolean).join(' · ')
+    : (song.artist ?? t('Unknown artist'));
   const duration = durationSec || song.duration || 0;
   const repeatActive = repeat !== 'off';
 
@@ -463,7 +465,7 @@ export default function PlayerScreen() {
                 if (targets.length === 0) {
                   return (
                     <MarqueeText
-                      text={song.artist ?? t('Unknown artist')}
+                      text={artistText}
                       style={styles.artist}
                       enabled={marqueeTitles}
                     />
@@ -480,7 +482,7 @@ export default function PlayerScreen() {
                     }
                   >
                     <MarqueeText
-                      text={song.artist ?? t('Unknown artist')}
+                      text={artistText}
                       style={styles.artist}
                       enabled={marqueeTitles}
                     />
@@ -491,22 +493,9 @@ export default function PlayerScreen() {
             {(isLocal && !offline) ? null : <FavoriteButton id={song.id} starred={favorited} size={26} />}
           </View>
 
-          {(showAlbumInfo && albumLine) || showQualityBadge ? (
+          {showQualityBadge ? (
             <View style={styles.subInfo}>
-              {showAlbumInfo && albumLine ? (
-                song.albumId ? (
-                  <Pressable
-                    style={styles.tapText}
-                    hitSlop={6}
-                    onPress={() => router.push(`/album/${song.albumId}` as never)}
-                  >
-                    <MarqueeText text={albumLine} style={styles.albumInfo} enabled={marqueeTitles} />
-                  </Pressable>
-                ) : (
-                  <MarqueeText text={albumLine} style={styles.albumInfo} enabled={marqueeTitles} />
-                )
-              ) : null}
-              {showQualityBadge ? <AudioQualityBadge song={song} /> : null}
+              <AudioQualityBadge song={song} />
             </View>
           ) : null}
 
@@ -765,13 +754,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     marginTop: spacing.xs,
   },
-  // Info lines under title/artist (album·year and/or quality), compact
-  // version: they're optional and the first page is tight with everything
-  // enabled — every vertical pixel counts (the slider already brings its own
-  // breathing room below). A single pull-up for the whole group and a small
-  // gap between lines, so they don't overlap when both are visible.
-  subInfo: { marginTop: -spacing.sm, marginBottom: spacing.xs, gap: 2 },
-  albumInfo: { color: colors.textSecondary, fontSize: fontSize.sm },
+  subInfo: { marginTop: -spacing.sm, marginBottom: spacing.xs },
   progress: { marginBottom: spacing.md },
   // Compensates for the slider's internal margin (~15px, where the thumb is
   // centered at the extremes): the visible track goes edge to edge of the

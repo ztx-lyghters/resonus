@@ -78,7 +78,7 @@ export default function PlayerSettings() {
           options={[
             {
               label: t('Show album & year'),
-              description: t('Show the album name and release year under the title.'),
+              description: t('Show the album name and release year next to the artist.'),
               value: showAlbumInfo,
               onChange: setShowAlbumInfo,
             },

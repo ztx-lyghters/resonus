@@ -19,10 +19,7 @@
 
 Get the latest APK from the [Releases](https://github.com/juananzzz/resonus/releases/latest) page and install it on your Android device.
 
-<a href="https://obtainium.imranr.dev/redirect?r=obtainium://add/github.com/juananzzz/resonus">
-  <img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/icon_small.png" width="24" alt="Obtainium" style="vertical-align:middle">
-  <img src="https://img.shields.io/badge/Get_it_on-Obtainium-6366F1?style=for-the-badge" alt="Get it on Obtainium" style="vertical-align:middle">
-</a>
+Also available on [Obtainium](https://obtainium.imranr.dev/redirect?r=obtainium://add/github.com/juananzzz/resonus) for automatic updates.
 
 ## Screenshots
 

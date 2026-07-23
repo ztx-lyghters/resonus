@@ -390,7 +390,7 @@ export default function ArtistScreen() {
 
         {info?.biography ? (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('About artist')}</Text>
+            <Text style={styles.sectionTitle}>{t('About')}</Text>
             <Text style={styles.bio} numberOfLines={bioExpanded ? undefined : 4}>
               {info.biography}
             </Text>

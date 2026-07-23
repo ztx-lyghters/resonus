@@ -11,7 +11,7 @@ const DISCORD_URL = 'https://discord.gg/hpDfszr8r';
 export default function AboutSettings() {
   const t = useT();
   return (
-    <SettingsPage title={t('About this app')}>
+    <SettingsPage title={t('About')}>
       <ScrollView contentContainerStyle={settingsStyles.content}>
         <Field
           label={t('Version')}

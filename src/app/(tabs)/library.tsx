@@ -11,7 +11,6 @@ import {
   Modal,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -274,7 +273,7 @@ function PlaylistsTab({ onNew }: { onNew?: () => void }) {
                     <MaterialCommunityIcons name="pin" size={13} color={colors.accent} style={styles.pinIcon} />
                   ) : null}
                   <Text style={styles.rowSub}>{songsLabel(item.songCount ?? 0, lang)}</Text>
-      </ScrollView>
+                </View>
               </View>
             </Pressable>
           </Link>
@@ -593,12 +592,7 @@ export default function LibraryScreen() {
         onConfirm={onCreate}
       />
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.segments}
-        contentContainerStyle={styles.segmentsContent}
-      >
+      <View style={styles.segments}>
         {visibleSegments.map((s) => {
           const active = s.key === activeSegment;
           return (
@@ -613,7 +607,7 @@ export default function LibraryScreen() {
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
 
       {/* Sort/layout controls don't apply to Folders. */}
       {activeSegment === 'folders' ? null : (
@@ -654,11 +648,10 @@ const styles = StyleSheet.create({
   heading: { color: colors.text, fontSize: fontSize.xxl, fontWeight: '800' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
   segments: {
+    flexDirection: 'row',
+    gap: spacing.sm,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
-  },
-  segmentsContent: {
-    gap: spacing.sm,
   },
   segment: {
     paddingVertical: spacing.xs,

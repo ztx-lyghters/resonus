@@ -26,8 +26,8 @@ function itemKey(i: RecentItem): string {
   return `${i.kind}:${i.id}`;
 }
 
-// SecureStore solo admite claves con [A-Za-z0-9._-]; saneamos serverUrl/username
-// (la URL trae ':' y '/') para no pasar una clave inválida.
+// SecureStore only accepts keys with [A-Za-z0-9._-]; sanitize serverUrl/username
+// (the URL contains ':' and '/') to avoid passing an invalid key.
 function safe(s: string): string {
   return s.replace(/[^A-Za-z0-9._-]/g, '_');
 }
@@ -97,11 +97,11 @@ export const useRecentSearches = create<RecentSearchesState>((set, get) => ({
       const raw = await getItem(key);
       if (raw) {
         const parsed = JSON.parse(raw);
-        // Descarta el formato antiguo (lista de strings).
+        // Discard old format (list of strings).
         if (Array.isArray(parsed)) set({ items: parsed.filter(isRecentItem) });
       }
     } catch {
-      // valores por defecto si falla
+      // default values on failure
     }
   },
 }));

@@ -1,7 +1,7 @@
 /**
- * Contador de reproducciones local (modo sin conexión). Como no hay servidor
- * que registre el scrobble, llevamos la cuenta aquí para poder ofrecer una
- * sección de "Más escuchados" en la pantalla de inicio. Se persiste en disco.
+ * Local play counter (offline mode). Since there's no server to record the
+ * scrobble, we track counts here to offer a "Most played" section on the home
+ * screen. Persisted on disk.
  */
 import { create } from 'zustand';
 

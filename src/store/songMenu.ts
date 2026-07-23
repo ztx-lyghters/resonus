@@ -1,19 +1,19 @@
-/** Estado del menú contextual de canción (la hoja inferior con acciones). */
+/** Song context menu state (the bottom sheet with actions). */
 import { create } from 'zustand';
 
 import { type Song } from '@/api/subsonic';
 
-/** Contexto opcional: si la canción se abre desde una playlist editable. */
+/** Optional context: if the song is opened from an editable playlist. */
 export interface SongMenuContext {
   playlistId: string;
-  /** Posición de la canción dentro de la playlist (para quitarla). */
+  /** Position of the song within the playlist (for removing it). */
   index: number;
 }
 
-/** Ajustes extra al abrir el menú (p. ej. desde el reproductor). */
+/** Extra options when opening the menu (e.g. from the player). */
 export interface SongMenuOptions {
-  /** Muestra la acción «Letra». Solo desde el reproductor: /lyrics abre la
-   *  canción en curso, no la de una fila cualquiera. */
+  /** Shows the «Lyrics» action. Only from the player: /lyrics opens the
+   *  current song, not an arbitrary row's song. */
   showLyrics?: boolean;
 }
 

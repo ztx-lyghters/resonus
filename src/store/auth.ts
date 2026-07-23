@@ -1,11 +1,11 @@
 /**
- * Estado de sesión con soporte de varios perfiles guardados.
+ * Session state with support for multiple saved profiles.
  *
- * - `auth`: sesión activa.
- * - `profiles`: cuentas guardadas (servidor u offline) entre las que elegir.
+ * - `auth`: active session.
+ * - `profiles`: saved accounts (server or offline) to choose from.
  *
- * Cerrar sesión solo desactiva la sesión activa; los perfiles se conservan
- * para poder volver a entrar con un toque.
+ * Signing out only deactivates the active session; profiles are kept
+ * so they can be resumed with a single tap.
  */
 import { create } from 'zustand';
 
@@ -28,7 +28,7 @@ const OFFLINE_KEY = 'resonus.offline';
 const OFFLINE_AUTO_KEY = 'resonus.offlineAuto';
 const OFFLINE_SOURCE_KEY = 'resonus.offlineSource';
 
-/** De dónde saca la música el modo sin conexión. */
+/** Where offline mode gets its music from. */
 export type OfflineSource =
   | { mode: 'device' }
   | { mode: 'folder'; uri: string };
@@ -37,7 +37,7 @@ export type ServerProfile = SubsonicAuth & { _type: 'server' };
 export type OfflineProfile = { _type: 'offline'; name: string; source: OfflineSource };
 export type Profile = ServerProfile | OfflineProfile;
 
-/** Asegura que un perfil de servidor tenga `urls` (migración de los antiguos). */
+/** Ensures a server profile has `urls` (migration from old ones). */
 function withUrls(a: SubsonicAuth): SubsonicAuth {
   if (a.urls && a.urls.length > 0) return a;
   return { ...a, urls: [a.serverUrl] };
@@ -67,9 +67,9 @@ function offlineLabel(source: OfflineSource): string {
 }
 
 /**
- * Persiste un cambio en el perfil ACTIVO: actualiza `auth`, su entrada en
- * `profiles` (vía `patch`) y ambas claves de almacenamiento. Lo comparten las
- * acciones de URL, que siempre operan sobre el perfil activo.
+ * Persists a change to the ACTIVE profile: updates `auth`, its entry in
+ * `profiles` (via `patch`), and both storage keys. Shared by
+ * URL actions, which always operate on the active profile.
  */
 async function persistActive(
   get: () => AuthState,
@@ -89,18 +89,18 @@ async function persistActive(
 interface AuthState {
   auth: SubsonicAuth | null;
   profiles: Profile[];
-  /** Sesión sin conexión: reproduce ficheros locales sin servidor. */
+  /** Offline session: plays local files without a server. */
   offline: boolean;
   /**
-   * El modo offline lo activó la app sola porque el servidor no respondía (no
-   * el usuario). Solo con una cuenta de servidor: al volver a ser alcanzable se
-   * reconecta automáticamente. Un offline manual deja esto en false y no se
-   * revierte solo. Ver store/autoUrl.ts.
+   * Offline mode was activated by the app itself because the server did not
+   * respond (not the user). Only with a server account: when the server becomes
+   * reachable again it auto-reconnects. A manual offline keeps this false and is
+   * not auto-reverted. See store/autoUrl.ts.
    */
   autoOffline: boolean;
-  /** Origen elegido para la música local (null = aún sin elegir). */
+  /** Chosen source for local music (null = not yet chosen). */
   offlineSource: OfflineSource | null;
-  /** true mientras se rehidrata la sesión guardada al arrancar. */
+  /** true while the saved session is being rehydrated on startup. */
   hydrating: boolean;
   login: (
     serverUrl: string,
@@ -110,34 +110,34 @@ interface AuthState {
     plainAuth?: boolean,
   ) => Promise<void>;
   /**
-   * Entra en un perfil guardado. Con un perfil de servidor sin red, en vez de
-   * fallar cae al modo offline de esa cuenta (sus descargas). Devuelve a qué
-   * modo se entró para que la UI avise.
+   * Enters a saved profile. With a server profile and no network, instead of
+   * failing it falls into that account's offline mode (its downloads). Returns
+   * which mode was entered so the UI can notify.
    */
   switchProfile: (profile: Profile) => Promise<'online' | 'offline'>;
   removeProfile: (profile: Profile) => Promise<void>;
-  /** Conmuta la URL activa del perfil (una de sus `urls`). Recarga la pista en
-   *  curso contra la nueva URL; la cola se conserva. */
+  /** Switches the active URL of the profile (one of its `urls`). Reloads the
+   *  current track against the new URL; the queue is preserved. */
   setActiveUrl: (url: string) => Promise<void>;
-  /** Añade una URL alternativa al perfil activo. Valida que responda con las
-   *  credenciales actuales (mismo servidor). Devuelve el resultado para la UI. */
+  /** Adds an alternative URL to the active profile. Validates that it responds
+   *  with current credentials (same server). Returns the result for the UI. */
   addServerUrl: (url: string) => Promise<'ok' | 'duplicate' | 'unreachable'>;
-  /** Quita una URL del perfil activo (si era la activa, vuelve a la principal). */
+  /** Removes a URL from the active profile (if it was the active one, reverts to the primary). */
   removeServerUrl: (url: string) => Promise<void>;
-  /** Activa/desactiva la conmutación automática de URL en el perfil activo. */
+  /** Enables/disables automatic URL switching on the active profile. */
   setAutoUrl: (value: boolean) => Promise<void>;
   /**
-   * Guarda la contraseña de la API nativa de Navidrome en el perfil activo
-   * (para perfiles creados antes de que el login la guardara).
+   * Saves Navidrome's native API password to the active profile
+   * (for profiles created before login stored it).
    */
   saveNativePassword: (password: string) => Promise<void>;
   enterOffline: () => Promise<void>;
   /**
-   * Pasa la cuenta de servidor a modo offline (mostrar/reproducir descargas)
-   * conservando la sesión. `auto` = lo decidió la app por servidor caído.
+   * Puts the server account into offline mode (show/play downloads)
+   * while keeping the session. `auto` = the app decided because server is down.
    */
   goOffline: (auto: boolean) => Promise<void>;
-  /** Vuelve online en la misma cuenta (instantáneo, sin re-login). */
+  /** Goes back online on the same account (instant, no re-login). */
   goOnline: () => Promise<void>;
   setOfflineSource: (source: OfflineSource | null) => Promise<void>;
   logout: () => Promise<void>;
@@ -145,11 +145,11 @@ interface AuthState {
 }
 
 /**
- * Id estable del perfil activo para partir el almacenamiento por perfil
- * (ajustes, playlists locales, favoritos locales…). Cuenta de servidor:
- * `url|usuario` (también en su modo offline, que conserva `auth`); perfil
- * local: `local`; sin sesión: `default`. Al usarlo como clave de SecureStore
- * hay que hashearlo (la URL trae `:`, `/`, `|`, no admitidos).
+ * Stable id for the active profile to partition storage per profile
+ * (settings, local playlists, local favorites…). Server account:
+ * `url|user` (also in its offline mode, which keeps `auth`); local
+ * profile: `local`; no session: `default`. When used as a SecureStore
+ * key it must be hashed (the URL contains `:`, `/`, `|`, not allowed).
  */
 export function profileScopeId(): string {
   const { auth, offline } = useAuthStore.getState();
@@ -177,7 +177,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const profiles: Profile[] = rawProfiles
         ? (JSON.parse(rawProfiles) as any[]).map((p: any): Profile => {
             if (p._type === 'offline') return p as OfflineProfile;
-            // Perfiles de servidor (con o sin `_type`): garantiza `urls`.
+            // Server profiles (with or without `_type`): ensure `urls`.
             return { ...withUrls(p), _type: 'server' } as ServerProfile;
           })
         : [];
@@ -190,7 +190,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         offlineSource: rawSource ? (JSON.parse(rawSource) as OfflineSource) : null,
       });
     } catch {
-      // Si algo falla, se pedirá login de nuevo.
+      // If something fails, login will be required again.
     } finally {
       set({ hydrating: false });
     }
@@ -200,12 +200,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const base = await makeAuth(serverUrl, username, password, serverType, plainAuth);
     const auth: ServerProfile = {
       ...base,
-      // Nace con su URL como única candidata; se añaden más desde Ajustes › Red.
+      // Born with its URL as the only candidate; more are added from Settings › Network.
       urls: [base.serverUrl],
       _type: 'server',
     };
-    // Si es un perfil ya conocido (re-login por cambio de contraseña, etc.),
-    // conservamos las URLs alternativas y la preferencia de conmutación.
+    // If it's an already known profile (re-login due to password change, etc.),
+    // we keep the alternative URLs and switching preference.
     const existing = get().profiles.find(
       (p): p is ServerProfile => p._type === 'server' && same(p, auth),
     );
@@ -214,20 +214,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       auth.autoUrl = existing.autoUrl;
     }
     await ping(auth);
-    // El perfil recién usado va el primero (orden por último uso).
+    // The just-used profile goes first (last-used ordering).
     const profiles = [auth, ...get().profiles.filter((p) => !same(p, auth))];
     await setItem(ACTIVE_KEY, JSON.stringify(auth));
     await setItem(PROFILES_KEY, JSON.stringify(profiles));
     await deleteItem(OFFLINE_KEY);
     await deleteItem(OFFLINE_AUTO_KEY);
     set({ auth, profiles, offline: false, autoOffline: false });
-    // Sube al servidor lo que quedara pendiente en el outbox de este perfil
-    // (p. ej. cambios hechos offline antes de cerrar sesión). Best-effort.
+    // Uploads to the server whatever was pending in this profile's outbox
+    // (e.g. changes made offline before signing out). Best-effort.
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       await require('@/api/data').flushOfflineQueue(auth);
     } catch {
-      // No bloquea el inicio de sesión.
+      // Does not block the login.
     }
     queryClient.clear();
   },
@@ -235,7 +235,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   switchProfile: async (profile) => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     await require('./player').usePlayerStore.getState().reset();
-    // Mueve el perfil elegido al principio (orden por último uso).
+    // Moves the chosen profile to the front (last-used ordering).
     const reordered = [profile, ...get().profiles.filter((p) => !same(p, profile))];
     if (profile._type === 'offline') {
       await setItem(OFFLINE_KEY, '1');
@@ -255,9 +255,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       await ping(profile);
     } catch (e) {
-      // Sin red (no un rechazo de la cuenta): en vez de dejar sin entrar, se
-      // entra en el modo offline de esa cuenta —conservando `auth`— para oír las
-      // descargas. `autoOffline` hace que se reconecte sola al volver la red.
+      // No network (not an account rejection): instead of leaving them locked
+      // out, enter that account's offline mode —keeping `auth`— to play
+      // downloads. `autoOffline` makes it auto-reconnect when the network returns.
       if (e instanceof SubsonicRequestError && e.network) {
         await setItem(ACTIVE_KEY, JSON.stringify(profile));
         await setItem(PROFILES_KEY, JSON.stringify(reordered));
@@ -274,12 +274,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await deleteItem(OFFLINE_KEY);
     await deleteItem(OFFLINE_AUTO_KEY);
     set({ auth: profile, profiles: reordered, offline: false, autoOffline: false });
-    // Sube al servidor lo que quedara pendiente en el outbox de este perfil.
+    // Uploads to the server whatever was pending in this profile's outbox.
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       await require('@/api/data').flushOfflineQueue(profile);
     } catch {
-      // No bloquea el cambio de perfil.
+      // Does not block the profile switch.
     }
     queryClient.clear();
     return 'online';
@@ -295,18 +295,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const current = get().auth;
     if (!current || current.serverUrl === url) return;
     const urls = current.urls ?? [current.serverUrl];
-    if (!urls.includes(url)) return; // no es una URL candidata del perfil
+    if (!urls.includes(url)) return; // not a candidate URL for this profile
     const auth: SubsonicAuth = { ...current, serverUrl: url };
     await persistActive(get, set, auth, (p) => ({ ...p, serverUrl: url }));
-    // Refresca la biblioteca contra la URL nueva. Es la misma cuenta, así que no
-    // vaciamos el caché como al cambiar de perfil (daría flicker); solo marcamos
-    // todo obsoleto para que lo visible se vuelva a pedir del servidor activo.
-    // Sin esto, lo que se hubiera cacheado (o fallado) contra la URL vieja se
-    // quedaba en pantalla hasta refrescar a mano. Cubre el switch manual y el
-    // automático por red, que ambos pasan por aquí.
+    // Refreshes the library against the new URL. It's the same account, so we
+    // don't clear the cache like when switching profiles (that would flicker); we
+    // just mark everything stale so visible data is re-fetched from the active
+    // server. Without this, what was cached (or failed) against the old URL would
+    // stay on screen until manually refreshed. Covers both manual and automatic
+    // network-triggered switches, as both go through here.
     void queryClient.invalidateQueries();
-    // La pista en curso apuntaba a la URL vieja (ya sin respuesta): la
-    // recargamos contra la nueva. La cola se conserva.
+    // The current track pointed to the old URL (now unresponsive): reload it
+    // against the new URL. The queue is preserved.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     require('./player').usePlayerStore.getState().reloadCurrent();
   },
@@ -317,12 +317,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const norm = normalizeUrl(url);
     const urls = current.urls ?? [current.serverUrl];
     if (urls.includes(norm)) return 'duplicate';
-    // Debe responder con las credenciales actuales: así confirmamos que es el
-    // mismo servidor/cuenta y no una URL cualquiera.
+    // Must respond with current credentials: this confirms it's the same
+    // server/account and not a random URL.
     if (!(await reachable(current, norm))) return 'unreachable';
-    const next = [...urls, norm]; // orden de inserción; urls[0] sigue siendo la principal
-    // NO tocamos `autoUrl`: la conmutación automática la enciende el usuario a
-    // mano si la quiere (añadir una URL no debe activar nada por su cuenta).
+    const next = [...urls, norm]; // insertion order; urls[0] remains the primary
+    // We do NOT touch `autoUrl`: automatic switching is turned on manually by
+    // the user if they want it (adding a URL should not activate anything).
     const auth: SubsonicAuth = { ...current, urls: next };
     await persistActive(get, set, auth, (p) => ({ ...p, urls: next }));
     return 'ok';
@@ -331,7 +331,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   removeServerUrl: async (url) => {
     const current = get().auth;
     if (!current) return;
-    // La principal (urls[0]) es la identidad del perfil: no se borra.
+    // The primary (urls[0]) is the profile's identity: cannot be removed.
     if (url === primaryUrl(current)) return;
     const urls = (current.urls ?? [current.serverUrl]).filter((u) => u !== url);
     const wasActive = current.serverUrl === url;
@@ -370,47 +370,47 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   goOffline: async (auto) => {
-    // Conserva `auth`: es la misma cuenta, pero mostrando/​reproduciendo las
-    // descargas. Los envíos al servidor (scrobble, now-playing) están gated por
-    // `offline` en el player. Vaciar la caché hace que las vistas se recalculen
-    // contra el catálogo local.
+    // Preserves `auth`: it's the same account, but showing/playing downloads.
+    // Sends to server (scrobble, now-playing) are gated by `offline` in the
+    // player. Clearing the cache makes views recalculate against the local
+    // catalog.
     if (get().offline) return;
-    // Antes de vaciar la caché: vuelca al espejo lo último visto online (listas,
-    // favoritos, álbumes), para que offline no muestre una copia vieja.
+    // Before clearing cache: flush the latest online data to the mirror (playlists,
+    // favorites, albums), so offline doesn't show a stale copy.
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       require('@/api/data').snapshotCachesToMirror();
     } catch {
-      // No bloquea el paso a offline.
+      // Does not block the offline transition.
     }
     await setItem(OFFLINE_KEY, '1');
     if (auto) await setItem(OFFLINE_AUTO_KEY, '1');
     else await deleteItem(OFFLINE_AUTO_KEY);
-    // Flip primero para que el refetch lea ya el modo offline, y luego invalida
-    // (no `clear()`): las vistas se recalculan contra el espejo, pero se conserva
-    // la caché inactiva para que volver a una pantalla sea instantáneo. Vaciar
-    // toda la caché forzaba un refetch masivo simultáneo en cada transición.
+    // Flip first so the refetch already reads offline mode, then invalidate
+    // (not `clear()`): views recalculate against the mirror, but inactive
+    // cache is preserved so navigating back to a screen is instant. Clearing
+    // all cache forced a massive simultaneous refetch on every transition.
     set({ offline: true, autoOffline: auto });
     void queryClient.invalidateQueries();
   },
 
   goOnline: async () => {
-    // Vuelta instantánea a la misma cuenta (auth intacto). La reproducción no se
-    // toca; las vistas se recalculan contra el servidor al vaciar la caché.
+    // Instant return to the same account (auth intact). Playback is not
+    // touched; views recalculate against the server when cache is cleared.
     const current = get().auth;
     if (!get().offline || !current) return;
-    // Antes de volver: vuelca al servidor lo que se hizo offline (favoritos…).
-    // Best-effort; lo que falle se conserva para la próxima reconexión.
+    // Before going back: flush offline actions (favorites…) to the server.
+    // Best-effort; failed items are kept for the next reconnection.
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       await require('@/api/data').flushOfflineQueue(current);
     } catch {
-      // No bloquea la vuelta online.
+      // Does not block the online transition.
     }
     await deleteItem(OFFLINE_KEY);
     await deleteItem(OFFLINE_AUTO_KEY);
-    // Ver goOffline: invalidación selectiva en vez de `clear()`, para no tirar
-    // toda la caché y refetchear todo de golpe al reconectar.
+    // See goOffline: selective invalidation instead of `clear()`, to avoid
+    // discarding all cache and refetching everything at once on reconnect.
     set({ offline: false, autoOffline: false });
     void queryClient.invalidateQueries();
   },
@@ -420,8 +420,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await setItem(OFFLINE_SOURCE_KEY, JSON.stringify(source));
       const name = offlineLabel(source);
       const prof: OfflineProfile = { _type: 'offline', name, source };
-      // Si ya estábamos en un perfil local y solo cambiamos el origen, hay que
-      // actualizar ese perfil en vez de dejar el viejo y crear uno nuevo.
+      // If we were already on a local profile and only changed the source, we
+      // need to update that profile instead of keeping the old one and
+      // creating a new one.
       const prevSource = get().offlineSource;
       const profiles = [
         prof,

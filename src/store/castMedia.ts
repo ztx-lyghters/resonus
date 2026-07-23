@@ -1,11 +1,11 @@
 /**
- * Sesión de medios para el modo casting (módulo nativo `modules/cast-media`).
+ * Media session for casting mode (native module `modules/cast-media`).
  *
- * Mientras se castea por UPnP no suena audio local, así que la MediaSession de
- * expo-audio no puede dar controles de bloqueo ni capturar los botones de
- * volumen. Este módulo mantiene una sesión propia (notificación + volumen
- * remoto) durante el cast: aquí solo empujamos metadatos/estado y recibimos los
- * controles que el usuario pulsa, que el player enruta al renderer.
+ * While casting via UPnP no local audio plays, so the expo-audio MediaSession
+ * can't provide lock screen controls or capture volume buttons. This module
+ * maintains its own session (notification + remote volume) during cast: here we
+ * just push metadata/state and receive the controls the user presses, which the
+ * player routes to the renderer.
  */
 import { requireOptionalNativeModule } from 'expo-modules-core';
 
@@ -26,7 +26,7 @@ export interface CastNowPlaying {
 let sub: { remove: () => void } | undefined;
 let handler: ((action: string, value?: number) => void) | null = null;
 
-/** Registra el manejador de controles (play/pausa/next/prev/seek/volumen). */
+/** Registers the controls handler (play/pause/next/prev/seek/volume). */
 export function initCastMedia(fn: (action: string, value?: number) => void): void {
   handler = fn;
   if (!native || sub) return;
@@ -47,7 +47,7 @@ function payload(info: CastNowPlaying): string {
   });
 }
 
-/** Arranca la sesión con la pista actual (idempotente: si ya está, actualiza). */
+/** Starts the session with the current track (idempotent: if already active, updates). */
 export function castStart(info: CastNowPlaying): void {
   try {
     native?.start(payload(info));
@@ -56,7 +56,7 @@ export function castStart(info: CastNowPlaying): void {
   }
 }
 
-/** Refresca metadatos + estado al cambiar de pista. */
+/** Refreshes metadata + state on track change. */
 export function castUpdate(info: CastNowPlaying): void {
   try {
     native?.update(payload(info));
@@ -65,7 +65,7 @@ export function castUpdate(info: CastNowPlaying): void {
   }
 }
 
-/** Refresca solo el estado de reproducción (play/pausa + progreso). */
+/** Refreshes only playback state (play/pause + progress). */
 export function castSetState(isPlaying: boolean, positionMs: number): void {
   try {
     native?.setState(isPlaying, Math.max(0, Math.round(positionMs)));
@@ -74,7 +74,7 @@ export function castSetState(isPlaying: boolean, positionMs: number): void {
   }
 }
 
-/** Cierra la sesión y retira la notificación. */
+/** Closes the session and removes the notification. */
 export function castStop(): void {
   try {
     native?.stop();

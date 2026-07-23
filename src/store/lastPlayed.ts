@@ -1,7 +1,7 @@
 /**
- * Última vez que se reprodujo cada origen (álbum/playlist/artista), clave =
- * su `sourceHref` ('/album/x', '/playlist/y'…). Alimenta el orden "Recientes"
- * de la Biblioteca, estilo Spotify: lo último que escuchaste, arriba.
+ * Last time each source was played (album/playlist/artist), key = its
+ * `sourceHref` ('/album/x', '/playlist/y'…). Feeds the "Recent" sort order in
+ * the Library, Spotify style: what you last listened to, at the top.
  */
 import { create } from 'zustand';
 
@@ -11,7 +11,7 @@ const KEY = 'resonus.lastPlayed';
 const MAX = 300;
 
 interface LastPlayedState {
-  /** sourceHref → timestamp (ms) de la última reproducción. */
+  /** sourceHref → timestamp (ms) of the last play. */
   times: Record<string, number>;
   touch: (href: string) => void;
   hydrate: () => Promise<void>;
@@ -30,7 +30,7 @@ export const useLastPlayed = create<LastPlayedState>((set, get) => ({
 
   touch: (href) => {
     let entries = Object.entries({ ...get().times, [href]: Date.now() });
-    // Acotado: si crece de más, fuera los más antiguos.
+    // Bounded: if it grows too large, drop the oldest ones.
     if (entries.length > MAX) {
       entries = entries.sort((a, b) => b[1] - a[1]).slice(0, MAX);
     }
@@ -44,7 +44,7 @@ export const useLastPlayed = create<LastPlayedState>((set, get) => ({
       const raw = await getItem(KEY);
       if (raw) set({ times: JSON.parse(raw) as Record<string, number> });
     } catch {
-      // sin datos previos
+      // no previous data
     }
   },
 }));

@@ -1,38 +1,37 @@
-/** Estado de los mensajes tipo toast (notificaciones breves estilo Spotify). */
+/** State for toast messages (brief Spotify-style notifications). */
 import { create } from 'zustand';
 
 interface ToastState {
   message: string | null;
-  /** Acción opcional a la derecha del mensaje (p. ej. «Deshacer»). */
+  /** Optional action to the right of the message (e.g. «Undo»). */
   actionLabel: string | null;
   runAction: (() => void) | null;
   show: (message: string, action?: { label: string; run: () => void }) => void;
   hide: () => void;
 }
 
-// ── Acciones destructivas con deshacer ──────────────────────────────────────
-// El borrado real se difiere: la UI se actualiza de forma optimista y el
-// `commit` solo se ejecuta cuando el toast caduca o lo sustituye otro.
-// «Deshacer» cancela el commit y restaura la UI, así no hay nada que rehacer
-// en el servidor. Solo hay una acción pendiente a la vez: la nueva consolida
-// la anterior.
+// ── Destructive actions with undo ───────────────────────────────────────────
+// The actual deletion is deferred: the UI updates optimistically and `commit`
+// only runs when the toast expires or another replaces it. «Undo» cancels the
+// commit and restores the UI, so there's nothing to undo on the server. Only
+// one pending action at a time: the new one consolidates the previous one.
 let pendingCommit: (() => void) | null = null;
 
-/** Ejecuta (y limpia) el commit pendiente, si lo hay. */
+/** Executes (and clears) the pending commit, if any. */
 function commitPendingUndo() {
   const commit = pendingCommit;
   pendingCommit = null;
   commit?.();
 }
 
-/** Muestra un toast «mensaje · Deshacer» difiriendo el borrado real. */
+/** Shows a «message · Undo» toast, deferring the actual deletion. */
 export function showUndoToast(
   message: string,
   label: string,
   opts: {
-    /** Ejecuta el borrado de verdad (al caducar el toast o llegar otro). */
+    /** Performs the actual deletion (when the toast expires or another arrives). */
     commit: () => void;
-    /** Restaura la UI optimista al pulsar deshacer. */
+    /** Restores the optimistic UI on undo tap. */
     undo: () => void;
   },
 ) {
@@ -55,8 +54,8 @@ export const useToast = create<ToastState>((set) => ({
     set({ message, actionLabel: action?.label ?? null, runAction: action?.run ?? null });
   },
   hide: () => {
-    // Primero se oculta y luego se consolida: si el commit muestra otro toast
-    // (p. ej. un error), no queremos pisarlo.
+    // First hide, then consolidate: if the commit shows another toast (e.g. an
+    // error), we don't want to overwrite it.
     set({ message: null, actionLabel: null, runAction: null });
     commitPendingUndo();
   },

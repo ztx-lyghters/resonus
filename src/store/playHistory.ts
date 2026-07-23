@@ -1,9 +1,8 @@
 /**
- * Historial de reproducción: lista de canciones escuchadas, la más reciente
- * primero y sin duplicados (si vuelves a poner una, sube arriba). Se persiste
- * por perfil (cada servidor y el modo local tienen su propio historial) para
- * no mezclar canciones que el otro perfil no puede reproducir. Alimenta la
- * pantalla de Actividad / Historial.
+ * Play history: list of listened songs, most recent first and no duplicates (if
+ * you play one again, it moves to the top). Persisted per profile (each server
+ * and local mode have their own history) to avoid mixing songs the other
+ * profile can't play. Feeds the Activity / History screen.
  */
 import { create } from 'zustand';
 
@@ -12,12 +11,12 @@ import { primaryUrl } from '@/lib/serverUrls';
 import { deleteItem, getItem, setItem } from '@/lib/storage';
 import { useAuthStore } from './auth';
 
-/** Clave del historial antiguo, compartido entre perfiles (se migra). */
+/** Old history key, shared across profiles (migrated). */
 const LEGACY_KEY = 'resonus.playHistory';
 const MAX = 100;
 
-// SecureStore solo admite claves con [A-Za-z0-9._-]; saneamos serverUrl/username
-// (la URL trae ':' y '/') para no pasar una clave inválida.
+// SecureStore only accepts keys with [A-Za-z0-9._-]; sanitize serverUrl/username
+// (the URL contains ':' and '/') to avoid passing an invalid key.
 function safe(s: string): string {
   return s.replace(/[^A-Za-z0-9._-]/g, '_');
 }
@@ -31,7 +30,7 @@ function storageKey(): string {
 
 export interface HistoryEntry {
   song: Song;
-  /** Momento de la última reproducción (ms). */
+  /** Time of last play (ms). */
   playedAt: number;
 }
 
@@ -39,8 +38,8 @@ interface PlayHistoryState {
   entries: HistoryEntry[];
   hydrated: boolean;
   record: (song: Song) => void;
-  /** Vacía el historial. Devuelve la función que lo restaura (para el toast
-   *  «Deshacer»), o nada si ya estaba vacío. */
+  /** Clears the history. Returns the function that restores it (for the «Undo»
+   *  toast), or nothing if it was already empty. */
   clear: () => (() => void) | undefined;
   hydrate: () => Promise<void>;
 }
@@ -73,7 +72,7 @@ export const usePlayHistory = create<PlayHistoryState>((set, get) => ({
     set({ entries: [] });
     scheduleSave(storageKey(), []);
     return () => {
-      // Se conserva lo que haya sonado mientras el toast estaba visible.
+      // Preserve anything that played while the toast was visible.
       const cur = get().entries;
       const ids = new Set(cur.map((e) => e.song.id));
       const entries = [...cur, ...prev.filter((e) => !ids.has(e.song.id))].slice(0, MAX);
@@ -84,13 +83,13 @@ export const usePlayHistory = create<PlayHistoryState>((set, get) => ({
 
   hydrate: async () => {
     try {
-      // Limpiar el historial en memoria si venimos de otro perfil.
+      // Clear in-memory history if coming from another profile.
       const key = storageKey();
       if (currentKey && currentKey !== key) set({ entries: [] });
       currentKey = key;
       let raw = await getItem(key);
-      // Migración: el historial antiguo era global; lo hereda el perfil activo
-      // en el primer arranque y la clave compartida se elimina.
+      // Migration: the old history was global; the active profile inherits it
+      // on first launch and the shared key is deleted.
       if (!raw && key !== LEGACY_KEY) {
         raw = await getItem(LEGACY_KEY);
         if (raw) {

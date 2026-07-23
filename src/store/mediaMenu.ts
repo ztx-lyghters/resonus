@@ -1,4 +1,4 @@
-/** Estado del menú contextual de álbum/playlist (long-press en tarjetas). */
+/** Album/playlist context menu state (long-press on cards). */
 import { create } from 'zustand';
 
 import { type Album, type Playlist } from '@/api/subsonic';

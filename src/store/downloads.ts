@@ -1,18 +1,18 @@
 /**
- * Descargas sin conexión (servidor → dispositivo).
+ * Offline downloads (server → device).
  *
- * Los ficheros van al almacenamiento privado de la app
- * (`documentDirectory/downloads/<hash del servidor>/`) y junto a ellos se
- * guarda un catálogo JSON con los metadatos que ya conocemos del servidor
- * (título, artista, álbum, ids, carátula) — sin re-escanear ID3. El perfil
- * local fusiona este catálogo con el escaneo del origen elegido
- * (`localQueries.ensureCatalog`). Como MediaStore y SAF no ven el directorio
- * privado, la fusión nunca produce duplicados.
+ * Files go to the app's private storage
+ * (`documentDirectory/downloads/<server hash>/`) and alongside them a JSON
+ * catalog is saved with metadata already known from the server (title, artist,
+ * album, ids, cover) — without re-scanning ID3 tags. The local profile merges
+ * this catalog with the scan of the chosen source (`localQueries.ensureCatalog`).
+ * Since MediaStore and SAF don't see the private directory, the merge never
+ * produces duplicates.
  *
- * Los ids se conservan tal cual vienen del servidor (canción y álbum), lo que
- * permite el badge ↓ en cualquier perfil y, a futuro, scrobbling diferido o
- * re-descarga en otra calidad. El id de artista se normaliza a la clave local
- * (`normKey(nombre)`) para que los artistas se fusionen con los del escaneo.
+ * Ids are kept as-is from the server (song and album), which enables the ↓ badge
+ * on any profile and, in the future, deferred scrobbling or re-download at
+ * another quality. The artist id is normalized to the local key (`normKey(name)`)
+ * so artists merge with those from scanning.
  */
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Network from 'expo-network';
@@ -46,10 +46,10 @@ import { useToast } from './toast';
 const ROOT_DIR = FileSystem.documentDirectory + 'downloads/';
 const CONCURRENCY = 3;
 
-/** Álbum descargado: el del servidor + carátula local y fecha de descarga. */
+/** Downloaded album: the server's + local cover and download date. */
 type DlAlbum = Album & { coverUri?: string; addedAt?: number };
 
-/** Catálogo persistido por servidor (canciones con `localUri` + álbumes). */
+/** Persisted catalog per server (songs with `localUri` + albums). */
 interface ServerDownloads {
   songs: Song[];
   albums: DlAlbum[];
@@ -58,11 +58,11 @@ interface ServerDownloads {
 interface GroupProgress {
   done: number;
   total: number;
-  /** Fracción (0..1) del fichero en curso, para que la barra avance entre canciones. */
+  /** Fraction (0..1) of the current file, so the progress bar advances between songs. */
   fraction: number;
 }
 
-/** Vista fusionable por el perfil local (artistas derivados de los álbumes). */
+/** Mergeable view by the local profile (artists derived from albums). */
 export interface DownloadsCatalog {
   songs: Song[];
   albums: DlAlbum[];
@@ -70,8 +70,9 @@ export interface DownloadsCatalog {
 }
 
 function serverDir(auth: SubsonicAuth): string {
-  // URL PRINCIPAL, no la activa: al conmutar de red la activa cambia, y con ella
-  // este directorio, ocultando las descargas. La principal identifica al perfil.
+  // PRIMARY URL, not the active one: when switching networks the active one
+  // changes, and with it this directory, hiding downloads. The primary
+  // identifies the profile.
   return `${ROOT_DIR}${hashKey(`${primaryUrl(auth)}|${auth.username}`)}/`;
 }
 
@@ -95,14 +96,14 @@ async function writeServerCatalog(dir: string, catalog: ServerDownloads): Promis
     await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => {});
     await FileSystem.writeAsStringAsync(catalogFile(dir), JSON.stringify(catalog));
   } catch {
-    // Si no se puede persistir, las descargas de esta sesión se pierden al
-    // reiniciar (los ficheros quedan huérfanos hasta un "borrar todo").
+    // If it can't be persisted, this session's downloads are lost on
+    // restart (files become orphaned until a "clear all").
   }
 }
 
 /**
- * Serializa los read-modify-write de catalog.json: varios grupos pueden
- * descargar a la vez y sin esto la última escritura pisaría a las demás.
+ * Serializes read-modify-write on catalog.json: multiple groups can
+ * download at once and without this the last write would overwrite the others.
  */
 let catalogLock: Promise<unknown> = Promise.resolve();
 function locked<T>(fn: () => Promise<T>): Promise<T> {
@@ -111,7 +112,7 @@ function locked<T>(fn: () => Promise<T>): Promise<T> {
   return run;
 }
 
-/** Añade una canción/álbumes al catálogo de un servidor (bajo el lock). */
+/** Adds a song/albums to a server's catalog (under the lock). */
 function commitToCatalog(
   dir: string,
   changes: { songs?: Song[]; albums?: DlAlbum[] },
@@ -124,7 +125,7 @@ function commitToCatalog(
     for (const s of changes.songs ?? []) {
       if (!catalog.songs.some((x) => x.id === s.id)) catalog.songs.push(s);
     }
-    // Los álbumes reflejan cuántas canciones hay realmente descargadas.
+    // Albums reflect how many songs are actually downloaded.
     for (const a of catalog.albums) {
       a.songCount = catalog.songs.filter((s) => s.albumId === a.id).length;
     }
@@ -132,22 +133,22 @@ function commitToCatalog(
   });
 }
 
-/** Todos los directorios de servidor con descargas. */
+/** All server directories with downloads. */
 async function serverDirs(): Promise<string[]> {
   try {
     const entries = await FileSystem.readDirectoryAsync(ROOT_DIR);
     return entries.map((e) => `${ROOT_DIR}${e}/`);
   } catch {
-    return []; // ROOT_DIR aún no existe
+    return []; // ROOT_DIR does not exist yet
   }
 }
 
-// ── Catálogo de la cuenta activa, cacheado en memoria ───────────────────────
+// ── Active account's catalog, cached in memory ───────────────────────────
 
 let cachedCatalog: DownloadsCatalog | null = null;
 let cachedForDir: string | null = null;
 
-/** Directorio de descargas de la cuenta de servidor activa (null si no hay). */
+/** Download directory for the active server account (null if none). */
 function activeServerDir(): string | null {
   const auth = useAuthStore.getState().auth;
   return auth ? serverDir(auth) : null;
@@ -170,9 +171,9 @@ function deriveArtists(albums: DlAlbum[]): (Artist & { coverUri?: string })[] {
 }
 
 /**
- * Descargas de la CUENTA de servidor activa. Es la biblioteca del modo "cuenta
- * de servidor sin conexión" (el perfil local solo muestra la música del móvil).
- * Cada cuenta ve solo lo suyo. Registra las carátulas en el índice global.
+ * Downloads for the active SERVER account. This is the library for the "server
+ * account offline" mode (the local profile only shows phone music). Each account
+ * sees only its own. Registers covers in the global index.
  */
 export async function getDownloadsCatalog(): Promise<DownloadsCatalog> {
   const dir = activeServerDir();
@@ -183,14 +184,14 @@ export async function getDownloadsCatalog(): Promise<DownloadsCatalog> {
     cachedCatalog = { songs: cat?.songs ?? [], albums, artists: deriveArtists(albums) };
     cachedForDir = dir;
   }
-  // Siempre (no solo al construir): clearLocalCatalog() vacía el índice global
-  // de carátulas y hay que volver a apuntar las de las descargas.
+  // Always (not just on build): clearLocalCatalog() empties the global cover
+  // index and downloaded covers need to be re-registered.
   for (const a of cachedCatalog.albums) registerCover(a.id, a.coverUri);
   for (const a of cachedCatalog.artists) registerCover(a.id, a.coverUri);
   return cachedCatalog;
 }
 
-/** ¿Tiene descargas la cuenta activa? Barato: usa el catálogo cacheado. */
+/** Does the active account have downloads? Cheap: uses the cached catalog. */
 export async function hasDownloads(): Promise<boolean> {
   return (await getDownloadsCatalog()).songs.length > 0;
 }
@@ -198,13 +199,13 @@ export async function hasDownloads(): Promise<boolean> {
 function invalidate() {
   cachedCatalog = null;
   cachedForDir = null;
-  // Las pantallas cachean listas con react-query; el catálogo acaba de cambiar.
+  // Screens cache lists with react-query; the catalog just changed.
   void queryClient.invalidateQueries();
 }
 
-// ── Descarga de ficheros ─────────────────────────────────────────────────────
+// ── File download ─────────────────────────────────────────────────────────
 
-/** Lee una cabecera sin distinguir mayúsculas (la caja varía según plataforma). */
+/** Reads a header case-insensitively (casing varies by platform). */
 function header(headers: Record<string, string> | undefined, name: string): string {
   if (!headers) return '';
   const key = Object.keys(headers).find((k) => k.toLowerCase() === name);
@@ -212,22 +213,22 @@ function header(headers: Record<string, string> | undefined, name: string): stri
 }
 
 /**
- * ¿La respuesta es un error disfrazado de fichero?
+ * Is the response an error disguised as a file?
  *
- * Subsonic señala los fallos con **HTTP 200 y un cuerpo de error** (`status:
- * "failed"`), no con un código HTTP, así que mirar `res.status` no basta.
- * Comprobado contra Navidrome 0.63.2: pedir `/rest/stream` o `/rest/download`
- * con un id que ya no existe devuelve 200 y 182 bytes de JSON. Sin este filtro
- * eso se guardaba como .mp3, la canción quedaba marcada como descargada y no se
- * reintentaba nunca (`pending` descarta lo que ya está en `files`); te enterabas
- * sin cobertura, que es justo para lo que la descargaste.
+ * Subsonic signals errors with **HTTP 200 and an error body** (`status:
+ * "failed"`), not with an HTTP code, so checking `res.status` is not enough.
+ * Tested against Navidrome 0.63.2: requesting `/rest/stream` or `/rest/download`
+ * with a nonexistent id returns 200 and 182 bytes of JSON. Without this filter
+ * that would be saved as .mp3, the song would be marked as downloaded, and it
+ * would never be retried (`pending` skips what's already in `files`); you'd find
+ * out when there's no coverage, which is exactly why you downloaded it.
  *
- * Va por lista negra a propósito, no exigiendo `audio/*`: `/rest/download`
- * devuelve el fichero crudo y hay servidores que lo mandan como
- * `application/octet-stream`. Exigir audio/* dejaría a esos sin poder descargar
- * nada — cambiaríamos un fallo raro por uno constante. Aquí solo se rechaza lo
- * que no puede ser audio de ninguna manera: el JSON/XML de la propia API, y de
- * paso el HTML de un proxy o de un portal cautivo de wifi.
+ * Uses a blocklist on purpose, not requiring `audio/*`: `/rest/download`
+ * returns the raw file and some servers send it as
+ * `application/octet-stream`. Requiring audio/* would leave those unable to
+ * download anything — we'd replace a rare bug with a constant one. Here only
+ * what cannot possibly be audio is rejected: the API's own JSON/XML, and
+ * incidentally the HTML from a proxy or a wifi captive portal.
  */
 function isErrorBody(headers: Record<string, string> | undefined): boolean {
   return /^\s*(application\/json|application\/xml|text\/xml|text\/html)/i.test(
@@ -235,11 +236,10 @@ function isErrorBody(headers: Record<string, string> | undefined): boolean {
   );
 }
 
-// Extensión del fichero que devuelve el servidor al transcodificar a cada
-// códec. '' = transcoder por defecto (MP3 en Navidrome). AAC: Navidrome saca
-// ADTS crudo (.aac); otros servidores podrían usar contenedor MP4 (.m4a), pero
-// suena igual (expo-audio detecta por contenido) y la etiqueta es lo único que
-// variaría.
+// File extension the server returns when transcoding to each codec.
+// '' = default transcoder (MP3 in Navidrome). AAC: Navidrome outputs raw
+// ADTS (.aac); other servers may use MP4 container (.m4a), but it sounds
+// the same (expo-audio detects by content) and only the label would vary.
 const FORMAT_EXT: Record<string, string> = { '': 'mp3', mp3: 'mp3', opus: 'opus', aac: 'aac' };
 
 function songFileUrl(
@@ -257,21 +257,21 @@ function songFileUrl(
   return { url: downloadUrl(auth, song.id), ext: song.suffix || 'mp3' };
 }
 
-/** Canción tal y como entra al catálogo local: id de servidor + fichero local. */
+/** Song as it enters the local catalog: server id + local file. */
 function toLocalSong(song: Song, fileUri: string, dlBitRate?: number): Song {
   return {
     ...song,
     localUri: fileUri,
-    // Bitrate del transcode al descargar (si lo hubo): el fichero en disco no lo
-    // lleva y así la etiqueta de calidad puede mostrarlo offline.
+    // Transcode bitrate at download time (if any): the file on disk doesn't
+    // carry it, so the quality label can show it offline.
     dlBitRate,
-    // Id de artista local (por nombre) para fusionar con los artistas del escaneo.
+    // Local artist id (by name) to merge with artists from scanning.
     artistId: normKey(song.artist || 'Artista desconocido'),
-    // Los ids de servidor no valen offline: re-clavamos cada artista por nombre.
+    // Server ids don't work offline: we re-peg each artist by name.
     artists: song.artists?.map((a) => ({ id: normKey(a.name), name: a.name })),
     coverArt: song.albumId,
     addedAt: Date.now(),
-    // El favorito de servidor no aplica al perfil local (usa favoritos locales).
+    // Server favorites don't apply to the local profile (uses local favorites).
     starred: undefined,
   };
 }
@@ -288,10 +288,10 @@ function toLocalAlbum(album: Album, coverUri?: string): DlAlbum {
 }
 
 /**
- * Guarda en el espejo de biblioteca el tracklist COMPLETO de cada álbum de estas
- * canciones (best-effort, en segundo plano, estando online). Así, offline, un
- * álbum del que solo bajaste alguna canción se ve entero con las no descargadas
- * en gris. Salta los que ya estén en el espejo para no repetir peticiones.
+ * Saves to the library mirror the COMPLETE tracklist of each album for these
+ * songs (best-effort, in the background, while online). Thus, offline, an album
+ * from which you only downloaded some songs shows in full with the non-downloaded
+ * ones grayed out. Skips those already in the mirror to avoid repeated requests.
  */
 async function mirrorAlbumTracklists(auth: SubsonicAuth, songs: Song[]): Promise<void> {
   const mirror = useLibraryMirror.getState();
@@ -303,12 +303,12 @@ async function mirrorAlbumTracklists(auth: SubsonicAuth, songs: Song[]): Promise
       const res = await getAlbum(auth, id);
       mirror.saveAlbum(id, res.album, res.songs);
     } catch {
-      // best-effort: si el álbum no se puede pedir, se queda sin espejar.
+      // best-effort: if the album can't be requested, it stays unmirrored.
     }
   }
 }
 
-/** Álbum sintetizado desde una canción (playlists con álbumes no descargados enteros). */
+/** Synthesized album from a song (playlists with partially downloaded albums). */
 function albumFromSong(song: Song): Album {
   return {
     id: song.albumId ?? `dl-${hashKey(song.album || song.id)}`,
@@ -319,9 +319,9 @@ function albumFromSong(song: Song): Album {
 }
 
 /**
- * Cachea la letra de una canción recién descargada como `.lrc` junto al
- * fichero, para que el perfil local la encuentre sin red (fase 2 de letras).
- * Sin letra (o sin extensión songLyrics en el servidor) no pasa nada.
+ * Caches a newly downloaded song's lyrics as `.lrc` alongside the
+ * file, so the local profile finds them without network (lyrics phase 2).
+ * Without lyrics (or without the songLyrics extension on the server) nothing happens.
  */
 async function cacheLyricsForDownload(auth: SubsonicAuth, song: Song, audioFile: string): Promise<void> {
   try {
@@ -329,7 +329,7 @@ async function cacheLyricsForDownload(auth: SubsonicAuth, song: Song, audioFile:
     try {
       lyrics = await getLyricsBySongId(auth, song.id);
     } catch {
-      // Servidor sin la extensión songLyrics: probamos el endpoint clásico.
+      // Server without the songLyrics extension: try the classic endpoint.
     }
     if (!lyrics) {
       const plain = await getLyrics(auth, song.artist ?? '', song.title);
@@ -339,7 +339,7 @@ async function cacheLyricsForDownload(auth: SubsonicAuth, song: Song, audioFile:
     const lrcFile = siblingLrcUri(audioFile);
     if (lrcFile) await FileSystem.writeAsStringAsync(lrcFile, serializeLrc(lyrics));
   } catch {
-    // La descarga vale igual sin letra.
+    // The download is still valid without lyrics.
   }
 }
 
@@ -352,9 +352,9 @@ async function downloadCover(auth: SubsonicAuth, dir: string, album: Album): Pro
     if (existing.exists) return file;
     await FileSystem.makeDirectoryAsync(`${dir}covers/`, { intermediates: true }).catch(() => {});
     const res = await FileSystem.downloadAsync(url, file);
-    // Mismo cuidado que con el audio, y además hay que borrar: la descarga
-    // escribe lo que venga, y con el fichero malo en disco el atajo de arriba
-    // (`existing.exists`) lo daría por portada buena para siempre.
+    // Same care as with audio, and we also need to delete: the download writes
+    // whatever comes, and with the bad file on disk the shortcut above
+    // (`existing.exists`) would consider it a valid cover forever.
     if (res.status !== 200 || isErrorBody(res.headers)) {
       await FileSystem.deleteAsync(file, { idempotent: true }).catch(() => {});
       return undefined;
@@ -366,66 +366,66 @@ async function downloadCover(auth: SubsonicAuth, dir: string, album: Album): Pro
 }
 
 interface DownloadsState {
-  /** id de canción (de servidor) → uri del fichero descargado. */
+  /** Song id (server) → uri of the downloaded file. */
   files: Record<string, string>;
   /**
-   * id de canción → bitrate (kbps) al que se transcodificó al descargar, si se
-   * transcodificó. Se consulta por id (no por el objeto canción) porque offline
-   * el reproductor puede mostrar la canción del espejo del servidor, no la del
-   * catálogo. Solo lo tienen las descargas nuevas transcodificadas.
+   * Song id → bitrate (kbps) at which it was transcoded on download, if
+   * transcoded. Queried by id (not by song object) because offline the player
+   * may show the song from the server mirror, not the catalog. Only new
+   * transcoded downloads have this.
    */
   dlBitRates: Record<string, number>;
-  /** Progreso por grupo en curso: `album:<id>` / `playlist:<id>` / `artist:<id>`. */
+  /** Progress per ongoing group: `album:<id>` / `playlist:<id>` / `artist:<id>`. */
   active: Record<string, GroupProgress>;
   hydrate: () => Promise<void>;
   downloadAlbum: (album: Album, songs: Song[]) => Promise<void>;
   downloadPlaylist: (playlist: Playlist, songs: Song[]) => Promise<void>;
   /**
-   * Descarga la discografía de un artista (grupo `artist:<id>`). Recibe ya las
-   * canciones y los álbumes: la pantalla de artista solo tiene la lista de
-   * álbumes, así que quien llama es el que los ha pedido.
+   * Downloads an artist's discography (group `artist:<id>`). Receives songs
+   * and albums already: the artist screen only has the album list, so
+   * the caller is the one who already fetched them.
    */
   downloadArtist: (artistId: string, songs: Song[], albums: Album[]) => Promise<void>;
-  /** Descarga todas las canciones favoritas (grupo 'favorites'). */
+  /** Downloads all favorite songs (group 'favorites'). */
   downloadFavorites: (songs: Song[]) => Promise<void>;
   downloadSong: (song: Song) => Promise<void>;
-  /** Descarga un lote suelto de canciones (selección múltiple). */
+  /** Downloads a loose batch of songs (multiple selection). */
   downloadSongs: (songs: Song[]) => Promise<void>;
-  /** Detiene una descarga de grupo en curso (lo ya bajado se conserva). */
+  /** Stops an ongoing group download (already downloaded items are kept). */
   cancelDownload: (groupKey: string) => void;
-  /** Borra los ficheros de esas canciones y las quita del catálogo. */
+  /** Deletes files for those songs and removes them from the catalog. */
   deleteSongs: (songIds: string[]) => Promise<void>;
   clearAll: () => Promise<void>;
   usageBytes: () => Promise<number>;
 }
 
-/** true solo si la conexión activa son datos móviles (para el modo "solo Wi-Fi"). */
+/** true only if the active connection is mobile data (for "Wi-Fi only" mode). */
 async function onMobileData(): Promise<boolean> {
   try {
     const state = await Network.getNetworkStateAsync();
     return state.type === Network.NetworkStateType.CELLULAR;
   } catch {
-    return false; // ante la duda, no bloquear la descarga
+    return false; // when in doubt, don't block the download
   }
 }
 
 export const useDownloads = create<DownloadsState>((set, get) => {
-  // Grupos con parada solicitada: los workers lo comprueban y dejan de coger
-  // canciones nuevas. Lo ya bajado se conserva.
+  // Groups with a stop requested: workers check this and stop picking new
+  // songs. Already downloaded items are kept.
   const cancelling = new Set<string>();
-  // Descargas en curso por grupo, para abortarlas al parar (stop instantáneo).
+  // Ongoing downloads per group, to abort them on stop (instant stop).
   const activeTasks = new Map<
     string,
     Set<ReturnType<typeof FileSystem.createDownloadResumable>>
   >();
 
-  /** Descarga un grupo de canciones y actualiza catálogo + progreso. */
+  /** Downloads a group of songs and updates catalog + progress. */
   async function downloadGroup(groupKey: string, songs: Song[], albums: Album[]): Promise<void> {
     const auth = useAuthStore.getState().auth;
     if (!auth) return;
-    if (get().active[groupKey]) return; // ya en curso
-    // Sin repetidas (una playlist puede traer la misma canción dos veces) ni
-    // ya descargadas, radios (url) o canciones que ya son locales.
+    if (get().active[groupKey]) return; // already in progress
+    // No duplicates (a playlist may have the same song twice) nor
+    // already downloaded, radio songs (url), or songs already local.
     const seen = new Set<string>();
     const pending = songs.filter((s) => {
       if (get().files[s.id] || s.url || s.localUri || seen.has(s.id)) return false;
@@ -434,7 +434,7 @@ export const useDownloads = create<DownloadsState>((set, get) => {
     });
     if (pending.length === 0) return;
 
-    // Modo "solo Wi-Fi": no arrancar con datos móviles.
+    // "Wi-Fi only" mode: don't start on mobile data.
     if (useSettings.getState().downloadWifiOnly && (await onMobileData())) {
       useToast.getState().show(tg('Connect to Wi-Fi to download'));
       return;
@@ -446,21 +446,21 @@ export const useDownloads = create<DownloadsState>((set, get) => {
     try {
       await FileSystem.makeDirectoryAsync(`${dir}files/`, { intermediates: true }).catch(() => {});
 
-      // La carátula y la entrada de cada álbum se bajan la primera vez que
-      // aparece una de sus canciones, no todas de golpe al principio. Así la
-      // descarga empieza enseguida (sin "escanear" antes todos los álbumes) y la
-      // parada responde también durante esa fase.
+      // The cover and album entry are downloaded the first time one of their
+      // songs appears, not all at once at the start. This way the download
+      // begins immediately (without "scanning" all albums first) and the
+      // stop is also responsive during that phase.
       const albumById = new Map(albums.map((a) => [a.id, a]));
       const albumDone = new Set<string>();
       const ensureAlbum = async (song: Song): Promise<void> => {
         const album = song.albumId ? albumById.get(song.albumId) : undefined;
         if (!album || albumDone.has(album.id)) return;
-        albumDone.add(album.id); // marcar antes del await: que otro worker no lo repita
+        albumDone.add(album.id); // mark before await: so another worker won't repeat it
         const coverUri = await downloadCover(auth, dir, album);
         await commitToCatalog(dir, { albums: [toLocalAlbum(album, coverUri)] });
       };
 
-      // Tareas en curso, para poder abortarlas al parar (stop instantáneo).
+      // Ongoing tasks, aborted on stop (instant stop).
       const tasks = new Set<ReturnType<typeof FileSystem.createDownloadResumable>>();
       activeTasks.set(groupKey, tasks);
 
@@ -468,17 +468,17 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       let next = 0;
       const workers = Array.from({ length: Math.min(CONCURRENCY, pending.length) }, async () => {
         while (next < pending.length) {
-          if (cancelling.has(groupKey)) break; // parada pedida por el usuario
+          if (cancelling.has(groupKey)) break; // stop requested by user
           const song = pending[next++];
           await ensureAlbum(song);
-          if (cancelling.has(groupKey)) break; // pudo pararse durante la carátula
+          if (cancelling.has(groupKey)) break; // may have stopped during cover download
           const { url, ext, bitRate: dlBitRate } = songFileUrl(auth, song);
           const file = `${dir}files/${hashKey(song.id)}.${ext}`;
           const task = FileSystem.createDownloadResumable(url, file, {}, (p) => {
             if (p.totalBytesExpectedToWrite > 0) {
               const fraction = p.totalBytesWritten / p.totalBytesExpectedToWrite;
               const cur = get().active[groupKey];
-              // Actualiza con grano grueso para no re-renderizar sin parar.
+              // Updates coarsely to avoid continuous re-renders.
               if (cur && fraction - cur.fraction > 0.05) {
                 set((st) => ({
                   active: { ...st.active, [groupKey]: { ...cur, fraction } },
@@ -490,10 +490,10 @@ export const useDownloads = create<DownloadsState>((set, get) => {
           try {
             const res = await task.downloadAsync();
             if (!res || res.status !== 200) throw new Error(`HTTP ${res?.status}`);
-            if (isErrorBody(res.headers)) throw new Error('cuerpo de error, no audio');
+            if (isErrorBody(res.headers)) throw new Error('error body, not audio');
             await cacheLyricsForDownload(auth, song, file);
-            // Cada canción se persiste al completarse: si la app muere a mitad
-            // de un álbum, lo ya bajado sobrevive al reinicio.
+            // Each song is persisted on completion: if the app dies mid-album,
+            // already downloaded items survive a restart.
             await commitToCatalog(dir, { songs: [toLocalSong(song, file, dlBitRate)] });
             set((st) => {
               const cur = st.active[groupKey];
@@ -509,8 +509,8 @@ export const useDownloads = create<DownloadsState>((set, get) => {
               };
             });
           } catch {
-            // Abortada al parar o error de red: se descarta el fichero a medias.
-            // Si fue por parada no cuenta como fallo (el toast ya dice "detenida").
+            // Aborted on stop or network error: discard the partially-downloaded file.
+            // If it was a stop it doesn't count as failure (the toast already says "stopped").
             if (!cancelling.has(groupKey)) failed++;
             await FileSystem.deleteAsync(file, { idempotent: true }).catch(() => {});
           } finally {
@@ -521,15 +521,15 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       await Promise.all(workers);
 
       invalidate();
-      // En segundo plano: espeja el tracklist completo de los álbumes tocados,
-      // para verlos enteros (con grises) offline aunque solo bajaras una canción.
+      // In the background: mirrors the complete tracklist of touched albums,
+      // to see them in full (with grays) offline even if only one song was downloaded.
       if (!cancelling.has(groupKey)) void mirrorAlbumTracklists(auth, pending);
       if (cancelling.has(groupKey)) {
         useToast.getState().show(tg('Download stopped'));
       } else if (failed > 0) {
         useToast.getState().show(tg("{n} songs couldn't be downloaded", { n: failed }));
       } else {
-        // Confirmación al terminar (el "Descargando…" inicial no dice cuándo acaba).
+        // Confirmation on finish (the initial "Downloading…" doesn't say when it ends).
         useToast
           .getState()
           .show(
@@ -580,25 +580,25 @@ export const useDownloads = create<DownloadsState>((set, get) => {
     },
 
     downloadSongs: async (songs) => {
-      // Álbumes implicados: los de las canciones (entrada parcial si hace falta).
+      // Involved albums: those of the songs (partial entry if needed).
       const byId = new Map<string, Album>();
       for (const s of songs) {
         const al = albumFromSong(s);
         if (!byId.has(al.id)) byId.set(al.id, al);
       }
-      // Clave única: cada lote es un grupo efímero sin UI de progreso propia.
+      // Unique key: each batch is an ephemeral group without its own progress UI.
       await downloadGroup(`batch:${Date.now()}`, songs, Array.from(byId.values()));
     },
 
     downloadPlaylist: async (playlist, songs) => {
-      // Álbumes implicados: los de las canciones (entrada parcial si hace falta).
+      // Involved albums: those of the songs (partial entry if needed).
       const byId = new Map<string, Album>();
       for (const s of songs) {
         const al = albumFromSong(s);
         if (!byId.has(al.id)) byId.set(al.id, al);
       }
       await downloadGroup(`playlist:${playlist.id}`, songs, Array.from(byId.values()));
-      // La playlist también existe en el perfil local, con sus ids de servidor.
+      // The playlist also exists in the local profile, with its server ids.
       const downloadedIds = songs.map((s) => s.id).filter((id) => get().files[id]);
       if (downloadedIds.length > 0) {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -612,7 +612,7 @@ export const useDownloads = create<DownloadsState>((set, get) => {
     },
 
     downloadFavorites: async (songs) => {
-      // Álbumes implicados: los de las canciones (entrada parcial si hace falta).
+      // Involved albums: those of the songs (partial entry if needed).
       const byId = new Map<string, Album>();
       for (const s of songs) {
         const al = albumFromSong(s);
@@ -624,7 +624,7 @@ export const useDownloads = create<DownloadsState>((set, get) => {
     cancelDownload: (groupKey) => {
       if (!get().active[groupKey]) return;
       cancelling.add(groupKey);
-      // Aborta lo que se esté bajando ahora mismo (no espera a que termine).
+      // Aborts what is currently downloading (doesn't wait for it to finish).
       const tasks = activeTasks.get(groupKey);
       if (tasks) for (const t of tasks) void t.cancelAsync().catch(() => {});
     },
@@ -638,13 +638,13 @@ export const useDownloads = create<DownloadsState>((set, get) => {
           for (const s of catalog.songs) {
             if (ids.has(s.id) && s.localUri) {
               await FileSystem.deleteAsync(s.localUri, { idempotent: true }).catch(() => {});
-              // También la letra cacheada junto al fichero, si la hay.
+              // Also the cached lyrics alongside the file, if any.
               const lrc = siblingLrcUri(s.localUri);
               if (lrc) await FileSystem.deleteAsync(lrc, { idempotent: true }).catch(() => {});
             }
           }
           catalog.songs = catalog.songs.filter((s) => !ids.has(s.id));
-          // Álbumes que se quedan sin canciones: fuera (y su carátula).
+          // Albums left with no songs: removed (and their covers).
           const emptyAlbums = catalog.albums.filter(
             (a) => !catalog.songs.some((s) => s.albumId === a.id),
           );
@@ -672,8 +672,8 @@ export const useDownloads = create<DownloadsState>((set, get) => {
 
     clearAll: async () => {
       await locked(() => FileSystem.deleteAsync(ROOT_DIR, { idempotent: true }).catch(() => {}));
-      // Las playlists locales creadas por descargas ya no resuelven canciones;
-      // se eliminan para no dejar listas vacías.
+      // Local playlists created by downloads no longer resolve songs;
+      // they are removed to avoid leaving empty lists.
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       await require('@/lib/localQueries').deleteLocalPlaylistsByPrefix('dl_');
       set({ files: {}, dlBitRates: {}, active: {} });
@@ -691,7 +691,7 @@ export const useDownloads = create<DownloadsState>((set, get) => {
               if (info.exists) total += ((info as any).size as number) || 0;
             }
           } catch {
-            // subcarpeta inexistente
+            // nonexistent subfolder
           }
         }
       }
@@ -700,7 +700,7 @@ export const useDownloads = create<DownloadsState>((set, get) => {
   };
 });
 
-/** Estado del botón de descarga de un grupo (cabecera de álbum/playlist). */
+/** State of a group's download button (album/playlist header). */
 export function groupDownloadState(
   st: Pick<DownloadsState, 'files' | 'active'>,
   groupKey: string,

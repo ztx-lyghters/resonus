@@ -1,13 +1,13 @@
 /**
- * Tipo de conexión actual, cacheado en un store para poder decidir el bitrate
- * de streaming de forma síncrona (`sourceFor` no puede esperar a un async) y
- * para que la UI reaccione si cambia la red.
+ * Current connection type, cached in a store to decide the streaming bitrate
+ * synchronously (`sourceFor` can't await an async) and so the UI reacts if the
+ * network changes.
  */
 import * as Network from 'expo-network';
 import { create } from 'zustand';
 
 interface NetworkTypeState {
-  /** true si la conexión activa son datos móviles. */
+  /** true if the active connection is cellular. */
   cellular: boolean;
 }
 
@@ -20,13 +20,13 @@ function apply(type: Network.NetworkStateType | undefined) {
 
 let started = false;
 
-/** Arranca el watcher (idempotente; desde el layout raíz). */
+/** Starts the watcher (idempotent; from the root layout). */
 export function initNetworkType(): void {
   if (started) return;
   started = true;
-  // Estado inicial: el listener solo dispara en los cambios.
+  // Initial state: the listener only fires on changes.
   Network.getNetworkStateAsync()
     .then((s) => apply(s.type))
-    .catch(() => {}); // ante la duda queda `cellular: false` (calidad Wi-Fi)
+    .catch(() => {}); // when in doubt, default to `cellular: false` (Wi-Fi quality)
   Network.addNetworkStateListener((s) => apply(s.type));
 }

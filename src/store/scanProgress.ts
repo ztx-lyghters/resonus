@@ -1,20 +1,20 @@
 /**
- * Progreso del análisis del catálogo local (modo sin conexión). Lo actualizan
- * las funciones de carga de `localLibrary` mientras leen las etiquetas ID3 de
- * cada fichero, para poder mostrar un indicador con cuántas canciones se han
- * analizado en lugar de un spinner indefinido.
+ * Local catalog scan progress (offline mode). Updated by the loading functions
+ * in `localLibrary` while they read ID3 tags from each file, to show an
+ * indicator of how many songs have been scanned instead of an indefinite
+ * spinner.
  *
- * Son tres fases, y `count` significa una cosa distinta en cada una:
+ * There are three phases, and `count` means something different in each:
  *
- *   - 'finding': buscar los ficheros. `count` son los encontrados hasta ahora y
- *     `total` es 0, porque aún no se sabe cuántos hay: no hay barra que llenar,
- *     pero un número subiendo ya dice que la cosa avanza. Antes esta fase no
- *     contaba nada y la pantalla se quedaba muerta hasta empezar a analizar.
- *   - 'reading': leer las etiquetas. `count` son las canciones ya leídas y la
- *     fracción llena la barra.
- *   - 'covers': leer las carátulas, una por álbum (ver `loadAlbumCovers`).
- *     `count` son los álbumes resueltos. Es corta, pero sin ella el final del
- *     escaneo era un silencio con la barra llena.
+ *   - 'finding': searching for files. `count` is how many found so far and
+ *     `total` is 0, because the total isn't known yet: there's no bar to fill,
+ *     but a climbing number at least shows progress. Previously this phase
+ *     counted nothing and the screen sat frozen until scanning began.
+ *   - 'reading': reading tags. `count` is songs read so far and the fraction
+ *     fills the bar.
+ *   - 'covers': reading cover art, one per album (see `loadAlbumCovers`).
+ *     `count` is albums resolved. It's short, but without it the end of the
+ *     scan was silence with a full bar.
  */
 import { create } from 'zustand';
 
@@ -22,17 +22,17 @@ export type ScanPhase = 'idle' | 'finding' | 'reading' | 'covers';
 
 interface ScanProgressState {
   phase: ScanPhase;
-  /** Ficheros encontrados, canciones leídas o álbumes resueltos, según la fase. */
+  /** Files found, songs read, or albums resolved, depending on the phase. */
   count: number;
-  /** Total de la fase; 0 mientras aún se buscan los ficheros. */
+  /** Total for the phase; 0 while files are still being found. */
   total: number;
-  /** Arranca la búsqueda, cuando todavía no se sabe cuántos hay. */
+  /** Starts the search, when the total is not yet known. */
   begin: () => void;
-  /** Pasa a leer etiquetas, ya con el total conocido. */
+  /** Transitions to reading tags, now with the total known. */
   start: (total: number) => void;
-  /** Pasa a leer carátulas, con el nº de álbumes que las necesitan. */
+  /** Transitions to reading covers, with the number of albums that need them. */
   startCovers: (total: number) => void;
-  /** Suma `n` (agrupado por quien llama para no renderizar por fichero). */
+  /** Adds `n` (batched by caller to avoid re-rendering per file). */
   tick: (n?: number) => void;
   done: () => void;
 }

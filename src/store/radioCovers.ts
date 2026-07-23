@@ -1,9 +1,9 @@
 /**
- * Carátulas personalizadas de emisoras de radio, guardadas SOLO en el
- * dispositivo: Subsonic/Navidrome no tiene API de carátula para emisoras, así
- * que la imagen elegida se copia a un directorio propio y se mapea por id de
- * emisora. Es POR PERFIL (cada cuenta ve sus emisoras): misma lógica que los
- * pins. La copia vive fuera de local-catalog/, que "Volver a escanear" borra.
+ * Custom covers for radio stations, stored ONLY on the device:
+ * Subsonic/Navidrome has no cover art API for radio stations, so the chosen
+ * image is copied to a dedicated directory and mapped by station id. It's PER
+ * PROFILE (each account sees its own stations): same logic as pins. The copy
+ * lives outside local-catalog/, which "Re-scan" wipes.
  */
 import * as FileSystem from 'expo-file-system/legacy';
 import { create } from 'zustand';
@@ -13,7 +13,7 @@ import { getItem, setItem } from '@/lib/storage';
 import { profileScopeId } from '@/store/auth';
 
 const KEY = 'resonus.radioCovers';
-/** Clave de carátulas del perfil activo. */
+/** Covers key for the active profile. */
 function coversKey(): string {
   return `${KEY}.${hashKey(profileScopeId())}`;
 }
@@ -35,8 +35,8 @@ export const useRadioCovers = create<RadioCoversState>((set, get) => ({
   covers: {},
 
   hydrate: async () => {
-    // Se re-ejecuta al cambiar de perfil: hay que RESETEAR a {} si el nuevo
-    // perfil no tiene carátulas, o quedarían las del perfil anterior.
+    // Re-executes on profile switch: must RESET to {} if the new profile has no
+    // covers, otherwise the previous profile's covers would linger.
     try {
       const raw = await getItem(coversKey());
       set({ covers: raw ? (JSON.parse(raw) as Record<string, string>) : {} });
@@ -47,8 +47,8 @@ export const useRadioCovers = create<RadioCoversState>((set, get) => ({
 
   setCover: async (id, srcUri) => {
     await FileSystem.makeDirectoryAsync(COVERS_DIR, { intermediates: true }).catch(() => {});
-    // Nombre nuevo en cada cambio: reusar la misma URI dejaría a expo-image
-    // enseñando la imagen anterior cacheada.
+    // New name on each change: reusing the same URI would leave expo-image
+    // showing the previous cached image.
     const safe = id.replace(/[^a-zA-Z0-9_-]/g, '_');
     const dest = `${COVERS_DIR}${safe}-${Date.now()}.jpg`;
     await FileSystem.copyAsync({ from: srcUri, to: dest });

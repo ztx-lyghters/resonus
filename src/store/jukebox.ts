@@ -1,21 +1,21 @@
 /**
- * Modo Jukebox de Subsonic: el servidor reproduce por su propio hardware de
- * audio (altavoces/DAC) y la app hace de mando a distancia. No se stremea nada
- * al teléfono; solo se envían comandos `jukeboxControl` al servidor.
+ * Subsonic Jukebox mode: the server plays through its own hardware audio
+ * (speakers/DAC) and the app acts as a remote control. Nothing is streamed
+ * to the phone; only `jukeboxControl` commands are sent to the server.
  *
- * Reutiliza la maquinaria remota del player (los mismos `RemoteEvents` que
- * UPnP): la cola sigue viviendo en el store del player, así que autoplay,
- * mixes, shuffle y reordenar funcionan igual. Aquí controlamos UNA pista cada
- * vez (`set` + `start`) y sondeamos el estado del servidor, que es quien lleva
- * el reloj; el fin de pista se deduce de un "parado cerca del final", como en
+ * Reuses the player's remote machinery (the same `RemoteEvents` as
+ * UPnP): the queue still lives in the player store, so autoplay,
+ * mixes, shuffle and reordering work the same. Here we control ONE track at
+ * a time (`set` + `start`) and poll the server state, which is what carries
+ * the clock; track end is inferred from a "stopped near the end", as in
  * UPnP.
  *
- * Limitación conocida: el sondeo es un `setInterval` de JS, que Android congela
- * en segundo plano. Con la app minimizada el avance de la cola se pausa hasta
- * volver a abrirla (el servidor termina la pista actual y espera). Pensado para
- * usarse con la app delante, de mando.
+ * Known limitation: polling is a JS `setInterval`, which Android freezes
+ * in the background. With the app minimized the queue advance pauses until
+ * it's reopened (the server finishes the current track and waits). Designed to
+ * be used with the app in front, as a remote.
  *
- * Solo servidores Subsonic con el rol jukebox habilitado por el admin.
+ * Only Subsonic servers with the jukebox role enabled by the admin.
  */
 import { create } from 'zustand';
 
@@ -34,9 +34,9 @@ import { useAuthStore } from './auth';
 import type { RemoteEvents } from './upnp';
 
 interface JukeboxStoreState {
-  /** Sesión jukebox en curso (el servidor es la salida activa). */
+  /** Active jukebox session (the server is the active output). */
   active: boolean;
-  /** El servidor soporta jukebox para este usuario (rol habilitado). */
+  /** The server supports jukebox for this user (role enabled). */
   available: boolean;
 }
 
@@ -51,32 +51,32 @@ let events: RemoteEvents | null = null;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 let lastPositionSec = 0;
 let lastDurationSec = 0;
-/** Evita avanzar la cola dos veces por el mismo fin de pista. */
+/** Prevents advancing the queue twice for the same track end. */
 let finishedFired = false;
-/** Ignora el estado "parado" mientras cargamos otra pista. */
+/** Ignores the "stopped" state while loading another track. */
 let loading = false;
-/** Distingue una pausa del usuario de un fin natural de pista. */
+/** Distinguishes a user pause from a natural track end. */
 let intendedPlaying = false;
-/** Solo emitimos onPlayingChanged al cambiar de verdad (el sondeo es continuo). */
+/** Only emit onPlayingChanged when it actually changes (polling is continuous). */
 let lastPlaying: boolean | null = null;
 
 export function isJukeboxActive(): boolean {
   return useJukebox.getState().active;
 }
 
-/** Registra los eventos del player. Llamar una sola vez (desde el player). */
+/** Registers player events. Call only once (from the player). */
 export function initJukebox(ev: RemoteEvents): void {
   events = ev;
 }
 
-/** Solo Subsonic tiene `jukeboxControl` (Jellyfin usa otra API). */
+/** Only Subsonic has `jukeboxControl` (Jellyfin uses a different API). */
 function auth(): SubsonicAuth | null {
   const a = useAuthStore.getState().auth;
   if (!a || a.serverType === 'jellyfin') return null;
   return a;
 }
 
-/** Comprueba si el servidor ofrece jukebox y lo cachea en el store. */
+/** Checks if the server offers jukebox and caches it in the store. */
 export async function refreshJukeboxAvailability(): Promise<void> {
   const a = auth();
   if (!a) {
@@ -94,7 +94,7 @@ async function poll() {
   try {
     st = await jukeboxStatus(a);
   } catch {
-    return; // un fallo puntual de red no corta la sesión
+    return; // a one-off network failure doesn't cut the session
   }
   if (!isJukeboxActive()) return;
   const pos = st.position;
@@ -109,7 +109,7 @@ async function poll() {
     }
     return;
   }
-  // Parado: fin natural (cerca del final y queríamos reproducir) o pausa.
+  // Stopped: natural end (near the end and we intended to play) or pause.
   events?.onProgress(pos, lastDurationSec);
   if (
     intendedPlaying &&
@@ -128,7 +128,7 @@ async function poll() {
   }
 }
 
-/** Abre la sesión jukebox y arranca el sondeo de estado. */
+/** Opens the jukebox session and starts state polling. */
 export async function jukeboxConnect(): Promise<boolean> {
   const a = auth();
   if (!a) return false;
@@ -145,7 +145,7 @@ export async function jukeboxConnect(): Promise<boolean> {
   return true;
 }
 
-/** Cierra la sesión; con `silent` no avisa al player (al cambiar de salida). */
+/** Closes the session; with `silent` it doesn't notify the player (when switching output). */
 export async function jukeboxDisconnect(silent = false): Promise<void> {
   if (!isJukeboxActive()) return;
   if (pollTimer) {
@@ -163,9 +163,9 @@ export async function jukeboxDisconnect(silent = false): Promise<void> {
 }
 
 /**
- * Carga una pista en el jukebox del servidor. Devuelve false si no hay sesión o
- * la pista no vale para jukebox (radios y ficheros locales: el servidor solo
- * reproduce por id de su propia biblioteca).
+ * Loads a track in the server's jukebox. Returns false if there is no session or
+ * the track is not suitable for jukebox (radios and local files: the server only
+ * plays by id from its own library).
  */
 export async function jukeboxLoad(song: Song, autoplay: boolean, startSec = 0): Promise<boolean> {
   const a = auth();
@@ -223,7 +223,7 @@ export async function jukeboxSeek(sec: number): Promise<void> {
   }
 }
 
-/** Volumen del jukebox; el slider de la app va 0..1 y el gain de Subsonic igual. */
+/** Jukebox volume; the app slider goes 0..1 and Subsonic gain is the same. */
 export function jukeboxSetVolume(volume: number): void {
   const a = auth();
   if (!a) return;

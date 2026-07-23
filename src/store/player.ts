@@ -1,18 +1,19 @@
 /**
- * Estado y control de reproducción sobre **expo-audio**.
+ * Playback state and control over **expo-audio**.
  *
- * La cola vive en JS (este store). Decodifican dos `AudioPlayer` alternos: el
- * "activo" suena y posee la notificación / pantalla de bloqueo
- * (`setActiveForLockScreen`); el otro queda de reserva para el crossfade (la
- * pista entrante arranca en él a volumen 0 y pasa a ser el activo). Sin
- * crossfade solo trabaja uno, con `replace()` de la fuente al cambiar de
- * pista. El avance automático se detecta con `playbackStatusUpdate`
- * (`didJustFinish`); si hay crossfade en marcha, el cambio ya ocurrió antes.
+ * The queue lives in JS (this store). Two alternating `AudioPlayer` instances
+ * decode: the "active" one plays and owns the notification / lock screen
+ * (`setActiveForLockScreen`); the other is kept as a reserve for crossfade (the
+ * incoming track starts on it at volume 0 and becomes the active one). Without
+ * crossfade only one works, with `replace()` of the source on track change.
+ * Auto-advance is detected via `playbackStatusUpdate`
+ * (`didJustFinish`); if a crossfade is in progress, the change already happened
+ * earlier.
  *
- * (Se migró desde react-native-track-player para poder tener UNA sola
- * MediaSession y así soportar Android Auto con el módulo `modules/car-auto`.
- * Android Auto no se ve afectado por el crossfade: usa su propia sesión con
- * `JsProxyPlayer`, no la del player de expo-audio.)
+ * (Migrated from react-native-track-player to have a SINGLE
+ * MediaSession and thus support Android Auto with the `modules/car-auto` module.
+ * Android Auto is not affected by crossfade: it uses its own session with
+ * `JsProxyPlayer`, not the expo-audio player.)
  */
 import { AppState } from 'react-native';
 import {
@@ -78,8 +79,8 @@ import { tg } from '@/i18n';
 export type RepeatMode = 'off' | 'all' | 'one';
 
 /**
- * Centinela para orígenes que deben traducirse al vuelo (no son nombres
- * reales de álbum/lista). La cabecera del reproductor los resuelve con i18n.
+ * Sentinel for origins that must be translated on the fly (they are not real
+ * album/playlist names). The player header resolves them with i18n.
  */
 export const SOURCE_FAVORITES = '@@favorites';
 export const SOURCE_HISTORY = '@@history';
@@ -87,33 +88,33 @@ export const SOURCE_HISTORY = '@@history';
 let sleepTimeout: ReturnType<typeof setTimeout> | null = null;
 
 /**
- * Vencimiento del temporizador de sueño (`sleepEndsAt` del store), o null.
+ * Expiry of the sleep timer (`sleepEndsAt` in the store), or null.
  *
- * Vive en el store y no aquí porque la interfaz también lo necesita: es lo que
- * deja decir cuánto QUEDA en vez de repetir los minutos que se eligieron, que
- * es un número que envejece mal. Y sirve de respaldo del setTimeout: Android
- * congela/retrasa los timers JS en segundo plano con la pantalla apagada (el
- * caso típico del sleep timer), así que onStatus —que sigue latiendo mientras
- * suena el player nativo— también comprueba la hora.
+ * Lives in the store and not here because the UI also needs it: it's what
+ * lets us say how much TIME IS LEFT instead of repeating the chosen minutes,
+ * which is a number that ages poorly. And it serves as a backup for setTimeout:
+ * Android freezes/delays JS timers in the background with the screen off (the
+ * typical sleep timer case), so onStatus —which keeps beating while the
+ * native player plays— also checks the time.
  */
 function sleepDeadline(): number | null {
   return usePlayerStore.getState().sleepEndsAt;
 }
 
-// ── Fundido final del temporizador de sueño ─────────────────────────────────
-// El único momento en que este temporizador existe es mientras te estás
-// durmiendo, y cortar la música en seco justo ahí puede despertarte — lo
-// contrario de lo que se le pidió. Así que los últimos segundos se van
-// bajando. El fundido ACABA en el vencimiento, no empieza ahí: "para en 30
-// minutos" significa que a los 30 minutos hay silencio.
+// ── Sleep timer fade-out ────────────────────────────────────────────────────
+// The only moment this timer exists is while you are
+// falling asleep, and cutting the music abruptly right then can wake you up — the
+// opposite of what was asked. So the last few seconds fade
+// down. The fade FINISHES at expiry, not starts then: "stop in 30
+// minutes" means at 30 minutes there is silence.
 
 const SLEEP_FADE_MS = 30_000;
 
 let sleepFadeTimeout: ReturnType<typeof setTimeout> | null = null;
 let sleepFadeTimer: ReturnType<typeof setInterval> | null = null;
 
-/** Corta el fundido de sueño en curso, si lo hay. El volumen lo restaura quien
- *  llama (`cutCrossfade`, que es por donde pasa toda intervención). */
+/** Cuts the sleep fade in progress, if any. Volume is restored by whoever
+ *  calls (`cutCrossfade`, which is the path all interventions go through). */
 function clearSleepFade() {
   if (sleepFadeTimeout) clearTimeout(sleepFadeTimeout);
   sleepFadeTimeout = null;
@@ -122,13 +123,13 @@ function clearSleepFade() {
 }
 
 /**
- * Baja el volumen a cero en `ms`. No captura el player ni su volumen: los lee
- * en cada tic y aplica el fundido como un factor sobre `effectiveVolume`. Así
- * sigue valiendo si la pista cambia a mitad (el ReplayGain es por canción) y
- * la nueva no arranca a todo volumen.
+ * Lowers the volume to zero in `ms`. Does not capture the player or its volume:
+ * reads them on each tick and applies the fade as a factor on `effectiveVolume`.
+ * This way it still holds if the track changes midway (ReplayGain is per song)
+ * and the new one doesn't start at full volume.
  */
 function startSleepFade(ms: number) {
-  if (remoteKind()) return; // el volumen del aparato remoto no es nuestro
+  if (remoteKind()) return; // the remote device's volume is not ours
   clearSleepFade();
   const t0 = Date.now();
   sleepFadeTimer = setInterval(() => {
@@ -145,7 +146,7 @@ function startSleepFade(ms: number) {
   }, 100);
 }
 
-/** Programa el fundido para que termine justo en el vencimiento. */
+/** Schedules the fade to finish right at expiry. */
 function armSleepFade(msLeft: number) {
   clearSleepFade();
   const fadeMs = Math.min(SLEEP_FADE_MS, msLeft);
@@ -154,8 +155,8 @@ function armSleepFade(msLeft: number) {
   else sleepFadeTimeout = setTimeout(() => startSleepFade(fadeMs), wait);
 }
 
-/** Suelta el fundido y devuelve el volumen a su sitio: para cuando se cancela
- *  el temporizador con la música ya a media bajada. */
+/** Releases the fade and returns volume to normal: for when the timer is
+ *  canceled with the music already at mid-fade. */
 function abortSleepFade() {
   if (!sleepFadeTimer && !sleepFadeTimeout) return;
   clearSleepFade();
@@ -169,13 +170,14 @@ function abortSleepFade() {
   }
 }
 
-/** Pausa por temporizador de sueño cumplido (desde el timeout o onStatus). */
+/** Pause due to expired sleep timer (from the timeout or onStatus). */
 function fireSleepTimer() {
   if (sleepTimeout) clearTimeout(sleepTimeout);
   sleepTimeout = null;
-  // Pausar ANTES de restaurar el volumen: al revés, el fundido acaba de dejarlo
-  // a cero y `cutCrossfade` lo devolvería a tope unos milisegundos antes de la
-  // pausa — un golpe de sonido justo al dormirse, que es lo que evitamos.
+  // Pause BEFORE restoring volume: the other way around, the fade just left
+  // it at zero and `cutCrossfade` would bring it back to full a few
+  // milliseconds before the pause — a sound burst right at falling asleep,
+  // which is what we're avoiding.
   clearSleepFade();
   if (remoteKind()) remotePause();
   else activePlayer()?.pause();
@@ -187,45 +189,45 @@ function fireSleepTimer() {
 const players: (AudioPlayer | null)[] = [null, null];
 let activeIdx = 0;
 let audioModeReady = false;
-/** Player que registró los controles de bloqueo (dueño de la MediaSession). */
+/** Player that registered lock screen controls (owner of the MediaSession). */
 let lockOwner: AudioPlayer | null = null;
 
-/** Player activo (el que suena y manda en el estado), si ya existe. */
+/** Active player (the one playing and driving state), if already exists. */
 function activePlayer(): AudioPlayer | null {
   return players[activeIdx];
 }
 
-/** Crea (una vez) el AudioPlayer `idx` y engancha sus listeners. */
+/** Creates (once) the AudioPlayer at `idx` and attaches its listeners. */
 function ensurePlayer(idx: number): AudioPlayer {
   const existing = players[idx];
   if (existing) return existing;
   const p = createAudioPlayer(null, { updateInterval: 500 });
-  // Los listeners viven durante toda la sesión (los players son singletons).
-  // Solo el player activo alimenta el estado: los eventos del que se apaga
-  // durante un crossfade (incluido su didJustFinish) se ignoran.
+  // Listeners live for the whole session (players are singletons).
+  // Only the active player feeds state: events from the one that is powering
+  // down during a crossfade (including its didJustFinish) are ignored.
   p.addListener('playbackStatusUpdate', (status) => {
     if (activePlayer() === p) onStatus(status);
   });
-  // Saltar pista desde la notificación / bloqueo → la cola la gestiona JS.
-  // Solo el dueño de la sesión emite estos eventos; no hay dobles saltos.
+  // Skip track from notification / lock screen → JS manages the queue.
+  // Only the session owner emits these events; there are no double skips.
   p.addListener('remotePrevious', () => usePlayerStore.getState().previous());
   p.addListener('remoteNext', () => usePlayerStore.getState().next());
-  // Ecualizador: el efecto nativo se engancha a la sesión de audio de ESTE
-  // player. Como son singletons (dos alternos para el crossfade), basta con
-  // hacerlo al crearlos; el estado guardado se aplica solo.
+  // Equalizer: the native effect attaches to the audio session of THIS player.
+  // Since they are singletons (two alternating for crossfade), it's enough to
+  // do it on creation; the saved state is applied automatically.
   useEqualizer.getState().attach(p.audioSessionId);
   players[idx] = p;
   return p;
 }
 
-/** Configura el modo de audio (foco exclusivo) una sola vez. */
+/** Configures audio mode (exclusive focus) only once. */
 async function ensureAudioMode() {
   if (audioModeReady) return;
   audioModeReady = true;
   try {
-    // `shouldPlayInBackground` mantiene el audio al minimizar la app; sin él,
-    // expo-audio pausa al ir a segundo plano. `doNotMix` da foco exclusivo
-    // (necesario para que los controles de bloqueo se asocien a nuestro player).
+    // `shouldPlayInBackground` keeps audio when minimizing the app; without it,
+    // expo-audio pauses when going to background. `doNotMix` gives exclusive focus
+    // (needed for lock screen controls to associate with our player).
     await setAudioModeAsync({ interruptionMode: 'doNotMix', shouldPlayInBackground: true });
     await setIsAudioActiveAsync(true);
   } catch {
@@ -234,35 +236,35 @@ async function ensureAudioMode() {
 }
 
 /**
- * Fichero de una canción descargada, aunque la canción venga del servidor
- * (en modo servidor los `Song` de la API no traen `localUri`; las descargas
- * viven en el mapa de `useDownloads`).
+ * File of a downloaded song, even if the song comes from the server
+ * (in server mode the API `Song` items don't carry `localUri`; downloads
+ * live in the `useDownloads` map).
  */
 function downloadedUri(song: Song): string | undefined {
   return useDownloads.getState().files[song.id];
 }
 
 /**
- * ¿Se puede reproducir esta pista sin conexión? Radio (url propia), pista de la
- * biblioteca local (localUri) o descarga en disco. En offline, las que solo
- * existen como stream del servidor no se pueden sonar y hay que saltarlas.
+ * Can this track be played offline? Radio (own url), local library track
+ * (localUri) or on-disk download. Offline, those that only exist as a server
+ * stream cannot be played and must be skipped.
  */
 function playableOffline(song: Song | null | undefined): boolean {
   return !!song && (!!song.url || !!song.localUri || !!downloadedUri(song));
 }
 
-/** Bitrate máximo de streaming según la red actual (Wi-Fi o datos móviles). */
+/** Max streaming bitrate according to current network (Wi-Fi or mobile data). */
 export function effectiveMaxBitRate(): number {
   const s = useSettings.getState();
   return useNetworkType.getState().cellular ? s.maxBitRateCellular : s.maxBitRate;
 }
 
-/** Fuente para expo-audio: radio (url), local (file/content) o stream Subsonic. */
+/** Source for expo-audio: radio (url), local (file/content) or Subsonic stream. */
 function sourceFor(song: Song, timeOffsetSec = 0): { uri: string } {
   if (song.url) return { uri: song.url };
   if (song.localUri) return { uri: song.localUri };
-  // Descargada → suena desde disco también en modo servidor: funciona sin
-  // conexión y con conexión no gasta datos.
+  // Downloaded → plays from disk also in server mode: works without
+  // connection and with connection doesn't waste data.
   const dl = downloadedUri(song);
   if (dl) return { uri: dl };
   const auth = useAuthStore.getState().auth!;
@@ -270,52 +272,53 @@ function sourceFor(song: Song, timeOffsetSec = 0): { uri: string } {
   return { uri: streamUrl(auth, song.id, effectiveMaxBitRate(), timeOffsetSec, format) };
 }
 
-// ── Seek en streams transcodificados ────────────────────────────────────────
-// Un stream que el servidor genera al vuelo no tiene acceso aleatorio: el
-// seek nativo rebota o reinicia. Si el servidor anuncia la extensión
-// OpenSubsonic `transcodeOffset`, se re-pide el stream con `timeOffset` y se
-// compensa la posición mostrada (offset + tiempo del player nativo).
+// ── Seek in transcoded streams ──────────────────────────────────────────────
+// A stream the server generates on the fly has no random access: native
+// seek bounces or restarts. If the server announces the
+// OpenSubsonic `transcodeOffset` extension, the stream is re-requested with
+// `timeOffset` and the displayed position is compensated (offset + native
+// player time).
 
-/** Segundo real del stream en el que empieza la fuente actual del player. */
+/** Real second of the stream at which the player's current source starts. */
 let streamOffsetSec = 0;
-/** Soporte de `transcodeOffset` del servidor activo (null = sin comprobar). */
+/** `transcodeOffset` support of the active server (null = unchecked). */
 let transcodeOffsetSupported: boolean | null = null;
 
-/** ¿Esta canción se está transcodificando (el servidor la genera al vuelo)? */
+/** Is this song being transcoded (the server generates it on the fly)? */
 function isTranscoded(song: Song): boolean {
-  // Las descargadas suenan desde disco: seek nativo normal, sin timeOffset.
+  // Downloaded tracks play from disk: normal native seek, no timeOffset.
   if (song.url || song.localUri || downloadedUri(song)) return false;
   const max = effectiveMaxBitRate();
-  // Sin límite el servidor sirve el fichero original (directo, seek nativo). El
-  // códec forzado solo se envía con `maxBitRate > 0` (ver streamUrl), así que
-  // fuera de ahí no hay transcode.
+  // Without limit the server serves the original file (direct, native seek).
+  // Forced codec is only sent with `maxBitRate > 0` (see streamUrl), so
+  // outside that there is no transcode.
   if (max <= 0) return false;
-  // Transcodifica si el original supera el bitrate O si se fuerza un códec de
-  // salida (el servidor reconvierte aunque el bitrate ya cupiera). En ambos
-  // casos el stream pierde el acceso aleatorio y el seek nativo reiniciaría.
+  // Transcodes if the original exceeds the bitrate OR if an output codec is
+  // forced (the server re-encodes even if the bitrate already fit). In both
+  // cases the stream loses random access and native seek would restart.
   return useSettings.getState().streamFormat !== '' || (song.bitRate != null && song.bitRate > max);
 }
 
-/** Consulta (una vez por perfil) si el servidor soporta `transcodeOffset`. */
+/** Checks (once per profile) if the server supports `transcodeOffset`. */
 async function ensureTranscodeOffsetSupport(): Promise<boolean> {
   if (transcodeOffsetSupported != null) return transcodeOffsetSupported;
   const auth = useAuthStore.getState().auth;
-  if (!auth) return false; // sin sesión aún: no cachear, se re-comprueba
+  if (!auth) return false; // no session yet: don't cache, re-check later
   try {
     const exts = await getOpenSubsonicExtensions(auth);
     transcodeOffsetSupported = exts.includes('transcodeOffset');
     return transcodeOffsetSupported;
   } catch {
-    // Fallo transitorio de red: NO cachear como "no soportado", o un solo hipo
-    // dejaría todos los seeks en modo nativo (reinician) el resto de la sesión.
-    // Se reintenta en el siguiente seek.
+    // Transient network failure: do NOT cache as "not supported", or a single
+    // hiccup would leave all seeks in native mode (restart) for the rest of the
+    // session. Retried on the next seek.
     return false;
   }
 }
 
-/** URL de carátula para la pantalla de bloqueo (solo servidor por ahora). */
+/** Cover art URL for lock screen (server only for now). */
 function artworkUrlFor(song: Song): string | undefined {
-  if (song.url || song.localUri) return undefined; // radio/local: TODO carátula a disco
+  if (song.url || song.localUri) return undefined; // radio/local: TODO on-disk cover art
   const auth = useAuthStore.getState().auth!;
   return coverArtUrl(auth, song.coverArt ?? song.albumId, 500);
 }
@@ -330,9 +333,10 @@ function metadataFor(song: Song): AudioMetadata {
 }
 
 /**
- * Aplica metadatos al bloqueo. Si `p` no es aún el dueño de la sesión, la
- * registra a su nombre (primera vez, o traspaso al otro player en crossfade:
- * el servicio nativo mueve la notificación y la MediaSession al nuevo player).
+ * Applies metadata to lock screen. If `p` is not yet the session owner, it
+ * registers it in its name (first time, or transfer to the other player in
+ * crossfade: the native service moves the notification and MediaSession to
+ * the new player).
  */
 function applyLockScreen(p: AudioPlayer, song: Song) {
   const meta = metadataFor(song);
@@ -349,7 +353,7 @@ function applyLockScreen(p: AudioPlayer, song: Song) {
   });
 }
 
-/** Retira los controles de bloqueo (cambio de perfil o salida remota). */
+/** Removes lock screen controls (profile change or remote output). */
 function clearLockScreen() {
   if (!lockOwner) return;
   try {
@@ -362,7 +366,7 @@ function clearLockScreen() {
 
 // ── Salida remota (renderer UPnP/DLNA) ─────────────────────────────────────
 
-/** Salida remota activa, si la hay. */
+/** Active remote output, if any. */
 function remoteKind(): 'upnp' | 'jukebox' | null {
   if (isUpnpConnected()) return 'upnp';
   if (isJukeboxActive()) return 'jukebox';
@@ -390,9 +394,9 @@ function remoteSetVolume(volume: number) {
 }
 
 /**
- * Sincroniza la sesión de medios del casting (notificación de bloqueo + botones
- * de volumen) con la pista/estado actual. Solo para UPnP: el Jukebox suena en el
- * propio servidor y no necesita una sesión local en el teléfono.
+ * Syncs the casting media session (lock screen notification + volume buttons)
+ * with the current track/state. Only for UPnP: Jukebox plays on the server
+ * itself and doesn't need a local session on the phone.
  */
 function syncCastMedia(): void {
   if (!isUpnpConnected()) return;
@@ -410,7 +414,7 @@ function syncCastMedia(): void {
   });
 }
 
-/** Carga la pista en `index` en la salida remota y sincroniza el estado. */
+/** Loads the track at `index` into the remote output and syncs state. */
 async function remoteLoadIndex(index: number, autoplay: boolean, startSec = 0) {
   const song = usePlayerStore.getState().queue[index];
   if (!song) return;
@@ -434,9 +438,9 @@ async function remoteLoadIndex(index: number, autoplay: boolean, startSec = 0) {
 }
 
 /**
- * Mantiene el bloque "en cola" (canciones añadidas a mano, contiguas tras la
- * actual) al cambiar de pista: avanzar a la siguiente consume una; saltar a
- * cualquier otra posición disuelve el bloque (pasa a ser cola normal).
+ * Maintains the "queued" block (manually added songs, contiguous after the
+ * current one) on track change: advancing to the next consumes one; jumping to
+ * any other position dissolves the block (becomes a normal queue).
  */
 function consumeQueuedOnIndexChange(next: number) {
   const { index, queuedCount } = usePlayerStore.getState();
@@ -446,13 +450,13 @@ function consumeQueuedOnIndexChange(next: number) {
   });
 }
 
-/** Carga la pista en `index` y (opcionalmente) la reproduce. */
+/** Loads the track at `index` and (optionally) plays it. */
 async function loadIndex(index: number, autoplay: boolean) {
-  // Sin conexión, una pista que solo existe como stream del servidor no se
-  // puede reproducir: saltamos hacia delante a la siguiente descargada en vez
-  // de atascarnos (cubre "anterior", toques manuales y restaurar cola). Si no
-  // queda ninguna reproducible, paramos. `nextIndex` ya evita llegar aquí en el
-  // avance normal, así que esto es la red de seguridad para el resto de vías.
+  // Offline, a track that only exists as a server stream cannot be played:
+  // we skip forward to the next downloaded one instead of getting stuck (covers
+  // "previous", manual taps and queue restore). If none is playable, we stop.
+  // `nextIndex` already avoids reaching here during normal advance, so this is
+  // the safety net for all other paths.
   if (useAuthStore.getState().offline) {
     const q = usePlayerStore.getState().queue;
     if (q[index] && !playableOffline(q[index])) {
@@ -482,14 +486,14 @@ async function loadIndex(index: number, autoplay: boolean) {
   if (!song) return;
   await ensureAudioMode();
   const p = ensurePlayer(activeIdx);
-  // Reintento de enganche del ecualizador: al crear el player la sesión de
-  // audio puede no estar asignada todavía. Es idempotente (el nativo ignora
-  // sesiones repetidas y el id 0), así que sale barato asegurarlo aquí.
+  // Equalizer re-attachment: when creating the player the audio session may not
+  // be assigned yet. It's idempotent (native ignores duplicate sessions and id 0),
+  // so it's cheap to ensure it here.
   useEqualizer.getState().attach(p.audioSessionId);
   try {
     p.replace(sourceFor(song));
     p.loop = repeat === 'one';
-    // Volumen efectivo de ESTA canción (usuario × ReplayGain).
+    // Effective volume of THIS song (user × ReplayGain).
     p.volume = effectiveVolume(song);
     usePlayerStore.setState({
       index,
@@ -501,20 +505,20 @@ async function loadIndex(index: number, autoplay: boolean) {
     if (autoplay) p.play();
     applyLockScreen(p, song);
     onTrackChanged(song);
-    // Calienta la respuesta de "¿soporta timeOffset?" para que el primer seek
-    // en un stream transcodificado ya tenga la respuesta cacheada.
+    // Warms up the "does it support timeOffset?" answer so the first seek
+    // on a transcoded stream already has the answer cached.
     if (isTranscoded(song)) void ensureTranscodeOffsetSupport();
   } catch {
     useToast.getState().show(tg("Couldn't play the song"));
   }
 }
 
-// ── Historial "atrás" estilo Spotify ────────────────────────────────────────
-// Pila de contextos ya reproducidos para que el botón/gesto anterior vuelva a
-// la canción previa aunque venga de otra lista o álbum (no a la pista anterior
-// del contexto actual). Se apila en cada avance/salto hacia delante y se
-// desapila en previous(). Las entradas comparten la referencia de `queue`
-// dentro de un mismo contexto, así que solo pesan lo que cambia entre saltos.
+// ── "Back" history, Spotify-style ────────────────────────────────────────────
+// Stack of already-played contexts so the previous button/gesture returns to
+// the prior song even if it comes from a different playlist or album (not the
+// previous track of the current context). Pushed on each advance/skip forward
+// and popped in previous(). Entries share the `queue` reference within the
+// same context, so they only weigh what changes between skips.
 type HistoryEntry = {
   queue: Song[];
   index: number;
@@ -526,7 +530,7 @@ type HistoryEntry = {
 const HISTORY_MAX = 100;
 let playedHistory: HistoryEntry[] = [];
 
-/** Apila el contexto actual antes de avanzar o saltar a otra pista. */
+/** Pushes the current context before advancing or skipping to another track. */
 function pushHistory() {
   const { queue, index, source, sourceHref, originalQueue, shuffle } =
     usePlayerStore.getState();
@@ -535,63 +539,63 @@ function pushHistory() {
   if (playedHistory.length > HISTORY_MAX) playedHistory.shift();
 }
 
-// ── Scrobble honesto ────────────────────────────────────────────────────────
-// Al empezar una pista solo se anuncia "reproduciendo ahora" (submission
-// false); la escucha real se envía al cruzar el umbral clásico de Last.fm:
-// 50 % de la duración o 4 minutos, lo que llegue antes. Así saltar canciones
-// no infla contadores ni el historial de Last.fm/ListenBrainz. El contador
-// local del modo offline sigue la misma regla.
+// ── Honest scrobble ──────────────────────────────────────────────────────────
+// When starting a track, only "now playing" is announced (submission false);
+// the actual listen is sent when crossing the classic Last.fm threshold:
+// 50% of duration or 4 minutes, whichever comes first. This way skipping songs
+// doesn't inflate counters or the Last.fm/ListenBrainz history. The local
+// offline mode counter follows the same rule.
 let scrobbledThisTrack = false;
 
-/** Envía el scrobble real una sola vez por pista al cruzar el umbral. */
+/** Sends the real scrobble once per track when crossing the threshold. */
 function maybeScrobbleThreshold(positionSec: number) {
   if (scrobbledThisTrack) return;
   const st = usePlayerStore.getState();
   const song = st.queue[st.index];
-  if (!song || song.url) return; // las radios no se scrobblean
+  if (!song || song.url) return; // radios are not scrobbled
   const duration = st.durationSec || song.duration || 0;
   const threshold = duration > 0 ? Math.min(duration * 0.5, 240) : 240;
   if (positionSec < threshold) return;
   scrobbledThisTrack = true;
   const { auth, offline } = useAuthStore.getState();
-  // Offline (incluida una cuenta de servidor sin conexión): cuenta local, no
-  // scrobble al servidor — al que no llegaríamos igualmente.
+  // Offline (including a server account without connection): local count, no
+  // scrobble to server — which we wouldn't reach anyway.
   if (offline) usePlayCounts.getState().bump(song.id);
   else if (auth) scrobble(auth, song.id, true);
 }
 
-/** Now playing / historial + sincroniza la cola al cambiar de pista. */
+/** Now playing / history + syncs the queue on track change. */
 function onTrackChanged(song: Song) {
   const { auth, offline } = useAuthStore.getState();
-  // Solo "estoy escuchando esto"; la reproducción cuenta al cruzar el umbral.
-  // Offline no se manda (cuenta de servidor sin conexión: no hay a quién).
+  // Only "I'm listening to this"; playback counts only when crossing the threshold.
+  // Offline not sent (server account without connection: no one to send to).
   if (auth && !offline) scrobble(auth, song.id, false);
   usePlayHistory.getState().record(song);
-  // Calienta la letra ya (y la de la siguiente, para que deslizar en el
-  // player también enseñe su tarjeta al instante).
+  // Warm up lyrics now (and the next ones, so swiping in the
+  // player also shows its card instantly).
   prefetchLyrics(song);
   const { queue, index } = usePlayerStore.getState();
   if (queue.length > 1) prefetchLyrics(queue[(index + 1) % queue.length]);
   scheduleSync();
   warmUpcoming();
   void maybeQueueAutoplay();
-  // Casting: refleja la nueva pista en la sesión de medios (bloqueo/volumen).
+  // Casting: reflect the new track in the media session (lock/volume).
   syncCastMedia();
 }
 
-// ── Precarga de próximas pistas (calienta el stream por adelantado) ──────────
-// Para proxys tipo Octo Fiesta u orígenes lentos que bajan la pista al vuelo:
-// al cambiar de pista se pide con antelación la URL de stream de las próximas,
-// para que el servidor ya la tenga cacheada al llegar (o al saltar varias). Solo
-// hace falta que la petición ALCANCE al servidor —él arranca su fetch del origen
-// aunque nosotros no leamos la respuesta—, así que es best-effort y sobrevive al
-// segundo plano: se dispara desde onTrackChanged, que late por el evento nativo.
-// Apagado por defecto (ver ajuste preloadUpcoming); en un servidor normal no
-// aporta y solo daría transcodes/estadísticas de más.
+// ── Preload upcoming tracks (warms up the stream in advance) ──────────────────
+// For proxies like Octo Fiesta or slow origins that download the track on the
+// fly: on track change, the stream URL of upcoming tracks is requested in
+// advance, so the server already has it cached when it arrives (or when
+// skipping several). The request only needs to REACH the server —it starts its
+// origin fetch even if we don't read the response—, so it's best-effort and
+// survives background: it's fired from onTrackChanged, which beats via the
+// native event. Off by default (see preloadUpcoming setting); on a normal
+// server it adds nothing and only generates extra transcodes/statistics.
 const PRELOAD_AHEAD = 5;
-/** Ids ya calentados: al deslizarse la ventana solo se calienta la que entra
- *  nueva (~1 petición por avance), no las cinco cada vez. Se limpia al cambiar
- *  de cola (playQueue). */
+/** Already-warmed ids: as the window slides only the new one entering is warmed
+ *  (~1 request per advance), not all five each time. Cleared on queue change
+ *  (playQueue). */
 const warmedIds = new Set<string>();
 
 function resetWarmed() {
@@ -605,31 +609,32 @@ function warmUpcoming() {
   const { queue, index, repeat } = usePlayerStore.getState();
   if (queue.length <= 1) return;
   for (let i = 1; i <= PRELOAD_AHEAD; i++) {
-    // 'one' no cambia de pista; con 'all' la cola da la vuelta, si no se corta.
+    // 'one' doesn't change tracks; with 'all' the queue wraps around, if not cut.
     const ni = repeat === 'all' ? (index + i) % queue.length : index + i;
     if (repeat !== 'all' && ni >= queue.length) break;
     const song = queue[ni];
-    // Descargadas/locales/radio no pasan por el servidor: nada que calentar.
+    // Downloaded/local/radio don't go through the server: nothing to warm.
     if (!song || song.url || song.localUri || downloadedUri(song)) continue;
     if (warmedIds.has(song.id)) continue;
     warmedIds.add(song.id);
-    // Sin `maxBitRate`: se calienta el ORIGEN, no la transcodificación. En un
-    // proxy tipo Octo Fiesta esto dispara igual la bajada del proveedor (que es
-    // lo lento), pero NO deja fijada la sesión transcodificada que luego usa la
-    // reproducción, que así conserva el seek (con la URL de stream idéntica, esa
-    // primera petición la volvía no-buscable y el arrastre reiniciaba la pista).
-    // En un servidor normal, además, evita transcodes de más.
+    // Without `maxBitRate`: we warm the ORIGIN, not the transcoding. On an
+    // Octo Fiesta-like proxy this still triggers the provider download (which is
+    // the slow part), but does NOT lock in the transcoded session that playback
+    // later uses, thus preserving seek (with the identical stream URL, that
+    // first request would make it non-seekable and dragging would restart the
+    // track). On a normal server, it also avoids extra transcodes.
     void warmStream(streamUrl(auth, song.id));
   }
 }
 
 /**
- * Punto único del calentado. Pide solo el primer byte (`Range`) para no gastar
- * datos del móvil: al proxy le basta esa petición para bajar y cachear la pista
- * entera en su lado. El AbortController acota el peor caso —un servidor que
- * ignore `Range` y mande el archivo completo— a unos segundos, de sobra para
- * haber disparado el fetch del origen. Si en pruebas contra un Octo Fiesta real
- * no bastara, aquí se sube el Range o se pasa a leer/descartar toda la respuesta.
+ * Single warming point. Requests only the first byte (`Range`) to avoid wasting
+ * mobile data: the proxy just needs that request to download and cache the entire
+ * track on its side. The AbortController bounds the worst case —a server that
+ * ignores `Range` and sends the full file— to a few seconds, enough to have
+ * fired the origin fetch. If testing against a real Octo Fiesta proves
+ * insufficient, the Range can be increased here or switch to reading/discarding
+ * the entire response.
  */
 async function warmStream(url: string) {
   const ctrl = new AbortController();
@@ -637,27 +642,27 @@ async function warmStream(url: string) {
   try {
     await fetch(url, { headers: { Range: 'bytes=0-1' }, signal: ctrl.signal });
   } catch {
-    // Best-effort: sin conexión, abortado o error del servidor dan igual.
+    // Best-effort: offline, aborted or server error, it doesn't matter.
   } finally {
     clearTimeout(timer);
   }
 }
 
-// ── Autoplay: al acercarse el final de la cola, encolar canciones parecidas ──
-// (estilo Spotify). Solo online, con el ajuste activo (o en modo radio) y sin
-// repetir petición para la misma última canción.
+// ── Autoplay: when nearing the end of the queue, enqueue similar songs ──────
+// (Spotify-like). Online only, with the setting enabled (or in radio mode) and
+// without repeating request for the same last song.
 let autoplayFetchedFor: string | null = null;
 
 /**
- * Canciones con las que alargar una radio a partir de `seed`, por orden de
- * afinidad: parecidas → lo más escuchado del artista → al azar de su género.
+ * Songs to extend a radio from `seed`, in order of
+ * affinity: similar → artist's most played → random from its genre.
  *
- * Se baja de nivel cuando el anterior no da NINGUNA que no esté ya en la cola,
- * no cuando da pocas. La diferencia importa: `getSimilarSongs` necesita Last.fm
- * en el servidor, y sin él la radio caía al artista, agotaba sus ~20 temas y
- * entonces todos los candidatos ya estaban en la cola → cero nuevas → la radio
- * se moría en silencio a la vuelta de un rato. El género sale de las etiquetas
- * y no depende de nada externo, así que siempre queda de dónde tirar.
+ * Drops to the next tier when the previous yields NONE not already in the queue,
+ * not when it yields few. The difference matters: `getSimilarSongs` needs Last.fm
+ * on the server, and without it the radio would fall to artist, exhaust its ~20
+ * tracks and then all candidates were already in the queue → zero new → the radio
+ * silently died after a while. Genre comes from tags and doesn't depend on
+ * anything external, so there's always something to draw from.
  */
 async function radioCandidates(auth: SubsonicAuth, seed: Song, have: Set<string>): Promise<Song[]> {
   const tiers: (() => Promise<Song[]>)[] = [
@@ -670,7 +675,7 @@ async function radioCandidates(auth: SubsonicAuth, seed: Song, have: Set<string>
     try {
       songs = await tier();
     } catch {
-      continue; // este nivel falló; el siguiente puede funcionar
+      continue; // this tier failed; the next one might work
     }
     const fresh = songs.filter((s) => !have.has(s.id) && !s.url);
     if (fresh.length > 0) return fresh;
@@ -680,28 +685,28 @@ async function radioCandidates(auth: SubsonicAuth, seed: Song, have: Set<string>
 
 async function maybeQueueAutoplay() {
   const { queue, index, repeat, radioMode } = usePlayerStore.getState();
-  // Con repeat la cola nunca "se acaba"; y si aún quedan 2+ canciones, aún no.
+  // With repeat the queue never "runs out"; and if 2+ songs remain, not yet.
   if (repeat !== 'off' || index < queue.length - 2) return;
   const { auth, offline } = useAuthStore.getState();
   if (!auth || offline) return;
-  // La radio se alarga aunque el ajuste esté apagado: la pediste tú a mano.
+  // Radio extends even if autoplay is off: you started it manually.
   if (!useSettings.getState().autoplaySimilar && !radioMode) return;
   const last = queue[queue.length - 1];
   if (!last || last.url || autoplayFetchedFor === last.id) return;
   autoplayFetchedFor = last.id;
   let similar: Song[];
   try {
-    // Los niveles de respaldo (artista, género) solo en radio: el autoplay de
-    // siempre se comporta como hasta ahora.
+    // The backup tiers (artist, genre) only in radio: normal autoplay
+    // behaves as before.
     similar = radioMode
       ? await radioCandidates(auth, last, new Set(queue.map((s) => s.id)))
       : await getSimilarSongs(auth, last.id, 20);
   } catch {
-    return; // sin autoplay: la reproducción parará al final, como antes
+    return; // without autoplay: playback will stop at the end, as before
   }
   const st = usePlayerStore.getState();
-  // La cola pudo cambiar mientras respondía el servidor; solo añadimos si la
-  // última canción sigue siendo la misma.
+  // The queue may have changed while the server was responding; we only add if
+  // the last song is still the same.
   if (st.queue[st.queue.length - 1]?.id !== last.id) return;
   const have = new Set(st.queue.map((s) => s.id));
   const fresh = similar.filter((s) => !have.has(s.id) && !s.url).slice(0, 10);
@@ -710,18 +715,18 @@ async function maybeQueueAutoplay() {
   scheduleSync();
 }
 
-/** Siguiente índice al terminar/saltar; null si la reproducción debe parar. */
+/** Next index on end/skip; null if playback should stop. */
 function nextIndex(_manual: boolean): number | null {
   const { queue, index, repeat } = usePlayerStore.getState();
-  // Sin conexión se saltan las pistas sin fichero local (solo-stream); online
-  // cualquiera vale. `ok` decide si un índice es candidato.
+  // Offline, tracks without local file (stream-only) are skipped; online any is
+  // fine. `ok` decides if an index is a candidate.
   const offline = useAuthStore.getState().offline;
   const ok = (i: number) => !offline || playableOffline(queue[i]);
   for (let i = index + 1; i < queue.length; i++) {
     if (ok(i)) return i;
   }
-  // Fin de la cola: con repeat 'all' se envuelve buscando desde el principio
-  // (incluye el índice actual, así que una sola pista reproducible se repite).
+  // End of queue: with repeat 'all' it wraps around searching from the beginning
+  // (includes the current index, so a single playable track repeats).
   if (repeat === 'all') {
     for (let i = 0; i <= index; i++) {
       if (ok(i)) return i;
@@ -730,40 +735,40 @@ function nextIndex(_manual: boolean): number | null {
   return null;
 }
 
-// ── ReplayGain (normalización de volumen) ───────────────────────────────────
-// El volumen efectivo de un player es siempre `volume` (el del usuario) por el
-// factor ReplayGain de SU canción. Las etiquetas vienen del servidor (y se
-// conservan en las descargas); sin etiquetas o con el ajuste apagado, 1.
+// ── ReplayGain (volume normalization) ────────────────────────────────────────
+// A player's effective volume is always `volume` (the user's) times the
+// ReplayGain factor of ITS song. Tags come from the server (and are
+// preserved in downloads); without tags or with the setting off, 1.
 
-/** Factor lineal de ReplayGain para una canción según el modo del ajuste. */
+/** Linear ReplayGain factor for a song according to the setting mode. */
 function gainFactor(song: Song | null | undefined): number {
   let mode = useSettings.getState().replayGain;
   const rg = song?.replayGain;
   if (mode === 'off' || !rg) return 1;
   if (mode === 'auto') {
-    // Como Spotify: álbum entero sin shuffle → ganancia de álbum (conserva
-    // su dinámica interna); playlists, favoritos o shuffle → por canción.
+    // Like Spotify: whole album without shuffle → album gain (preserves
+    // its internal dynamics); playlists, favorites or shuffle → per track.
     const st = usePlayerStore.getState();
     mode = st.sourceHref?.startsWith('/album/') && !st.shuffle ? 'album' : 'track';
   }
-  // Modo álbum sin ganancia de álbum (o viceversa): se usa la que haya.
+  // Album mode without album gain (or vice versa): use whatever is available.
   const gain = mode === 'album' ? (rg.albumGain ?? rg.trackGain) : (rg.trackGain ?? rg.albumGain);
   if (typeof gain !== 'number' || !Number.isFinite(gain)) return 1;
   let f = Math.pow(10, gain / 20);
-  // Con ganancia positiva, no pasar del pico del fichero (evita clipping).
+  // With positive gain, don't exceed the file's peak (prevents clipping).
   const peak = mode === 'album' ? (rg.albumPeak ?? rg.trackPeak) : (rg.trackPeak ?? rg.albumPeak);
   if (typeof peak === 'number' && peak > 0) f = Math.min(f, 1 / peak);
-  // Sujeción de seguridad ante etiquetas disparatadas.
+  // Safety clamp for wild tags.
   return Math.min(Math.max(f, 0.05), 4);
 }
 
-/** Volumen efectivo (usuario × ReplayGain) para la canción indicada. */
+/** Effective volume (user × ReplayGain) for the given song. */
 function effectiveVolume(song: Song | null | undefined): number {
   return usePlayerStore.getState().volume * gainFactor(song);
 }
 
-// Al cambiar el modo en Ajustes, reaplicar el volumen de la pista que suena
-// (fuera de rampas: un fundido en curso converge solo al valor nuevo).
+// When the mode changes in Settings, re-apply the volume of the currently playing
+// track (outside ramps: an in-progress fade only converges to the new value).
 let lastReplayGainMode = useSettings.getState().replayGain;
 useSettings.subscribe((s) => {
   if (s.replayGain === lastReplayGainMode) return;
@@ -774,21 +779,21 @@ useSettings.subscribe((s) => {
 });
 
 // ── Crossfade ───────────────────────────────────────────────────────────────
-// Al acercarse el final de la pista, la siguiente arranca en el player de
-// reserva a volumen 0 y ambos volúmenes se cruzan (curva de igual potencia).
-// El entrante pasa a ser el activo desde el primer instante: el estado, la
-// notificación y el scrobble cambian al empezar el fundido, como en Spotify.
+// When nearing the end of the track, the next one starts on the reserve player
+// at volume 0 and both volumes cross (equal power curve).
+// The incoming player becomes the active one from the first instant: state,
+// notification and scrobble change when the fade starts, like Spotify.
 
 let fadeTimer: ReturnType<typeof setInterval> | null = null;
-/** Player saliente mientras hay un fundido en marcha. */
+/** Outgoing player while a fade is in progress. */
 let fadingOut: AudioPlayer | null = null;
 /**
- * Datos del crossfade en curso (null si no hay). El progreso se calcula por
- * reloj de pared (`t0`), así que da igual quién dé el paso: el `setInterval`
- * fluido de primer plano o el latido de `onStatus`. Esto último es lo que
- * arregla el crossfade en segundo plano: Android congela los setInterval al
- * minimizar, pero el `playbackStatusUpdate` nativo sigue latiendo, así que la
- * rampa de volumen avanza igual y la entrante no se queda muda a volumen 0.
+ * Data of the in-progress crossfade (null if none). Progress is calculated by
+ * wall clock (`t0`), so it doesn't matter who drives it: the foreground
+ * smooth `setInterval` or the `onStatus` heartbeat. The latter is what fixes
+ * crossfade in the background: Android freezes setIntervals on minimize, but
+ * the native `playbackStatusUpdate` keeps beating, so the volume ramp still
+ * advances and the incoming track doesn't stay silent at volume 0.
  */
 let fadeState: {
   incoming: AudioPlayer;
@@ -799,15 +804,15 @@ let fadeState: {
 } | null = null;
 
 /**
- * Aborta el fundido en curso, si lo hay: silencia y para el saliente y deja
- * el activo a volumen normal. Se llama ante cualquier intervención (cambio de
- * pista manual, seek, pausa, reset, salida remota…) para que el resto del
- * motor opere como si no hubiera crossfade.
+ * Aborts the in-progress fade, if any: silences and stops the outgoing and
+ * leaves the active one at normal volume. Called on any intervention (manual
+ * track change, seek, pause, reset, remote output…) so the rest of the
+ * engine operates as if there were no crossfade.
  */
 function cutCrossfade() {
-  // Un traspaso de servidor en marcha también usa el player de reserva y también
-  // es una operación que cualquier intervención (cambio de pista, seek, pausa,
-  // reset…) debe abortar: pasa por aquí, que es el canal común.
+  // An in-progress server handoff also uses the reserve player and is also
+  // an operation that any intervention (track change, seek, pause,
+  // reset…) must abort: goes through here, which is the common path.
   cancelHandoff();
   if (fadeTimer) {
     clearInterval(fadeTimer);
@@ -818,10 +823,10 @@ function cutCrossfade() {
     clearInterval(pauseFadeTimer);
     pauseFadeTimer = null;
   }
-  // El fundido de sueño también es una rampa en marcha: si el usuario toca algo
-  // (pausa, seek, cambio de pista) hay que soltarla, o seguiría bajando el
-  // volumen de lo que sea que suene ahora. El vencimiento sigue en pie y
-  // `onStatus` lo rearma si aún queda dentro de la ventana.
+  // The sleep fade is also an in-progress ramp: if the user touches anything
+  // (pause, seek, track change) it must be released, or it would keep lowering
+  // the volume of whatever plays now. The expiry still stands and `onStatus`
+  // re-arms it if still within the window.
   clearSleepFade();
   const volume = usePlayerStore.getState().volume;
   if (fadingOut) {
@@ -837,25 +842,26 @@ function cutCrossfade() {
   if (p) p.volume = effectiveVolume(currentSong(usePlayerStore.getState()));
 }
 
-// ── Traspaso de servidor sin corte ──────────────────────────────────────────
-// Al cambiar de servidor (manual o automático por red) la pista en curso apunta
-// al host viejo, que puede haber muerto. La vía barata era recargarla en seco
-// sobre el player activo: eso deja un silencio audible (el "blip") mientras el
-// host nuevo bufferea desde cero. En vez de eso cargamos el stream del host
-// nuevo en el player de reserva a volumen 0 y dejamos sonando el viejo de su
-// buffer; cuando el nuevo ya suena de verdad lo alineamos con la posición actual
-// del viejo y hacemos el cambio instantáneo. Sin fundido a propósito: es la
-// misma canción, y cruzar dos posiciones casi iguales sonaría a fase.
+// ── Seamless server handoff ──────────────────────────────────────────────────
+// When switching servers (manual or automatic by network) the current track
+// points to the old host, which may be dead. The cheap path was to reload it
+// abruptly on the active player: that leaves an audible silence (the "blip")
+// while the new host buffers from scratch. Instead we load the stream from the
+// new host on the reserve player at volume 0 and let the old one keep playing
+// from its buffer; when the new one is actually playing we align it with the
+// current position of the old one and do the switch instantaneously. No fade on
+// purpose: it's the same song, and crossing two nearly equal positions would
+// cause phase issues.
 //
-// Lo mueve el evento NATIVO del propio player de reserva (no un timer), así que
-// aguanta en segundo plano, que es donde ocurre el switch automático. Se aborta
-// por `cutCrossfade` (cambio de pista, seek, pausa, reset…) y, si el host nuevo
-// no arranca a tiempo, cae a la recarga en seco: nunca peor que antes.
+// It's driven by the NATIVE event of the reserve player itself (not a timer), so
+// it survives background, which is where the automatic switch happens. It's
+// aborted by `cutCrossfade` (track change, seek, pause, reset…) and, if the new
+// host doesn't start on time, falls back to abrupt reload: never worse than before.
 let handoffToken = 0;
 let handoffReserve: AudioPlayer | null = null;
 let handoffSub: { remove: () => void } | null = null;
 
-/** Aborta un traspaso en curso y suelta el player de reserva. */
+/** Aborts an in-progress handoff and releases the reserve player. */
 function cancelHandoff() {
   if (!handoffSub && !handoffReserve) return;
   handoffToken++;
@@ -878,8 +884,8 @@ function cancelHandoff() {
   }
 }
 
-/** Recarga en seco la pista actual contra la URL activa y vuelve a su posición
- *  (comportamiento clásico; fallback del traspaso y vía para el caso en pausa). */
+/** Reloads the current track abruptly against the active URL and returns to its
+ *  position (classic behavior; handoff fallback and the path for paused case). */
 function hardReload(index: number, sec: number, autoplay: boolean) {
   void (async () => {
     await loadIndex(index, autoplay);
@@ -891,17 +897,17 @@ function hardReload(index: number, sec: number, autoplay: boolean) {
   })();
 }
 
-/** Traspaso sin corte de la pista en curso al host activo (ver bloque de arriba). */
+/** Seamless handoff of the current track to the active host (see block above). */
 function handoffToNewSource(index: number, song: Song, sec: number) {
-  cutCrossfade(); // libera el player de reserva y cancela cualquier traspaso previo
+  cutCrossfade(); // releases the reserve player and cancels any previous handoff
   const oldP = activePlayer();
   if (!oldP) {
     hardReload(index, sec, true);
     return;
   }
-  // Con stream transcodificado y soporte de timeOffset, el nuevo arranca ya en
-  // `sec` (el seek nativo no vale en un transcode al vuelo). Si no, desde 0 y
-  // buscamos: acceso aleatorio normal.
+  // With transcoded stream and timeOffset support, the new one starts right at
+  // `sec` (native seek doesn't work on a real-time transcode). If not, from 0
+  // and we seek: normal random access.
   const useOffset = isTranscoded(song) && transcodeOffsetSupported === true;
   const startAt = useOffset ? sec : 0;
   const r = ensurePlayer(1 - activeIdx);
@@ -910,7 +916,7 @@ function handoffToNewSource(index: number, song: Song, sec: number) {
   try {
     r.replace(sourceFor(song, startAt));
     r.loop = usePlayerStore.getState().repeat === 'one';
-    r.volume = 0; // inaudible hasta el cambio; el viejo sigue sonando de su buffer
+    r.volume = 0; // inaudible until the switch; the old one keeps playing from its buffer
     r.play();
     if (!useOffset && sec > 0) r.seekTo(sec);
   } catch {
@@ -921,20 +927,20 @@ function handoffToNewSource(index: number, song: Song, sec: number) {
   let ticks = 0;
   let aligned = false;
   handoffSub = r.addListener('playbackStatusUpdate', (st: AudioStatus) => {
-    if (token !== handoffToken) return; // ya cancelado
+    if (token !== handoffToken) return; // already canceled
     ticks += 1;
     const ready = st.playing && st.isLoaded && !st.isBuffering && (st.currentTime ?? 0) > 0;
     if (!ready) {
-      // ~6 s (12 ticks de 500 ms): el host nuevo no arranca → recarga en seco.
+      // ~6 s (12 ticks of 500 ms): the new host doesn't start → abrupt reload.
       if (ticks > 12) {
         cancelHandoff();
         hardReload(index, sec, true);
       }
       return;
     }
-    // Primer instante en que el nuevo suena: lo llevamos a donde está AHORA el
-    // viejo (ha avanzado mientras cargaba) y esperamos un tick a que llegue, para
-    // no repetir ni saltar audio. Con offset el arranque ya cuadra: no se re-pide.
+    // First instant the new one is playing: bring it to where the old one is NOW
+    // (it advanced while loading) and wait one tick for it to arrive, to avoid
+    // repeating or skipping audio. With offset the start already matches: no re-request.
     if (!aligned && !useOffset) {
       aligned = true;
       try {
@@ -944,9 +950,9 @@ function handoffToNewSource(index: number, song: Song, sec: number) {
       }
       return;
     }
-    // Listo y alineado: cambio instantáneo. Primero volteamos el activo para que
-    // el estado lo alimente ya el nuevo; así la pausa del viejo (que emite
-    // playing=false) se ignora y no parpadea el botón de play.
+    // Ready and aligned: instant switch. First flip the active so the new one
+    // already feeds state; this way the old one's pause (which emits
+    // playing=false) is ignored and the play button doesn't flicker.
     handoffSub?.remove();
     handoffSub = null;
     handoffReserve = null;
@@ -969,17 +975,17 @@ function handoffToNewSource(index: number, song: Song, sec: number) {
   });
 }
 
-/** Si toca (ajuste activo y quedan ≤ N segundos), arranca el crossfade. */
+/** If it's time (setting active and ≤ N seconds left), starts the crossfade. */
 function maybeStartCrossfade(status: AudioStatus) {
   const fadeSec = useSettings.getState().crossfadeSec;
-  // `handoffReserve`: un traspaso de servidor está usando el player de reserva.
+  // `handoffReserve`: a server handoff is using the reserve player.
   if (fadeSec <= 0 || fadingOut || handoffReserve || !status.playing) return;
   const st = usePlayerStore.getState();
-  // Mismos casos que excluye el avance normal, más los que no tienen final
-  // predecible (radio) o donde el fundido no pinta nada (pistas muy cortas).
+  // Same cases excluded by normal advance, plus those with no predictable end
+  // (radio) or where a fade makes no sense (very short tracks).
   if (st.repeat === 'one' || st.sleepAtSongEnd) return;
-  // Ni durante el fundido de sueño: son dos rampas sobre el mismo volumen, y
-  // el crossfade arrancaría la entrante a tope de camino al silencio.
+  // Nor during sleep fade: two ramps on the same volume, and the crossfade
+  // would start the incoming at full volume on the way to silence.
   if (sleepFadeTimer) return;
   const current = st.queue[st.index];
   const duration = st.durationSec;
@@ -1006,13 +1012,13 @@ function startCrossfade(index: number, fadeSec: number) {
     p.volume = 0;
     p.play();
   } catch {
-    return; // sin crossfade: el fin de pista normal hará el cambio
+    return; // no crossfade: the normal track end will do the change
   }
   pushHistory();
   consumeQueuedOnIndexChange(index);
   fadingOut = out;
   activeIdx = 1 - activeIdx;
-  streamOffsetSec = 0; // la entrante arranca desde el principio
+  streamOffsetSec = 0; // the incoming track starts from the beginning
   scrobbledThisTrack = false;
   usePlayerStore.setState({
     index,
@@ -1022,17 +1028,17 @@ function startCrossfade(index: number, fadeSec: number) {
   });
   applyLockScreen(p, song);
   onTrackChanged(song);
-  // Cada extremo del fundido apunta al volumen efectivo de SU canción
-  // (ReplayGain por pista); el volumen de usuario se lee vivo en cada tick.
+  // Each end of the fade points to the effective volume of ITS song
+  // (ReplayGain per track); the user volume is read live on each tick.
   runFade(p, fadeSec, gainFactor(outgoingSong), gainFactor(song));
 }
 
 /**
- * Da un paso del crossfade según el tiempo transcurrido: cruza los volúmenes
- * (curva de igual potencia, la suma se percibe constante) y, al llegar al final,
- * apaga el saliente y cierra el fundido. Es idempotente y sin estado propio, así
- * que lo pueden llamar sin pisarse tanto el `setInterval` de primer plano como
- * el respaldo de `onStatus`.
+ * Advances the crossfade one step according to elapsed time: crosses the
+ * volumes (equal power curve, the sum is perceived as constant) and, at the
+ * end, shuts off the outgoing and closes the fade. It's idempotent and without
+ * its own state, so both the foreground `setInterval` and the `onStatus`
+ * backup can call it without stepping on each other.
  */
 function tickFade() {
   if (!fadeState) return;
@@ -1065,9 +1071,9 @@ function tickFade() {
 }
 
 /**
- * Arranca el fundido: `fadingOut` ya lo fijó `startCrossfade`. El `setInterval`
- * de 200 ms mueve la rampa fina en primer plano; en segundo plano se congela y
- * toma el relevo el latido de `onStatus` (ver `fadeState`).
+ * Starts the fade: `fadingOut` was already set by `startCrossfade`. The 200 ms
+ * `setInterval` drives the smooth ramp in foreground; in background it freezes
+ * and the `onStatus` heartbeat takes over (see `fadeState`).
  */
 function runFade(
   incoming: AudioPlayer,
@@ -1080,15 +1086,15 @@ function runFade(
   fadeTimer = setInterval(tickFade, 200);
 }
 
-// ── Fundido corto al pausar/reanudar (solo controles dentro de la app) ───────
-// Los play/pausa del sistema (notificación, bloqueo, Android Auto, auriculares)
-// van por nativo y se quedan instantáneos, que es lo esperable ahí.
+// ── Short fade on pause/resume (only in-app controls) ────────────────────────
+// System play/pause (notification, lock screen, Android Auto, headphones)
+// go through native and stay instant, which is expected there.
 
 const PAUSE_FADE_MS = 180;
 let pauseFadeTimer: ReturnType<typeof setInterval> | null = null;
 
-/** Rampa lineal del volumen de `p` de `from` a `to` en PAUSE_FADE_MS; al acabar
- *  llama a `onDone`. Cancela cualquier rampa de pausa/reanudación anterior. */
+/** Linear ramp of `p`'s volume from `from` to `to` in PAUSE_FADE_MS; when done
+ *  calls `onDone`. Cancels any previous pause/resume ramp. */
 function fadeVolume(p: AudioPlayer, from: number, to: number, onDone?: () => void) {
   if (pauseFadeTimer) {
     clearInterval(pauseFadeTimer);
@@ -1110,21 +1116,22 @@ function fadeVolume(p: AudioPlayer, from: number, to: number, onDone?: () => voi
   }, 25);
 }
 
-// Tras un seek, el player nativo sigue emitiendo estados con la posición
-// antigua hasta que la búsqueda termina; si se dejaran pasar, la UI (slider,
-// letra karaoke) rebotaría a la posición vieja y volvería a saltar. Mientras
-// el seek está pendiente se mantiene la posición pedida y no se evalúa el
-// crossfade (un estado viejo cerca del final lo dispararía en falso).
+// After a seek, the native player keeps emitting states with the old position
+// until the seek completes; if allowed through, the UI (slider, karaoke lyrics)
+// would bounce to the old position and jump back. While the seek is pending, the
+// requested position is held and crossfade is not evaluated (an old state near
+// the end would falsely trigger it).
 let pendingSeek: { sec: number; at: number } | null = null;
 
-/** Listener de estado de expo-audio: progreso, play/pausa y fin de pista. */
-// ── Detección de servidor caído a mitad de reproducción ─────────────────────
-// El motor de red (autoUrl) reacciona a cambios de estado de red y al fallo de
-// la query de Inicio, pero si el servidor se cae mientras suena una pista de
-// streaming (sin cambiar la red y fuera de Inicio) nada lo notaría. Aquí lo
-// detectamos por ATASCO: si una pista que suena por streaming se queda
-// buffering sin que avance la posición varios segundos, pedimos un sondeo; si
-// de verdad no llega y hay descargas, autoUrl cae a offline solo.
+/** expo-audio state listener: progress, play/pause and track end. */
+// ── Server-down detection during playback ───────────────────────────────────
+// The network engine (autoUrl) reacts to network state changes and to Home query
+// failures, but if the server goes down while a streaming track is playing
+// (without changing network and outside Home) nothing would notice it. Here we
+// detect it by STALL: if a track playing via streaming gets stuck buffering
+// without position advancing for several seconds, we request a probe; if it
+// truly doesn't reach and there are downloads, autoUrl falls back to offline
+// only.
 const STALL_PROBE_MS = 6000;
 let stallSince = 0;
 let stallPos = -1;
@@ -1133,8 +1140,8 @@ let stallProbed = false;
 function maybeDetectStall(intendPlay: boolean, buffering: boolean, positionSec: number): void {
   const st = usePlayerStore.getState();
   const song = st.queue[st.index];
-  // Solo aplica online y a pistas que salen del servidor por streaming (las
-  // descargadas/locales suenan de disco y no dependen del servidor).
+  // Only applies online and to tracks coming from the server via streaming
+  // (downloaded/local play from disk and don't depend on the server).
   const streamed = !!song && !song.url && !song.localUri && !downloadedUri(song);
   if (useAuthStore.getState().offline || !intendPlay || !streamed || !buffering) {
     stallSince = 0;
@@ -1142,7 +1149,7 @@ function maybeDetectStall(intendPlay: boolean, buffering: boolean, positionSec: 
     stallPos = positionSec;
     return;
   }
-  // Si la posición avanza, es un rebuffer normal, no un atasco.
+  // If the position advances, it's a normal rebuffer, not a stall.
   if (Math.abs(positionSec - stallPos) > 0.5) {
     stallSince = 0;
     stallProbed = false;
@@ -1153,66 +1160,66 @@ function maybeDetectStall(intendPlay: boolean, buffering: boolean, positionSec: 
   if (stallSince === 0) {
     stallSince = now;
   } else if (!stallProbed && now - stallSince >= STALL_PROBE_MS) {
-    stallProbed = true; // una sola vez por atasco; autoUrl ya reintenta
+    stallProbed = true; // once per stall; autoUrl already retries
     checkAutoUrlNow();
   }
 }
 
 function onStatus(status: AudioStatus) {
-  // Con salida remota (UPnP/DLNA) el player local está en pausa y sus
-  // estados no deben pisar los que llegan del aparato remoto.
+  // With remote output (UPnP/DLNA) the local player is paused and its
+  // states should not override those coming from the remote device.
   if (remoteKind()) return;
-  // Respaldo del sleep timer: si el setTimeout quedó congelado en segundo
-  // plano, el latido del player nativo lo dispara aquí.
+  // Sleep timer fallback: if setTimeout got frozen in background, the
+  // native player heartbeat fires it here.
   const endsAt = sleepDeadline();
   if (endsAt && Date.now() >= endsAt) {
     fireSleepTimer();
     return;
   }
-  // Mismo respaldo para el fundido: si su timer quedó congelado, o si una
-  // intervención lo soltó y el vencimiento sigue dentro de la ventana, el
-  // latido del player lo rearma con lo que quede.
+  // Same fallback for the fade: if its timer got frozen, or if an
+  // intervention released it and expiry is still within the window, the
+  // player heartbeat re-arms it with whatever is left.
   if (endsAt && !sleepFadeTimer) {
     const left = endsAt - Date.now();
     if (left <= SLEEP_FADE_MS) startSleepFade(left);
   }
-  // Respaldo del crossfade: su setInterval se congela en segundo plano, pero
-  // este latido nativo sigue vivo, así que la rampa de volumen avanza igual y
-  // la canción entrante deja de quedarse muda a volumen 0 al minimizar.
+  // Crossfade fallback: its setInterval freezes in background, but
+  // this native heartbeat stays alive, so the volume ramp advances anyway and
+  // the incoming song stops staying silent at volume 0 on minimize.
   if (fadeState) tickFade();
   const prev = usePlayerStore.getState();
-  // Bufferea si queremos reproducir pero el audio aún no fluye (carga inicial,
-  // rebuffer en streaming, seek…). Si está en pausa, no es buffering.
+  // Buffering if we want to play but audio isn't flowing yet (initial load,
+  // streaming rebuffer, seek…). If paused, it's not buffering.
   const intendPlay = status.playing || prev.isPlaying;
   const buffering =
     intendPlay && !status.didJustFinish && (status.isBuffering || !status.isLoaded);
-  // Con un stream re-pedido con timeOffset, el player nativo cuenta desde 0:
-  // la posición real es el offset más su tiempo.
+  // With a stream re-requested with timeOffset, the native player counts from 0:
+  // the real position is the offset plus its time.
   let positionSec = streamOffsetSec + (status.currentTime ?? 0);
   if (pendingSeek) {
     if (Math.abs(positionSec - pendingSeek.sec) < 1 || Date.now() - pendingSeek.at > 2000) {
-      pendingSeek = null; // el player ya alcanzó el destino (o nos rendimos)
+      pendingSeek = null; // the player reached the target (or we gave up)
     } else {
       positionSec = pendingSeek.sec;
     }
   }
   usePlayerStore.setState({
     positionSec,
-    // Con offset activo el nativo reporta la duración del tramo restante, no
-    // la de la canción: se conserva la duración conocida.
+    // With offset active the native reports the duration of the remaining segment,
+    // not the song's: the known duration is kept.
     durationSec: streamOffsetSec > 0 ? prev.durationSec : status.duration || prev.durationSec,
-    // Durante el fundido de pausa/reanudación el player nativo sigue sonando
-    // unos ms; mantenemos el estado ya fijado para que el botón no parpadee.
+    // During pause/resume fade the native player keeps playing for a few ms;
+    // we keep the already-set state so the button doesn't flicker.
     isPlaying: pauseFadeTimer ? prev.isPlaying : status.playing,
     isBuffering: buffering,
   });
   maybeScrobbleThreshold(positionSec);
   maybeDetectStall(intendPlay, buffering, positionSec);
-  // Sincronización de la cola con el servidor.
+  // Queue sync with the server.
   if (status.playing) startPeriodicSync();
   else {
     stopPeriodicSync();
-    if (prev.isPlaying) scheduleSync(); // acaba de pausar
+    if (prev.isPlaying) scheduleSync(); // just paused
   }
   if (!pendingSeek) maybeStartCrossfade(status);
   if (status.didJustFinish) {
@@ -1228,8 +1235,8 @@ function onStatus(status: AudioStatus) {
 }
 
 /**
- * Temporizador "al terminar la canción": si está activo, para aquí y deja la
- * siguiente pista cargada en pausa. Devuelve true si consumió el fin de pista.
+ * "At end of song" timer: if active, stops here and leaves the next track
+ * loaded but paused. Returns true if it consumed the track end.
  */
 function handleSleepAtSongEnd(): boolean {
   const { sleepAtSongEnd, repeat } = usePlayerStore.getState();
@@ -1242,23 +1249,23 @@ function handleSleepAtSongEnd(): boolean {
   return true;
 }
 
-// ── Persistencia local de la cola (reanudar al reabrir la app) ─────────────
-// Complementa la sincronización con el servidor: funciona también en modo
-// local/offline y conserva canciones descargadas y radios, que el servidor
-// no admite en savePlayQueue.
+// ── Local queue persistence (resume on app reopen) ──────────────────────────
+// Complements server sync: works in local/offline mode too and preserves
+// downloaded songs and radios, which the server doesn't accept in
+// savePlayQueue.
 
-// SecureStore solo admite claves con [A-Za-z0-9._-] (mismo criterio que
-// playHistory); saneamos serverUrl/username.
+// SecureStore only accepts keys with [A-Za-z0-9._-] (same criterion as
+// playHistory); sanitize serverUrl/username.
 function safeKey(s: string): string {
   return s.replace(/[^A-Za-z0-9._-]/g, '_');
 }
 
-/** Clave por perfil, o null si no hay perfil activo. */
+/** Per-profile key, or null if no active profile. */
 function queueStorageKey(): string | null {
   const { auth, offline } = useAuthStore.getState();
   if (offline) return 'resonus.queue.offline';
-  // URL principal (no la activa): así la cola no se pierde al conmutar de red
-  // (la URL activa cambia; la principal identifica al perfil). Ver auth store.
+  // Primary URL (not the active one): so the queue is not lost on network
+  // switch (the active URL changes; the primary identifies the profile). See auth store.
   if (auth) {
     const primary = auth.urls?.[0] ?? auth.serverUrl;
     return `resonus.queue.server.${safeKey(primary)}.${safeKey(auth.username)}`;
@@ -1270,7 +1277,7 @@ interface StoredQueue {
   queue: Song[];
   index: number;
   positionSec: number;
-  /** La cola era una radio: al restaurarla debe seguir alargándose sola. */
+  /** The queue was a radio: when restoring it must keep extending itself. */
   radioMode?: boolean;
 }
 
@@ -1279,7 +1286,7 @@ function saveQueueLocal() {
   if (!key) return;
   const { queue, index, positionSec, radioMode } = usePlayerStore.getState();
   if (queue.length === 0) return;
-  // Tope de tamaño por prudencia con SecureStore; 500 canciones dan de sobra.
+  // Size cap as a precaution for SecureStore; 500 songs is more than enough.
   const payload: StoredQueue = {
     queue: queue.slice(0, 500),
     index: Math.min(index, 499),
@@ -1290,10 +1297,10 @@ function saveQueueLocal() {
 }
 
 /**
- * Olvida la cola guardada del perfil activo (el usuario la vació adrede).
- * Se guarda una cola vacía en vez de borrar la clave: es la "lápida" que
- * evita que restoreQueue resucite la copia del servidor en el próximo
- * arranque (el servidor no ofrece forma fiable de borrar la suya).
+ * Forgets the active profile's saved queue (the user emptied it on purpose).
+ * An empty queue is saved instead of deleting the key: it's the "tombstone"
+ * that prevents restoreQueue from resurrecting the server copy on the next
+ * startup (the server offers no reliable way to delete its own).
  */
 function clearQueueLocal() {
   const key = queueStorageKey();
@@ -1302,12 +1309,12 @@ function clearQueueLocal() {
   void setItem(key, JSON.stringify(empty));
 }
 
-// ── Sincronización de la cola con el servidor (savePlayQueue/getPlayQueue) ──
+// ── Queue sync with server (savePlayQueue/getPlayQueue) ─────────────────────
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
 let syncInterval: ReturnType<typeof setInterval> | null = null;
 let appStateAttached = false;
 
-/** Guarda la cola en este dispositivo y, si hay sesión, en el servidor. */
+/** Saves the queue on this device and, if there is a session, on the server. */
 function syncQueueNow() {
   saveQueueLocal();
   const auth = useAuthStore.getState().auth;
@@ -1345,13 +1352,13 @@ function attachAppState() {
 }
 
 /**
- * Engancha los eventos de la salida remota (UPnP/DLNA) a la cola; ver
- * src/store/upnp.ts. Llamar una vez al arrancar.
+ * Attaches remote output events (UPnP/DLNA) to the queue; see
+ * src/store/upnp.ts. Call once on startup.
  */
 export function initRemoteIntegration() {
   const events: RemoteEvents = {
     onConnected: () => {
-      // Transfiere la pista actual al aparato y silencia el player local.
+      // Transfers the current track to the device and silences the local player.
       const { queue, index, positionSec, isPlaying } = usePlayerStore.getState();
       cutCrossfade();
       try {
@@ -1363,8 +1370,8 @@ export function initRemoteIntegration() {
       if (queue[index]) void remoteLoadIndex(index, isPlaying, positionSec);
     },
     onDisconnected: (lastPositionSec) => {
-      // La sesión de medios del casting ya la cierra `upnpDisconnect` (cubre
-      // también los cortes silenciosos). Aquí solo volvemos al player local.
+      // The casting media session is already closed by `upnpDisconnect` (covers
+      // silent disconnects too). Here we just return to the local player.
       const { queue, index } = usePlayerStore.getState();
       if (!queue[index]) return;
       void (async () => {
@@ -1382,7 +1389,7 @@ export function initRemoteIntegration() {
         durationSec: durationSec || usePlayerStore.getState().durationSec,
       });
       maybeScrobbleThreshold(positionSec);
-      // Mueve el scrubber de la notificación/bloqueo del casting.
+      // Updates the casting notification/lock screen scrubber.
       if (isUpnpConnected()) castSetState(usePlayerStore.getState().isPlaying, positionSec * 1000);
     },
     onPlayingChanged: (isPlaying, isBuffering) => {
@@ -1392,7 +1399,7 @@ export function initRemoteIntegration() {
         stopPeriodicSync();
         scheduleSync();
       }
-      // Refleja play/pausa en la sesión de medios del casting.
+      // Reflects play/pause in the casting media session.
       if (isUpnpConnected()) castSetState(isPlaying, usePlayerStore.getState().positionSec * 1000);
     },
     onFinished: () => {
@@ -1409,8 +1416,8 @@ export function initRemoteIntegration() {
   };
   initUpnp(events);
   initJukebox(events);
-  // Controles pulsados en la notificación/bloqueo o botones de volumen durante
-  // el casting: las acciones del store ya se enrutan al renderer (remoteKind()).
+  // Controls pressed in the notification/lock screen or volume buttons during
+  // casting: the store actions are already routed to the renderer (remoteKind()).
   initCastMedia((action, value) => {
     if (!isUpnpConnected()) return;
     const st = usePlayerStore.getState();
@@ -1432,7 +1439,7 @@ export function initRemoteIntegration() {
         if (value != null) st.seekTo(value / 1000);
         break;
       case 'volume':
-        // El sistema manda +1 / -1 por pulsación; movemos el volumen a pasos.
+        // The system sends +1 / -1 per press; we move volume in steps.
         st.setVolume(st.volume + (value ?? 0) * 0.05);
         break;
       default:
@@ -1445,13 +1452,13 @@ interface PlayerState {
   queue: Song[];
   index: number;
   /**
-   * Canciones añadidas a mano con "añadir a la cola" aún pendientes; ocupan
-   * las posiciones index+1..index+queuedCount (estilo "Next in queue" de
-   * Spotify: suenan justo después de la actual, antes de que siga la lista).
+   * Manually-added "add to queue" songs still pending; occupy
+   * positions index+1..index+queuedCount (Spotify "Next in queue"-style:
+   * they play right after the current one, before the list continues).
    */
   queuedCount: number;
   isPlaying: boolean;
-  /** El audio está cargando/bufferando y aún no suena. */
+  /** Audio is loading/buffering and not yet playing. */
   isBuffering: boolean;
   positionSec: number;
   durationSec: number;
@@ -1459,18 +1466,18 @@ interface PlayerState {
   shuffle: boolean;
   repeat: RepeatMode;
   originalQueue: Song[] | null;
-  /** Cuándo vence el temporizador de sueño (ms epoch), o null si no hay. */
+  /** When the sleep timer expires (ms epoch), or null if none. */
   sleepEndsAt: number | null;
-  /** Pausar al terminar la pista actual (temporizador "fin de la canción"). */
+  /** Pause at the end of the current track ("end of song" timer). */
   sleepAtSongEnd: boolean;
-  /** De dónde salió la cola actual (álbum, lista, artista…), si se conoce. */
+  /** Where the current queue came from (album, playlist, artist…), if known. */
   source: string | null;
-  /** Ruta del origen para poder navegar a él desde el reproductor. */
+  /** Origin path so we can navigate to it from the player. */
   sourceHref: string | null;
   /**
-   * La cola es una radio: se alarga sola con parecidas aunque el ajuste de
-   * autoplay esté apagado, porque la pediste tú a mano. La enciende
-   * `startRadio`; cualquier otra cola (álbum, lista…) la apaga.
+   * The queue is a radio: it extends itself with similar tracks even if the
+   * autoplay setting is off, because you started it manually. Turned on by
+   * `startRadio`; any other queue (album, playlist…) turns it off.
    */
   radioMode: boolean;
   playQueue: (
@@ -1480,11 +1487,11 @@ interface PlayerState {
     sourceHref?: string,
   ) => Promise<void>;
   /**
-   * Arranca una radio a partir de una canción: suena ella ya y la cola se va
-   * llenando sola con parecidas, sin fin.
+   * Starts a radio from a song: plays it immediately and the queue keeps
+   * filling itself with similar tracks, endlessly.
    */
   startRadio: (seed: Song, source: string) => Promise<void>;
-  /** Deja de alargar la cola. No la toca: termina cuando termine. */
+  /** Stops extending the queue. Doesn't touch it: finishes when it finishes. */
   stopRadio: () => void;
   addToQueue: (song: Song) => void;
   playNext: (song: Song) => void;
@@ -1494,41 +1501,42 @@ interface PlayerState {
   seekTo: (sec: number) => void;
   setVolume: (v: number) => void;
   jumpTo: (index: number) => void;
-  /** Quita la canción en `index`. Devuelve la función que la reinserta en su
-   *  sitio (para el toast «Deshacer»), salvo al quitar la actual o vaciar. */
+  /** Removes the song at `index`. Returns a function that reinserts it in its
+   *  place (for the "Undo" toast), except when removing the current one or
+   *  emptying. */
   removeAt: (index: number) => Promise<(() => void) | undefined>;
   moveTrack: (from: number, to: number) => void;
-  /** Guarda la valoración (1-5; 0 = sin valorar) en las copias de la cola. */
+  /** Saves the rating (1-5; 0 = unrated) in the queue copies. */
   rateSong: (id: string, rating: number) => void;
-  /** Vacía la cola dejando solo la canción actual (sigue sonando). Devuelve
-   *  la función que deshace el vaciado (para el toast «Deshacer»), o nada si
-   *  no había cola. */
+  /** Empties the queue leaving only the current song (keeps playing). Returns
+   *  a function that undoes the clear (for the "Undo" toast), or nothing if
+   *  there was no queue. */
   clearQueue: () => (() => void) | undefined;
-  /** Stop de verdad (long-press en play): para y elimina cola, mini player y
-   *  notificación. Devuelve la función que lo deshace (cola y posición de
-   *  vuelta, en pausa), o nada si no sonaba nada. */
+  /** Real stop (long-press on play): stops and removes queue, mini player and
+   *  notification. Returns a function that undoes it (queue and position back,
+   *  paused), or nothing if nothing was playing. */
   stopAndClear: () => Promise<(() => void) | undefined>;
   toggleShuffle: () => void;
   cycleRepeat: () => void;
   setSleepTimer: (minutes: number) => void;
   setSleepAtSongEnd: () => void;
   cancelSleepTimer: () => void;
-  /** Restaura la cola guardada en el servidor (sin reproducir). */
+  /** Restores the queue saved on the server (without playing). */
   restoreFromServer: () => Promise<void>;
-  /** Restaura la cola guardada en este dispositivo (sin reproducir).
-   *  Devuelve true si había copia local (aunque fuera una cola vaciada
-   *  adrede): en ese caso no debe entrar el respaldo del servidor. */
+  /** Restores the queue saved on this device (without playing).
+   *  Returns true if there was a local copy (even an intentionally emptied
+   *  queue): in that case the server backup should not enter. */
   restoreFromStorage: () => Promise<boolean>;
-  /** Retoma la última cola: primero la copia local; si no hay, la del servidor. */
+  /** Resumes the last queue: first the local copy; if none, the server's. */
   restoreQueue: () => Promise<void>;
-  /** Recarga la pista en curso contra la URL de servidor activa, conservando
-   *  posición y estado de reproducción. Se llama al conmutar de URL de red
-   *  (la fuente vieja dejó de responder). No afecta a radio/local/descargadas. */
+  /** Reloads the current track against the active server URL, preserving
+   *  position and playback state. Called on network URL switch (the old
+   *  source stopped responding). Doesn't affect radio/local/downloaded. */
   reloadCurrent: () => void;
   reset: () => Promise<void>;
 }
 
-/** Canción que está sonando ahora mismo, o null si la cola está vacía. */
+/** Song currently playing, or null if the queue is empty. */
 export function currentSong(state: PlayerState): Song | null {
   return state.queue[state.index] ?? null;
 }
@@ -1553,9 +1561,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   playQueue: async (songs, startIndex = 0, source, sourceHref) => {
     if (songs.length === 0) return;
-    // Descarta las no disponibles offline (no descargadas): no se pueden
-    // reproducir. Se remapea el índice inicial a la canción tocada dentro de la
-    // lista ya filtrada. Online nunca se marca `unavailable`, así que no cambia.
+    // Discard offline-unavailable tracks (not downloaded): they can't be
+    // played. The initial index is remapped to the tapped song within the
+    // already-filtered list. Online never marks `unavailable`, so it doesn't change.
     if (songs.some((s) => s.unavailable)) {
       const tapped = songs[startIndex];
       const playable = songs.filter((s) => !s.unavailable);
@@ -1566,10 +1574,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     attachAppState();
     autoplayFetchedFor = null;
     resetWarmed();
-    // Antes de saltar a otra lista/álbum, guarda la canción actual en el
-    // historial "atrás" para poder volver a ella (estilo Spotify).
+    // Before jumping to another list/album, save the current song in the
+    // "back" history so we can return to it (Spotify-style).
     pushHistory();
-    // Marca el origen como recién escuchado (orden "Recientes" de Biblioteca).
+    // Mark the source as recently listened (Library "Recent" order).
     if (sourceHref) useLastPlayed.getState().touch(sourceHref);
     set({
       queue: songs,
@@ -1581,16 +1589,16 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       originalQueue: null,
       source: source ?? null,
       sourceHref: sourceHref ?? null,
-      // Cualquier cola normal apaga la radio; `startRadio` la vuelve a encender.
+      // Any normal queue turns off the radio; `startRadio` turns it back on.
       radioMode: false,
     });
     await loadIndex(startIndex, true);
   },
 
   startRadio: async (seed, source) => {
-    // Suena la semilla ya y las parecidas se piden después: esperar a que
-    // responda el servidor antes de dar al play haría que "iniciar mix" se
-    // sintiera roto. `maybeQueueAutoplay` rellena la cola en segundo plano.
+    // Play the seed immediately and similar tracks are requested later: waiting
+    // for the server to respond before pressing play would make "start mix" feel
+    // broken. `maybeQueueAutoplay` fills the queue in the background.
     await get().playQueue([seed], 0, source);
     set({ radioMode: true });
     void maybeQueueAutoplay();
@@ -1601,8 +1609,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     saveQueueLocal();
   },
 
-  // Estilo Spotify: lo añadido a mano suena justo después de la actual (y de
-  // lo ya añadido antes), no al final de la lista en reproducción.
+  // Spotify-style: manually added songs play right after the current one (and
+  // after what was already added before), not at the end of the playing list.
   addToQueue: (song) => {
     const { queue, index, queuedCount } = get();
     if (queue.length === 0) {
@@ -1623,7 +1631,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
     const next = [...queue];
     next.splice(index + 1, 0, song);
-    // Se cuela al principio del bloque "en cola"; el bloque crece con ella.
+    // It jumps to the front of the "queued" block; the block grows with it.
     set({ queue: next, queuedCount: queuedCount + 1 });
     scheduleSync();
   },
@@ -1641,28 +1649,28 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
     const p = activePlayer();
     if (!p) return;
-    // Volumen efectivo de la pista actual (usuario × ReplayGain).
+    // Effective volume of the current track (user × ReplayGain).
     const vol = effectiveVolume(currentSong(get()));
     if (get().isPlaying) {
-      // Pausar en mitad de un fundido corta el saliente: al reanudar debe
-      // sonar solo la pista actual, a volumen normal.
+      // Pausing mid-fade cuts the outgoing: on resume only the current track
+      // should play, at normal volume.
       cutCrossfade();
-      // Baja el volumen y pausa al acabar; deja el volumen restaurado para que
-      // un play posterior (incluido el del sistema/bloqueo) suene normal.
+      // Lower volume and pause when done; leaves volume restored so a later
+      // play (including system/lock screen) sounds normal.
       set({ isPlaying: false });
       fadeVolume(p, vol, 0, () => {
         try {
           p.pause();
-          // Reconcilia por si el volumen cambió durante la rampa; así un play
-          // posterior (incluido el del sistema/bloqueo) suena al volumen real.
+          // Reconcile in case volume changed during the ramp; this way a later
+          // play (including system/lock screen) sounds at the real volume.
           p.volume = effectiveVolume(currentSong(get()));
         } catch {
           // ignore
         }
-        scheduleSync(); // la sincronización "al pausar" que hace onStatus
+        scheduleSync(); // the "on pause" sync that onStatus does
       });
     } else {
-      // Arranca en silencio y sube: fundido de entrada al reanudar.
+      // Start silent and ramp up: fade-in on resume.
       try {
         p.volume = 0;
       } catch {
@@ -1690,13 +1698,13 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   previous: () => {
     const { index, positionSec } = get();
-    // Como Spotify: pasados unos segundos, "anterior" reinicia la canción. En
-    // modo "always" (estilo YouTube) siempre va a la pista previa, sin reiniciar.
+    // Like Spotify: past a few seconds, "previous" restarts the song. In
+    // "always" mode (YouTube-style) it always goes to the previous track, no restart.
     if (useSettings.getState().previousButtonMode !== 'always' && positionSec > 3) {
       get().seekTo(0);
       return;
     }
-    // Vuelve a la canción previa del historial, aunque sea de otra lista/álbum.
+    // Returns to the previous song in history, even if from another list/album.
     const entry = playedHistory.pop();
     if (entry) {
       set({
@@ -1726,21 +1734,21 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
     const song = currentSong(get());
     if (song && isTranscoded(song)) {
-      // Un stream generado al vuelo no tiene acceso aleatorio: el seek nativo
-      // reinicia. Hay que re-pedirlo con `timeOffset`, pero solo si el servidor
-      // lo soporta. Esa respuesta se calienta de forma asíncrona al cargar la
-      // pista, así que aquí la RESOLVEMOS (no leemos una variable que, con un
-      // seek justo tras cargar, aún estaría sin comprobar y nos mandaría al
-      // seek nativo → reinicio). Fijamos ya la posición y el pendingSeek para
-      // que el slider no rebote mientras se decide.
+      // A stream generated on the fly has no random access: native seek
+      // restarts. It must be re-requested with `timeOffset`, but only if the
+      // server supports it. That answer is warmed asynchronously on track load,
+      // so here we RESOLVE it (don't read a variable that, on a seek right after
+      // loading, would still be unchecked and send us to native seek → restart).
+      // We already set the position and pendingSeek so the slider doesn't bounce
+      // while it decides.
       pendingSeek = { sec, at: Date.now() };
       set({ positionSec: sec });
       void ensureTranscodeOffsetSupport().then((supported) => {
-        // Si mientras se resolvía cambió la pista, no toques el player nuevo.
+        // If the track changed while resolving, don't touch the new player.
         if (currentSong(get()) !== song) return;
         const p = activePlayer();
         if (!p) return;
-        pendingSeek = { sec, at: Date.now() }; // refresca la ventana de espera
+        pendingSeek = { sec, at: Date.now() }; // refreshes the wait window
         if (supported) {
           streamOffsetSec = sec;
           try {
@@ -1751,7 +1759,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
             // ignore
           }
         } else {
-          // Sin soporte de offset: seek nativo como mejor esfuerzo.
+          // No offset support: native seek as best effort.
           p.seekTo(sec);
         }
         set({ positionSec: sec });
@@ -1768,8 +1776,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     set({ volume });
     if (remoteKind()) remoteSetVolume(volume);
     else if (!fadingOut && !pauseFadeTimer) {
-      // En mitad de un fundido (crossfade o pausa/reanudación) no se pisa la
-      // rampa: converge sola y el volumen queda restaurado al terminar.
+      // Mid-fade (crossfade or pause/resume) don't step on the ramp: it
+      // converges on its own and volume is restored when done.
       const p = activePlayer();
       if (p) p.volume = effectiveVolume(currentSong(get()));
     }
@@ -1778,7 +1786,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   jumpTo: (index) => {
     const { queue } = get();
     if (index < 0 || index >= queue.length) return;
-    // Salto hacia delante como cualquier otro: "anterior" debe poder volver.
+    // Forward jump like any other: "previous" must be able to return.
     pushHistory();
     void loadIndex(index, true);
   },
@@ -1794,8 +1802,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       return undefined;
     }
     if (index === cur) {
-      // Quitamos la actual: cargamos la que ocupa ahora esa posición. Si era
-      // la primera del bloque "en cola", pasa a sonar y queda consumida.
+      // We remove the current one: load the song now at that position. If it was
+      // the first in the "queued" block, it now plays and is consumed.
       const newIndex = Math.min(cur, next.length - 1);
       set({ queue: next, index: newIndex, queuedCount: Math.max(0, queuedCount - 1) });
       await loadIndex(newIndex, get().isPlaying);
@@ -1810,8 +1818,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     });
     scheduleSync();
     return () => {
-      // Solo si la cola no ha cambiado desde entonces (misma referencia; el
-      // avance automático no la sustituye, así que se ajusta el índice).
+      // Only if the queue hasn't changed since then (same reference; auto-advance
+      // does not replace it, so the index is adjusted).
       const st = get();
       if (st.queue !== next) return;
       const q = [...st.queue];
@@ -1829,13 +1837,13 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const { queue, index, queuedCount, originalQueue, radioMode } = get();
     const current = queue[index];
     if (!current) return undefined;
-    // Vaciar apaga también la radio. Si no, quedaba zombi: el autoplay solo se
-    // dispara al EMPEZAR una canción, y tras vaciar ya no empieza ninguna, así
-    // que el icono decía "radio activa" en una radio que nunca iba a alargarse.
+    // Clearing also turns off the radio. Otherwise it'd be zombie: autoplay only
+    // triggers when STARTING a song, and after clearing none starts, so the icon
+    // would say "radio active" on a radio that would never extend.
     set({ queue: [current], index: 0, queuedCount: 0, originalQueue: null, radioMode: false });
     scheduleSync();
     return () => {
-      // Solo si la cola sigue como la dejó el vaciado (no se pisa nada nuevo).
+      // Only if the queue is still as the clear left it (nothing new was put on).
       const st = get();
       if (st.queue.length !== 1 || st.queue[0]?.id !== current.id) return;
       set({ queue, index, queuedCount, originalQueue, radioMode });
@@ -1856,13 +1864,13 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       radioMode,
     } = get();
     if (queue.length === 0) return undefined;
-    // Parada deliberada: se olvida también la copia guardada, para que la
-    // cola no reaparezca al reabrir la app.
+    // Deliberate stop: also forget the saved copy, so the queue doesn't
+    // reappear on app reopen.
     clearQueueLocal();
     await get().reset();
     return () => {
       void (async () => {
-        // Solo si no se ha puesto nada nuevo a sonar mientras tanto.
+        // Only if nothing new was started playing in the meantime.
         if (get().queue.length > 0) return;
         attachAppState();
         set({
@@ -1878,7 +1886,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
           sourceHref,
           radioMode,
         });
-        // Como al restaurar la cola guardada: pista cargada, en pausa.
+        // Like restoring the saved queue: track loaded, paused.
         await loadIndex(index, false);
         if (positionSec > 0) {
           pendingSeek = { sec: positionSec, at: Date.now() };
@@ -1898,9 +1906,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       queue: patch(queue),
       originalQueue: originalQueue ? patch(originalQueue) : null,
     });
-    // Refleja la nota en las listas ya cargadas (álbum, playlist, favoritos,
-    // búsqueda): todas exponen `songs: Song[]`. Parche optimista en la caché de
-    // React Query para que el cambio se vea al momento sin re-pedir al servidor.
+    // Reflect the rating in already-loaded lists (album, playlist, favorites,
+    // search): all expose `songs: Song[]`. Optimistic patch in the React Query
+    // cache so the change is visible instantly without re-requesting from server.
     queryClient.setQueriesData({ predicate: () => true }, (data: unknown) => {
       if (!data || typeof data !== 'object') return data;
       const songs = (data as { songs?: Song[] }).songs;
@@ -1923,15 +1931,16 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const next = [...queue];
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
-    // Recolocamos el índice actual para que siga apuntando a la misma canción.
+    // Re-position the current index so it keeps pointing to the same song.
     let newIndex = index;
     if (from === index) newIndex = to;
     else if (from < index && to >= index) newIndex = index - 1;
     else if (from > index && to <= index) newIndex = index + 1;
-    // El bloque "en cola" (index+1..index+queuedCount) se mantiene al reordenar
-    // dentro de lo que viene: si una del origen entra en la zona de cola pasa a
-    // estar encolada, y si una encolada sale deja de estarlo (estilo Spotify).
-    // Cualquier movimiento que toque la actual o lo ya reproducido lo disuelve.
+    // The "queued" block (index+1..index+queuedCount) is preserved when
+    // reordering within what's coming: if a source one enters the queue zone it
+    // becomes queued, and if a queued one leaves it stops being (Spotify-style).
+    // Any move that touches the current song or what's already played dissolves
+    // the block.
     let newQueuedCount = 0;
     if (from > index && to > index) {
       const fromQueued = from - (index + 1) < queuedCount;
@@ -1956,8 +1965,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         [rest[i], rest[j]] = [rest[j], rest[i]];
       }
       const newQueue = current ? [current, ...rest] : rest;
-      // La actual sigue sonando; solo reordenamos y la dejamos en el índice 0.
-      // Barajar disuelve el bloque "en cola" (las posiciones ya no existen).
+      // The current song keeps playing; we only reorder and leave it at index 0.
+      // Shuffling dissolves the "queued" block (the positions no longer exist).
       set({ shuffle: true, originalQueue: queue, queue: newQueue, index: 0, queuedCount: 0 });
     } else if (originalQueue && current) {
       const newIndex = Math.max(0, originalQueue.findIndex((s) => s.id === current.id));
@@ -1975,8 +1984,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   cycleRepeat: () => {
-    // Primer toque: repetir la canción actual ('one'); segundo: toda la cola
-    // ('all'); tercero: apagado. Como Feishin.
+    // First tap: repeat current song ('one'); second: whole queue ('all');
+    // third: off. Like Feishin.
     const order: RepeatMode[] = ['off', 'one', 'all'];
     const repeat = order[(order.indexOf(get().repeat) + 1) % order.length];
     set({ repeat });
@@ -1994,8 +2003,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setSleepAtSongEnd: () => {
     if (sleepTimeout) clearTimeout(sleepTimeout);
     sleepTimeout = null;
-    // Sin fundido: la canción acaba sola, y bajarle el final sería estropear
-    // justo lo que se ha pedido oír entero.
+    // No fade: the song ends on its own, and fading its end would ruin exactly
+    // what was asked to be heard in full.
     abortSleepFade();
     set({ sleepEndsAt: null, sleepAtSongEnd: true });
   },
@@ -2022,7 +2031,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       ? Math.max(0, songs.findIndex((s) => s.id === saved.current))
       : 0;
     const positionSec = (saved.position ?? 0) / 1000;
-    // Si entre tanto ya se empezó a reproducir algo, no pisamos la cola.
+    // If something already started playing in the meantime, don't override the queue.
     if (get().queue.length > 0) return;
     attachAppState();
     set({
@@ -2033,12 +2042,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       isPlaying: false,
       source: null,
       sourceHref: null,
-      // La cola del servidor es Subsonic puro: no tiene dónde llevar esto, así
-      // que una radio recuperada desde ahí deja de serlo. La copia local sí lo
-      // guarda, y es la que se intenta primero (ver `restoreQueue`).
+      // The server queue is pure Subsonic: it has no place to carry this, so
+      // a radio recovered from there stops being one. The local copy does save
+      // it, and it's tried first (see `restoreQueue`).
       radioMode: false,
     });
-    // Cargamos la pista (sin reproducir) y dejamos la posición lista.
+    // Load the track (without playing) and leave the position ready.
     await loadIndex(index, false);
     if (positionSec > 0) {
       pendingSeek = { sec: positionSec, at: Date.now() };
@@ -2058,10 +2067,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       return false;
     }
     if (!saved || !Array.isArray(saved.queue)) return false;
-    // Cola vacía guardada = el usuario la vació adrede: no hay nada que
-    // restaurar, pero tampoco debe entrar el respaldo del servidor.
+    // Saved empty queue = the user emptied it on purpose: nothing to
+    // restore, but the server backup should also not enter.
     if (saved.queue.length === 0) return true;
-    // Si entre tanto ya se empezó a reproducir algo, no pisamos la cola.
+    // If something already started playing in the meantime, don't override the queue.
     if (get().queue.length > 0) return true;
     const index = Math.min(Math.max(0, saved.index ?? 0), saved.queue.length - 1);
     const positionSec =
@@ -2077,8 +2086,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       isPlaying: false,
       source: null,
       sourceHref: null,
-      // Si era una radio, sigue siéndolo: cerrar la app no debería dejarla
-      // muda al llegar al final de lo que ya había encolado.
+      // If it was a radio, it still is: closing the app should not leave it
+      // silent when reaching the end of what was already queued.
       radioMode: saved.radioMode === true,
     });
     await loadIndex(index, false);
@@ -2091,9 +2100,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   restoreQueue: async () => {
-    // La copia local es la más fiel (incluye descargas, radios y el modo
-    // offline); la del servidor queda de respaldo para sesiones nuevas —
-    // salvo que la copia local diga que la cola se vació adrede.
+    // The local copy is the most faithful (includes downloads, radios and
+    // offline mode); the server one is a backup for fresh sessions —
+    // except when the local copy says the queue was emptied on purpose.
     const handled = await get().restoreFromStorage();
     if (!handled && get().queue.length === 0) await get().restoreFromServer();
   },
@@ -2101,13 +2110,13 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   reloadCurrent: () => {
     const { queue, index, positionSec, isPlaying } = get();
     const song = queue[index];
-    // Radio (url propia), local y descargadas suenan igual pase lo que pase:
-    // su fuente no depende de la URL de servidor.
+    // Radio (own url), local and downloaded sound the same no matter what:
+    // their source doesn't depend on the server URL.
     if (!song || song.url || song.localUri || downloadedUri(song)) return;
-    // El cast (UPnP) lleva su propia sesión; no lo tocamos.
+    // Cast (UPnP) carries its own session; don't touch it.
     if (remoteKind()) return;
-    // En pausa no hay audio que preservar: recarga en seco, más simple y segura.
-    // Sonando, traspaso sin corte contra el host nuevo (ver `handoffToNewSource`).
+    // Paused, there's no audio to preserve: abrupt reload, simpler and safer.
+    // Playing, seamless handoff against the new host (see `handoffToNewSource`).
     if (isPlaying) handoffToNewSource(index, song, positionSec);
     else hardReload(index, positionSec, false);
   },
@@ -2120,8 +2129,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       clearTimeout(syncTimer);
       syncTimer = null;
     }
-    // Al resetear (cambio de perfil/salir) se corta la salida remota sin
-    // reanudar en local: la cola va a desaparecer igualmente.
+    // On reset (profile change/exit) the remote output is cut without
+    // resuming locally: the queue is going away anyway.
     if (remoteKind() === 'upnp') void upnpDisconnect(true);
     else if (remoteKind() === 'jukebox') void jukeboxDisconnect(true);
     cutCrossfade();
@@ -2134,7 +2143,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     playedHistory = [];
     streamOffsetSec = 0;
     scrobbledThisTrack = false;
-    // El soporte de timeOffset es por servidor: se re-comprueba al cambiar.
+    // timeOffset support is per server: re-check on change.
     transcodeOffsetSupported = null;
     set({
       queue: [],

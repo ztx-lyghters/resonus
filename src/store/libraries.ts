@@ -1,14 +1,14 @@
 /**
- * Bibliotecas del servidor (Navidrome multi-library) y qué carpetas mostrar.
+ * Server libraries (Navidrome multi-library) and which folders to show.
  *
- * Navidrome expone cada "library" como un music folder del API Subsonic
- * (`getMusicFolders`). Aquí guardamos, por perfil, la lista de carpetas y las
- * que el usuario ha DESACTIVADO (guardamos las desactivadas para que una
- * biblioteca nueva en el servidor aparezca activada por defecto).
+ * Navidrome exposes each "library" as a music folder from the Subsonic API
+ * (`getMusicFolders`). Here we store, per profile, the list of folders and the
+ * ones the user has DISABLED (we store the disabled ones so that a new
+ * library on the server appears enabled by default).
  *
- * El filtro se aplica en `data.ts`: sin desactivadas o con una sola biblioteca
- * no se filtra; con una activa se pasa su `musicFolderId`; con un subconjunto
- * se piden por separado y se fusionan (el API solo filtra por una a la vez).
+ * The filter is applied in `data.ts`: without disabled or with a single library
+ * no filtering is done; with one active its `musicFolderId` is passed; with a subset
+ * they are requested separately and merged (the API only filters by one at a time).
  */
 import { create } from 'zustand';
 
@@ -19,23 +19,23 @@ import { getItem, setItem } from '@/lib/storage';
 
 const STORAGE_KEY = 'resonus.libraries';
 
-/** Identifica un perfil de servidor (los ids de biblioteca son por servidor). */
+/** Identifies a server profile (library ids are per server). */
 export function profileKeyOf(auth: SubsonicAuth | null | undefined): string | null {
   if (!auth || auth.serverType === 'jellyfin') return null;
-  // URL principal, no la activa: al conmutar de red no debe verse como otro perfil.
+  // Primary URL, not the active one: when switching networks it should not appear as another profile.
   return `${primaryUrl(auth)}|${auth.username}`;
 }
 
 interface LibrariesState {
-  /** Carpetas conocidas por perfil (persistido para filtrar tras reiniciar). */
+  /** Known folders per profile (persisted to filter after restart). */
   folders: Record<string, MusicFolder[]>;
-  /** Ids de carpeta desactivados por perfil. */
+  /** Disabled folder ids per profile. */
   disabled: Record<string, string[]>;
   hydrated: boolean;
   hydrate: () => Promise<void>;
-  /** Refresca desde el servidor la lista de bibliotecas del perfil. */
+  /** Refreshes the library list from the server for the profile. */
   load: (auth: SubsonicAuth) => Promise<void>;
-  /** Activa/desactiva una biblioteca del perfil activo. */
+  /** Enables/disables a library for the active profile. */
   setEnabled: (auth: SubsonicAuth, id: string, enabled: boolean) => void;
 }
 
@@ -64,7 +64,7 @@ export const useLibraries = create<LibrariesState>((set, get) => ({
         });
       }
     } catch {
-      // se quedará con los valores por defecto (todo visible)
+      // will stay with default values (everything visible)
     } finally {
       set({ hydrated: true });
     }
@@ -76,7 +76,7 @@ export const useLibraries = create<LibrariesState>((set, get) => ({
     try {
       const list = await getMusicFolders(auth);
       set((s) => ({ folders: { ...s.folders, [key]: list } }));
-      // Purga de desactivadas que ya no existen en el servidor.
+      // Purge disabled ones that no longer exist on the server.
       const ids = new Set(list.map((f) => f.id));
       const cur = get().disabled[key] ?? [];
       const cleaned = cur.filter((id) => ids.has(id));
@@ -85,7 +85,7 @@ export const useLibraries = create<LibrariesState>((set, get) => ({
       }
       persist(get);
     } catch {
-      // sin conexión / servidor sin soporte: se conserva lo que hubiera
+      // offline / server without support: keep whatever was there
     }
   },
 
@@ -96,15 +96,15 @@ export const useLibraries = create<LibrariesState>((set, get) => ({
     const next = enabled ? cur.filter((x) => x !== id) : [...cur, id];
     set((s) => ({ disabled: { ...s.disabled, [key]: next } }));
     persist(get);
-    // El filtro cambió: tira las listas cacheadas para que se repidan.
+    // Filter changed: drop cached lists so they are re-fetched.
     clearAlbumCache();
     void queryClient.invalidateQueries();
   },
 }));
 
-// ── Ayudas para la capa de datos (sin React) ──
+// ── Helpers for the data layer (no React) ──
 
-/** Carpetas conocidas del perfil (vacío si aún no se han cargado). */
+/** Known folders for the profile (empty if not yet loaded). */
 export function foldersFor(auth: SubsonicAuth | null | undefined): MusicFolder[] {
   const key = profileKeyOf(auth);
   if (!key) return [];
@@ -112,8 +112,8 @@ export function foldersFor(auth: SubsonicAuth | null | undefined): MusicFolder[]
 }
 
 /**
- * Ids de biblioteca a consultar, o `undefined` cuando no hay que filtrar
- * (Jellyfin/offline, una sola biblioteca, o todas activas).
+ * Library ids to query, or `undefined` when no filtering is needed
+ * (Jellyfin/offline, single library, or all active).
  */
 export function enabledFolderIds(auth: SubsonicAuth | null | undefined): string[] | undefined {
   const key = profileKeyOf(auth);
@@ -123,16 +123,16 @@ export function enabledFolderIds(auth: SubsonicAuth | null | undefined): string[
   const disabled = new Set(useLibraries.getState().disabled[key] ?? []);
   if (disabled.size === 0) return undefined;
   const enabled = folders.map((f) => f.id).filter((id) => !disabled.has(id));
-  // Si quedaran todas activas (nada desactivado válido) → sin filtro.
+  // If all would be active (no valid disabled) → no filter.
   if (enabled.length === 0 || enabled.length === folders.length) return undefined;
   return enabled;
 }
 
-// ── Caché de listas de álbumes fusionadas (solo modo subconjunto) ──
+// ── Merged album list cache (subset mode only) ──
 //
-// El API pagina por carpeta, así que para varias bibliotecas mezcladas se trae
-// la lista completa de cada una, se fusiona y se sirve por trozos. Se cachea en
-// memoria un rato para no repetir el trabajo en cada página del scroll infinito.
+// The API paginates per folder, so for multiple mixed libraries the full list
+// is fetched from each, merged and served in chunks. It's cached in memory for
+// a while to avoid repeating the work on each infinite scroll page.
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const albumCache = new Map<string, { at: number; albums: unknown[] }>();

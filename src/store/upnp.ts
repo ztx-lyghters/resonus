@@ -1,10 +1,10 @@
 /**
- * Integración con renderers UPnP/DLNA (módulo nativo modules/upnp-cast).
+ * Integration with UPnP/DLNA renderers (native module modules/upnp-cast).
  *
- * La cola vive en el store del player y aquí solo se gestiona la sesión
- * (aparato elegido) y los eventos de vuelta. El módulo nativo sondea el estado
- * del renderer cada segundo; el fin de pista se deduce de un STOPPED cerca del
- * final (UPnP no distingue "terminó" de "lo pararon").
+ * The queue lives in the player store and here only the session is managed
+ * (chosen device) and the return events. The native module polls the renderer
+ * state every second; track end is inferred from a STOPPED near the end
+ * (UPnP doesn't distinguish "finished" from "stopped by user").
  */
 import { requireOptionalNativeModule } from 'expo-modules-core';
 import { create } from 'zustand';
@@ -14,15 +14,15 @@ import { useAuthStore } from './auth';
 import { castStop } from './castMedia';
 import { useSettings } from './settings';
 
-/** Eventos que el player registra para reaccionar a la salida remota (UPnP). */
+/** Events the player registers to react to remote output (UPnP). */
 export interface RemoteEvents {
-  /** Sesión iniciada: transferir la pista actual al renderer. */
+  /** Session started: transfer the current track to the renderer. */
   onConnected: () => void;
-  /** Sesión terminada: volver al player local en esta posición. */
+  /** Session ended: return to the local player at this position. */
   onDisconnected: (lastPositionSec: number) => void;
   onProgress: (positionSec: number, durationSec: number) => void;
   onPlayingChanged: (isPlaying: boolean, isBuffering: boolean) => void;
-  /** La pista terminó de forma natural en el renderer. */
+  /** Track finished naturally on the renderer. */
   onFinished: () => void;
 }
 
@@ -37,7 +37,7 @@ interface UpnpStoreState {
   connected: boolean;
   deviceId: string | null;
   deviceName: string | null;
-  /** Renderers vistos en la última búsqueda. */
+  /** Renderers found in the last search. */
   devices: UpnpDevice[];
   scanning: boolean;
 }
@@ -64,20 +64,20 @@ let events: RemoteEvents | null = null;
 let stateSub: { remove: () => void } | undefined;
 let lastPositionSec = 0;
 let lastDurationSec = 0;
-/** Evita avanzar la cola dos veces por el mismo fin de pista. */
+/** Prevents advancing the queue twice for the same track end. */
 let finishedFired = false;
-/** Ignora STOPPED transitorios mientras el renderer carga otra pista. */
+/** Ignores transient STOPPED while the renderer loads another track. */
 let loading = false;
-/** Hemos visto PLAYING desde la última carga/pausa (para deducir el fin). */
+/** We have seen PLAYING since the last load/pause (to infer the end). */
 let wasPlaying = false;
-/** La pausa la pedimos nosotros: un STOPPED tras esto no es un fin de pista. */
+/** We requested the pause ourselves: a STOPPED after this is not a track end. */
 let pausedByUs = false;
 
 export function isUpnpConnected(): boolean {
   return useUpnp.getState().connected;
 }
 
-/** Registra los eventos del player. Llamar una sola vez (desde el player). */
+/** Registers player events. Call only once (from the player). */
 export function initUpnp(ev: RemoteEvents): void {
   events = ev;
 }
@@ -107,13 +107,13 @@ function onNativeState(e: NativeState) {
       break;
     case 'STOPPED':
     case 'IDLE':
-      // UPnP no distingue "terminó" de "lo pararon": deducimos el fin natural
-      // de un STOPPED que llega tras haber estado reproduciendo (no una pausa
-      // nuestra). Ventana amplia hasta el final (10% de la pista, mínimo 5 s):
-      // el sondeo es de 1 s y algunos renderers dejan de reportar la posición
-      // en los últimos segundos, así que un umbral fijo de 3 s se quedaba corto
-      // y la cola no avanzaba. Sin duración conocida, nos fiamos de que veníamos
-      // reproduciendo (mejor avanzar que quedarse clavado).
+      // UPnP doesn't distinguish "ended" from "stopped": we infer a natural end
+      // from a STOPPED that arrives after having been playing (not a pause we
+      // requested). Wide window towards the end (10% of track, min 5 s):
+      // polling is 1 s and some renderers stop reporting position in the last
+      // seconds, so a fixed 3 s threshold was too tight and the queue wouldn't
+      // advance. Without known duration, we trust we were playing (better to
+      // advance than to get stuck).
       if (!finishedFired && !loading && wasPlaying && !pausedByUs) {
         const window = Math.max(5, lastDurationSec * 0.1);
         const nearEnd = lastDurationSec <= 0 || lastPositionSec >= lastDurationSec - window;
@@ -129,7 +129,7 @@ function onNativeState(e: NativeState) {
   }
 }
 
-/** Busca renderers en la red (~5 s) y actualiza la lista del store. */
+/** Searches for renderers on the network (~5 s) and updates the store list. */
 export async function upnpSearch(): Promise<void> {
   if (!native || useUpnp.getState().scanning) return;
   useUpnp.setState({ scanning: true });
@@ -137,7 +137,7 @@ export async function upnpSearch(): Promise<void> {
     const found = (await native.search(5000)) as UpnpDevice[];
     useUpnp.setState({ devices: found });
   } catch {
-    // dejamos la lista anterior
+    // keep the previous list
   } finally {
     useUpnp.setState({ scanning: false });
   }
@@ -159,13 +159,13 @@ export async function upnpConnect(device: UpnpDevice): Promise<boolean> {
   return true;
 }
 
-/** Corta la sesión; con silent no avisa al player (p. ej. al pasar a cast). */
+/** Cuts the session; with silent it doesn't notify the player (e.g. when switching to cast). */
 export async function upnpDisconnect(silent = false): Promise<void> {
   if (!isUpnpConnected()) return;
   stateSub?.remove();
   stateSub = undefined;
-  // Cierra la sesión de medios del casting en cualquier vía de desconexión
-  // (incluidas las silenciosas: cambio de salida, reset), no solo la normal.
+  // Closes the casting media session on any disconnect path
+  // (including silent ones: output switch, reset), not just the normal one.
   castStop();
   useUpnp.setState({ connected: false, deviceId: null, deviceName: null });
   try {
@@ -177,15 +177,15 @@ export async function upnpDisconnect(silent = false): Promise<void> {
 }
 
 /**
- * Carga una pista en el renderer. Devuelve false si no hay sesión o la canción
- * no es casteable (ficheros locales: el renderer no puede alcanzarlos).
+ * Loads a track on the renderer. Returns false if there is no session or the song
+ * is not castable (local files: the renderer cannot reach them).
  */
 export async function upnpLoad(song: Song, autoplay: boolean, startTimeSec = 0): Promise<boolean> {
   if (!native || !isUpnpConnected()) return false;
   const auth = useAuthStore.getState().auth;
   let url: string | undefined;
   if (song.url) url = song.url;
-  // Calidad Wi-Fi a propósito: castear por UPnP exige estar en la misma LAN.
+  // Wi-Fi quality on purpose: casting via UPnP requires being on the same LAN.
   else if (!song.localUri && auth) {
     const s = useSettings.getState();
     url = streamUrl(auth, song.id, s.maxBitRate, 0, s.streamFormat);
@@ -200,7 +200,7 @@ export async function upnpLoad(song: Song, autoplay: boolean, startTimeSec = 0):
   const title = [song.title, song.artist].filter(Boolean).join(' — ');
   try {
     const ok = (await native.load(url, title, startTimeSec * 1000)) as boolean;
-    // El renderer siempre arranca reproduciendo; si no toca, se pausa al vuelo.
+    // The renderer always starts playing; if not wanted, it gets paused on the fly.
     if (ok && !autoplay) void native.pause();
     if (!ok) loading = false;
     return ok;
@@ -220,8 +220,8 @@ export async function upnpPlay(): Promise<void> {
 }
 
 export async function upnpPause(): Promise<void> {
-  // Marca la pausa como nuestra: si el renderer reporta STOPPED en vez de
-  // PAUSED, no lo confundimos con un fin de pista (no avanzaría la cola).
+  // Marks the pause as ours: if the renderer reports STOPPED instead of
+  // PAUSED, we don't confuse it with a track end (the queue wouldn't advance).
   pausedByUs = true;
   try {
     await native?.pause();
@@ -238,7 +238,7 @@ export async function upnpSeek(sec: number): Promise<void> {
   }
 }
 
-/** Volumen del renderer; el slider de la app va 0..1 y UPnP usa 0..100. */
+/** Renderer volume; the app slider goes 0..1 and UPnP uses 0..100. */
 export function upnpSetVolume(volume: number): void {
   try {
     void native?.setVolume(Math.round(Math.max(0, Math.min(1, volume)) * 100));

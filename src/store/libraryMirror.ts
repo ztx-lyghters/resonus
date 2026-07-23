@@ -1,13 +1,14 @@
 /**
- * Espejo de la biblioteca del servidor para el modo offline.
+ * Server library mirror for offline mode.
  *
- * Mientras estás online, cada vez que se ven los favoritos, las listas, un
- * álbum, una lista o un artista, se guarda una copia en disco (por perfil, como
- * el catálogo de descargas). En offline con cuenta de servidor, la pantalla
- * Biblioteca lee de aquí y marca cada canción como disponible (descargada) o no.
+ * While online, every time favorites, playlists, an album, a playlist or an
+ * artist are viewed, a copy is saved to disk (per profile, like the download
+ * catalog). Offline with a server account, the Library screen reads from here
+ * and marks each song as available (downloaded) or not.
  *
- * NO es un espejo de TODA la biblioteca: solo lo favoriteado + las listas, que
- * es lo que muestra la pantalla Biblioteca. Lo que nunca se vio online no estará.
+ * It is NOT a mirror of the ENTIRE library: only favorited items + playlists,
+ * which is what the Library screen shows. What was never seen online won't be
+ * there.
  */
 import * as FileSystem from 'expo-file-system/legacy';
 import { AppState } from 'react-native';
@@ -23,17 +24,17 @@ const DIR = FileSystem.documentDirectory + 'library-mirror/';
 interface MirrorData {
   starred?: Starred;
   playlists?: Playlist[];
-  /** Detalle por id de lista: metadatos + su tracklist completo. */
+  /** Detail per playlist id: metadata + its complete tracklist. */
   playlistTracks?: Record<string, { playlist: Playlist; songs: Song[] }>;
-  /** Detalle por id de álbum: metadatos + su tracklist completo. */
+  /** Detail per album id: metadata + its complete tracklist. */
   albums?: Record<string, { album: Album; songs: Song[] }>;
-  /** Detalle por id de artista: metadatos + sus álbumes. */
+  /** Detail per artist id: metadata + its albums. */
   artists?: Record<string, { artist: Artist; albums: Album[] }>;
 }
 
 function fileFor(auth: SubsonicAuth): string {
-  // URL PRINCIPAL (no la activa): identifica el perfil aunque conmute de red,
-  // igual que el directorio de descargas.
+  // PRIMARY URL (not the active one): identifies the profile even when switching
+  // networks, same as the download directory.
   return `${DIR}${hashKey(`${primaryUrl(auth)}|${auth.username}`)}.json`;
 }
 
@@ -44,30 +45,30 @@ function activeFile(): string | null {
 
 interface MirrorState {
   data: MirrorData;
-  /** Fichero cuyos datos están cargados en memoria (null = ninguno). */
+  /** File whose data is loaded in memory (null = none). */
   loadedFile: string | null;
-  /** Carga el espejo del perfil activo (si cambió de perfil, recarga). */
+  /** Loads the active profile's mirror (if profile changed, reloads). */
   load: () => Promise<void>;
   saveStarred: (s: Starred) => void;
   savePlaylists: (list: Playlist[]) => void;
   savePlaylistDetail: (id: string, playlist: Playlist, songs: Song[]) => void;
-  /** Guarda varios detalles de una vez (una sola escritura a disco). */
+  /** Saves multiple details at once (single disk write). */
   savePlaylistDetails: (entries: { id: string; playlist: Playlist; songs: Song[] }[]) => void;
   saveAlbum: (id: string, album: Album, songs: Song[]) => void;
   saveArtist: (id: string, artist: Artist, albums: Album[]) => void;
-  /** Fuerza a disco de inmediato lo pendiente (al ir a segundo plano/offline). */
+  /** Forces pending writes to disk immediately (on background/offline). */
   flush: () => void;
 }
 
 let loadingFile: string | null = null;
 let loadPromise: Promise<void> | null = null;
-// Serializa las escrituras: cada save reescribe el JSON entero.
+// Serializes writes: each save rewrites the entire JSON.
 let writeLock: Promise<unknown> = Promise.resolve();
-// Guardar reescribe el JSON ENTERO con `JSON.stringify` (síncrono, bloquea el
-// hilo de JS), y el espejo crece con el uso (cada álbum/lista vista). Antes se
-// escribía en CADA navegación → abrir un álbum o pasar a offline congelaba la
-// UI, peor cuanto mayor la biblioteca. Ahora se acumula (`dirty`) y se vuelca
-// UNA vez tras un rato de calma, o de inmediato al ir a segundo plano/offline.
+// Saving rewrites the ENTIRE JSON with `JSON.stringify` (synchronous, blocks
+// the JS thread), and the mirror grows with use (each viewed album/playlist).
+// Before, it was written on EVERY navigation → opening an album or going offline
+// would freeze the UI, worse the larger the library. Now it accumulates (`dirty`)
+// and flushes ONCE after a calm period, or immediately on background/offline.
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 let dirty = false;
 const PERSIST_DEBOUNCE_MS = 4000;
@@ -88,7 +89,7 @@ export const useLibraryMirror = create<MirrorState>((set, get) => {
         await FileSystem.makeDirectoryAsync(DIR, { intermediates: true }).catch(() => {});
         await FileSystem.writeAsStringAsync(file, JSON.stringify(data));
       } catch {
-        // Si no se puede persistir, el espejo de esta sesión se pierde al salir.
+        // If it can't be persisted, this session's mirror is lost on exit.
       }
     });
   }
@@ -107,13 +108,13 @@ export const useLibraryMirror = create<MirrorState>((set, get) => {
       const file = activeFile();
       if (!file) {
         if (get().loadedFile !== null) {
-          flush(); // vuelca lo pendiente del perfil que se cierra
+          flush(); // flushes pending writes for the profile being closed
           set({ data: {}, loadedFile: null });
         }
         return;
       }
       if (get().loadedFile === file) return;
-      flush(); // cambio de perfil: persiste lo pendiente del anterior antes de cargar
+      flush(); // profile switch: persist pending from previous before loading
       if (loadPromise && loadingFile === file) return loadPromise;
       loadingFile = file;
       loadPromise = (async () => {
@@ -124,7 +125,7 @@ export const useLibraryMirror = create<MirrorState>((set, get) => {
             data = JSON.parse(await FileSystem.readAsStringAsync(file)) as MirrorData;
           }
         } catch {
-          // Fichero corrupto o ausente: espejo vacío.
+          // Corrupt or missing file: empty mirror.
         }
         set({ data, loadedFile: file });
       })().finally(() => {
@@ -170,8 +171,8 @@ export const useLibraryMirror = create<MirrorState>((set, get) => {
   };
 });
 
-// Al ir a segundo plano (o al cerrarse), vuelca lo pendiente ya: el debounce
-// podría no haber disparado y perderíamos los últimos cambios si matan la app.
+// On background (or close), flush pending writes immediately: the debounce
+// might not have fired and we'd lose the last changes if the app is killed.
 AppState.addEventListener('change', (s) => {
   if (s !== 'active') useLibraryMirror.getState().flush();
 });

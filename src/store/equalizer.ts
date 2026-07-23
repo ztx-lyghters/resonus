@@ -1,12 +1,12 @@
 /**
- * Ecualizador (módulo nativo modules/audio-eq, Android).
+ * Equalizer (native module modules/audio-eq, Android).
  *
- * El procesado lo hace el framework de Android; aquí solo guardamos el estado
- * (activado + ganancia por banda) y se lo pasamos al efecto nativo. El player
- * llama a `attach` con el id de sesión de cada AudioPlayer que crea (usa dos
- * alternos para el crossfade), así el ecualizador se aplica a todos.
+ * Processing is handled by the Android framework; here we only store the state
+ * (enabled + per-band gain) and pass it to the native effect. The player calls
+ * `attach` with the session id of each AudioPlayer it creates (it uses two
+ * alternating ones for crossfade), so the equalizer applies to all.
  *
- * Las ganancias van en milibelios (100 mB = 1 dB), que es la unidad de
+ * Gains are in millibels (100 mB = 1 dB), which is the unit of
  * android.media.audiofx.Equalizer.
  */
 import { requireOptionalNativeModule } from 'expo-modules-core';
@@ -16,18 +16,18 @@ import { getItem, setItem } from '@/lib/storage';
 
 const KEY = 'resonus.equalizer';
 
-/** Una banda del ecualizador del dispositivo. */
+/** A band of the device's equalizer. */
 export interface EqBand {
   index: number;
-  /** Frecuencia central en Hz. */
+  /** Center frequency in Hz. */
   centerFreq: number;
 }
 
-/** Capacidades del ecualizador del dispositivo. */
+/** Capabilities of the device's equalizer. */
 interface EqInfo {
   supported: boolean;
   bands?: EqBand[];
-  /** Rango de ganancia en milibelios. */
+  /** Gain range in millibels. */
   minLevel?: number;
   maxLevel?: number;
   presets?: string[];
@@ -44,7 +44,7 @@ interface NativeAudioEq {
   getBandLevels: () => number[];
 }
 
-// Opcional: en un build sin el módulo (o iOS) simplemente no hay ecualizador.
+// Optional: in a build without the module (or iOS) there is simply no equalizer.
 const native = requireOptionalNativeModule<NativeAudioEq>('AudioEq');
 
 interface Stored {
@@ -53,25 +53,25 @@ interface Stored {
 }
 
 interface EqState {
-  /** El dispositivo expone ecualizador y el módulo está presente. */
+  /** The device exposes an equalizer and the module is present. */
   supported: boolean;
   bands: EqBand[];
   minLevel: number;
   maxLevel: number;
   presets: string[];
   enabled: boolean;
-  /** Ganancia por banda en milibelios. */
+  /** Per-band gain in millibels. */
   levels: number[];
   hydrate: () => Promise<void>;
-  /** Engancha el ecualizador a la sesión de un player (lo llama el player). */
+  /** Attaches the equalizer to a player's audio session (called by the player). */
   attach: (sessionId: number) => void;
   detach: (sessionId: number) => void;
   setEnabled: (on: boolean) => void;
   setBandLevel: (band: number, millibels: number) => void;
-  /** Aplica un preset del dispositivo (no se llama `usePreset` para que no
-   *  parezca un hook de React). */
+  /** Applies a device preset (not named `usePreset` so it doesn't look like a
+   *  React hook). */
   applyPreset: (preset: number) => void;
-  /** Deja todas las bandas a 0 dB. */
+  /** Resets all bands to 0 dB. */
   reset: () => void;
 }
 
@@ -96,13 +96,13 @@ export const useEqualizer = create<EqState>((set, get) => ({
       set({ supported: false });
       return;
     }
-    // Estado guardado; si no cuadra con las bandas del móvil, se ignora.
+    // Saved state; if it doesn't match the device's bands, it's ignored.
     let stored: Stored | null = null;
     try {
       const raw = await getItem(KEY);
       if (raw) stored = JSON.parse(raw) as Stored;
     } catch {
-      // sin datos previos
+      // no previous data
     }
     const flat = info.bands.map(() => 0);
     const levels =
@@ -119,8 +119,8 @@ export const useEqualizer = create<EqState>((set, get) => ({
       enabled,
       levels,
     });
-    // Vuelca lo guardado al efecto nativo (las sesiones ya enganchadas, si las
-    // hay, lo cogen; las futuras lo reciben al engancharse).
+    // Dumps saved state to the native effect (already attached sessions, if any,
+    // pick it up; future ones receive it on attach).
     native.setBandLevels(levels);
     native.setEnabled(enabled);
   },
@@ -153,8 +153,8 @@ export const useEqualizer = create<EqState>((set, get) => ({
 
   applyPreset: (preset) => {
     if (!native) return;
-    // El preset lo aplica el sistema: nos devuelve las ganancias resultantes
-    // para que los sliders muestren lo que de verdad hay puesto.
+    // The system applies the preset: it returns the resulting gains so the
+    // sliders show what's actually set.
     const levels = native.usePreset(preset);
     set({ levels });
     persist({ enabled: get().enabled, levels });

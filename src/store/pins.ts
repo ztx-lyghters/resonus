@@ -1,7 +1,7 @@
 /**
- * Elementos anclados de la Biblioteca (estilo Spotify): hasta 4, siempre
- * arriba del todo ignorando el orden elegido. Clave = 'playlist:<id>' o
- * 'album:<id>'; el valor es cuándo se fijó (los pins conservan ese orden).
+ * Pinned Library items (Spotify style): up to 4, always at the very top
+ * regardless of the chosen sort order. Key = 'playlist:<id>' or
+ * 'album:<id>'; the value is when it was pinned (pins keep that order).
  */
 import { create } from 'zustand';
 
@@ -9,12 +9,12 @@ import { hashKey } from '@/lib/localLibrary';
 import { getItem, setItem } from '@/lib/storage';
 import { profileScopeId } from '@/store/auth';
 
-// Los pins son POR PERFIL (cada cuenta/perfil los suyos): una playlist local
-// fijada no debe aparecer en el Home de una cuenta de servidor y viceversa. Se
-// guardan bajo `resonus.pins.<hash del perfil>`; la clave base a secas es la de
-// la versión antigua (compartida), que solo hereda el perfil local (migración).
+// Pins are PER PROFILE (each account/profile has its own): a pinned local
+// playlist should not appear on a server account's Home and vice versa. They
+// are stored under `resonus.pins.<profile hash>`; the bare base key is the old
+// (shared) version, only inherited by the local profile (migration).
 const KEY = 'resonus.pins';
-/** Clave de pins del perfil activo. */
+/** Pins key for the active profile. */
 function pinsKey(): string {
   return `${KEY}.${hashKey(profileScopeId())}`;
 }
@@ -22,7 +22,7 @@ export const MAX_PINS = 4;
 
 interface PinsState {
   pins: Record<string, number>;
-  /** Fija/desfija. Devuelve false si no cabe (ya hay MAX_PINS). */
+  /** Toggles pin. Returns false if it doesn't fit (already at MAX_PINS). */
   toggle: (key: string) => boolean;
   hydrate: () => Promise<void>;
 }
@@ -52,8 +52,8 @@ export const usePins = create<PinsState>((set, get) => ({
   },
 
   hydrate: async () => {
-    // Se re-ejecuta al cambiar de perfil: hay que RESETEAR a {} si el nuevo
-    // perfil no tiene pins, o se quedarían en memoria los del perfil anterior.
+    // Re-executes on profile switch: must RESET to {} if the new profile has no
+    // pins, otherwise the previous profile's pins would linger in memory.
     try {
       const raw =
         (await getItem(pinsKey())) ??

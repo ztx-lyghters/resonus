@@ -1,19 +1,19 @@
 /**
- * Fiabilidad de red del perfil de servidor: conmutación de URL y caída a modo
- * offline, ambas automáticas al cambiar la conectividad.
+ * Server profile network reliability: URL switching and fallback to offline
+ * mode, both automatic on connectivity change.
  *
- * Un perfil puede tener varias URLs para la misma cuenta (IP local, dominio,
- * Tailscale…). Al cambiar la red —salir de casa: Wi-Fi → datos— se sondea qué
- * URL responde (las de red local primero) y se pone activa la primera
- * alcanzable. No se lee el SSID de la Wi-Fi (evita pedir permiso de ubicación):
- * nos guiamos por quién responde, que basta porque la IP local solo es
- * alcanzable en casa.
+ * A profile can have multiple URLs for the same account (local IP, domain,
+ * Tailscale…). On network change —leaving home: Wi-Fi → mobile— active URLs are
+ * probed (local network ones first) and the first reachable one is activated.
+ * The Wi-Fi SSID is not read (avoids requesting location permission): we are
+ * guided by who responds, which is enough because the local IP is only reachable
+ * at home.
  *
- * Además, si NINGUNA URL responde y el usuario tiene descargas, se cae solo a
- * modo offline (mostrar/reproducir descargas) sin que tenga que hacer nada; y
- * cuando el servidor vuelve a responder, se reconecta solo. Así las descargas
- * "simplemente funcionan" sin gestionar modos. Un offline manual no se revierte
- * (solo se auto-reconecta lo que se activó solo: `autoOffline`).
+ * Additionally, if NO URL responds and the user has downloads, it falls back to
+ * offline mode (show/play downloads) without them having to do anything; and
+ * when the server responds again, it auto-reconnects. This makes downloads
+ * "just work" without managing modes. A manual offline is not reverted (only
+ * what auto-activated is auto-reconnected: `autoOffline`).
  */
 import * as Network from 'expo-network';
 
@@ -29,20 +29,21 @@ let started = false;
 let checking = false;
 let debounce: ReturnType<typeof setTimeout> | null = null;
 /**
- * Sondeos fallidos seguidos. Exigimos 2 antes de caer a offline: un único fallo
- * puede ser un hipo de red (handoff Wi-Fi↔datos, DNS lento…), y no queremos
- * cambiar de modo por eso. Se reinicia en cuanto el servidor responde.
+ * Consecutive failed probes. Require 2 before falling to offline: a single
+ * failure could just be a network hiccup (Wi-Fi↔data handoff, slow DNS…), and
+ * we don't want to switch modes for that. Resets as soon as the server responds.
  */
 let consecutiveFails = 0;
 
 /**
- * Sondea las URLs del perfil activo y actúa: conmuta a la primera alcanzable,
- * reconecta si habíamos caído a offline solos, o cae a offline si nada responde.
+ * Probes the active profile's URLs and acts: switches to the first reachable
+ * one, reconnects if we had auto-fallen to offline, or falls to offline if
+ * nothing responds.
  */
 async function check(): Promise<void> {
   if (checking) return;
   const auth = useAuthStore.getState().auth;
-  // Sin cuenta de servidor (deslogueado o perfil local) no hay nada que sondear.
+  // No server account (signed out or local profile): nothing to probe.
   if (!auth) return;
   const urls = auth.urls ?? [auth.serverUrl];
   checking = true;
@@ -54,23 +55,23 @@ async function check(): Promise<void> {
         break;
       }
     }
-    // Pudo cambiar el perfil mientras sondeábamos: revalida contra el estado vivo.
+    // Profile may have changed while probing: revalidate against live state.
     const now = useAuthStore.getState();
     if (!now.auth) return;
-    // Cambio automático online↔offline: el usuario puede apagarlo para controlar
-    // el modo a mano. La conmutación de URL (autoUrl) es aparte y no se gatea.
+    // Automatic online↔offline change: the user can disable it to control the
+    // mode manually. URL switching (autoUrl) is separate and not gated.
     const autoSwitch = useSettings.getState().autoOfflineSwitch;
     if (up) {
       consecutiveFails = 0;
       if (now.autoOffline && autoSwitch) {
-        // Habíamos caído a offline solos: el servidor volvió → reconecta.
-        // Primero online, luego (si toca) fija la URL alcanzable, ya en contexto
-        // online para que la recarga de la pista opere bien.
+        // We had auto-fallen to offline: server is back → reconnect.
+        // First online, then (if applicable) set the reachable URL, already in
+        // online context so track reload works properly.
         await now.goOnline();
         if (up !== now.auth.serverUrl && now.auth.urls?.includes(up)) {
           await now.setActiveUrl(up);
         }
-        // Aviso cruzado (se ve en cualquier pantalla, no solo en Inicio).
+        // Cross-screen notification (visible on any screen, not just Home).
         useToast.getState().show(tg('Back online'));
       } else if (
         !now.offline &&
@@ -79,21 +80,21 @@ async function check(): Promise<void> {
         up !== now.auth.serverUrl &&
         now.auth.urls?.includes(up)
       ) {
-        // Conmutación de URL normal (misma red distinta: local ↔ remota).
+        // Normal URL switching (same different network: local ↔ remote).
         await now.setActiveUrl(up);
       }
     } else if (!now.offline && autoSwitch && (await hasDownloads())) {
-      // Ningún servidor responde y hay descargas. Confirmamos con un 2.º sondeo
-      // antes de caer a offline (un fallo suelto puede ser un hipo). Sin
-      // descargas se deja online (la UI ya avisa); caer a una biblioteca vacía
-      // sería peor que el aviso.
+      // No server responds and there are downloads. We confirm with a 2nd probe
+      // before falling to offline (a stray failure could be a hiccup). Without
+      // downloads it stays online (the UI already warns); falling to an empty
+      // library would be worse than the warning.
       consecutiveFails += 1;
       if (consecutiveFails >= 2) {
         consecutiveFails = 0;
         await now.goOffline(true);
         useToast.getState().show(tg('Offline'));
       } else {
-        schedule(); // re-sondea en un momento para confirmar
+        schedule(); // re-probes shortly to confirm
       }
     }
   } finally {
@@ -101,22 +102,22 @@ async function check(): Promise<void> {
   }
 }
 
-/** Reprograma el sondeo tras un respiro (el handoff Wi-Fi→datos tarda en asentarse). */
+/** Re-schedules the probe after a breather (Wi-Fi→data handoff takes time to settle). */
 function schedule(): void {
   if (debounce) clearTimeout(debounce);
   debounce = setTimeout(() => void check(), 1500);
 }
 
-/** Arranca el watcher (idempotente; desde el layout raíz, tras hidratar). */
+/** Starts the watcher (idempotent; from the root layout, after hydration). */
 export function initAutoUrl(): void {
   if (started) return;
   started = true;
   Network.addNetworkStateListener(() => schedule());
-  // Comprobación inicial (al abrir la app ya podemos no estar en casa).
+  // Initial check (when opening the app we may already not be at home).
   schedule();
 }
 
-/** Fuerza un sondeo ahora (p. ej. al activar la conmutación en Ajustes). */
+/** Forces a probe now (e.g. when enabling switching in Settings). */
 export function checkAutoUrlNow(): void {
   schedule();
 }

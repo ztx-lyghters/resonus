@@ -1,7 +1,7 @@
 /**
- * Preferencia de orden (campo + dirección) por lista, persistida en disco.
- * La clave identifica la lista ('favorites', 'playlist:<id>'…); el orden por
- * defecto no se guarda para que el mapa solo contenga lo que el usuario cambió.
+ * Sort preference (field + direction) per list, persisted on disk.
+ * The key identifies the list ('favorites', 'playlist:<id>'…); the default
+ * sort is not saved so the map only contains what the user changed.
  */
 import { create } from 'zustand';
 
@@ -22,7 +22,7 @@ export const DEFAULT_SORT: SortPref = { field: 'recent', dir: 'asc' };
 interface SortPrefsState {
   prefs: Record<string, SortPref>;
   hydrated: boolean;
-  /** `def` = orden por defecto de esa lista (para omitirlo del mapa si coincide). */
+  /** `def` = default sort for that list (to omit from the map if it matches). */
   setPref: (key: string, pref: SortPref, def?: SortPref) => void;
   hydrate: () => Promise<void>;
 }
@@ -41,9 +41,10 @@ export const useSortPrefs = create<SortPrefsState>((set, get) => ({
 
   setPref: (key, pref, def = DEFAULT_SORT) => {
     const prefs = { ...get().prefs };
-    // Solo se omite del mapa si coincide con el default REAL de esa lista (que
-    // en playlists no es el global): si no, seleccionar el orden que casualmente
-    // igualaba el global se leía como "volver al default" y no se guardaba.
+    // Only omit from the map if it matches the real default for that list (which
+    // for playlists is not the global one): otherwise, selecting the sort that
+    // happened to match the global was read as "go back to default" and wasn't
+    // saved.
     if (pref.field === def.field && pref.dir === def.dir) delete prefs[key];
     else prefs[key] = pref;
     set({ prefs });

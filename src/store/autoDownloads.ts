@@ -1,16 +1,16 @@
 /**
- * Playlists marcadas para DESCARGA AUTOMÁTICA (por perfil). Al activar una, se
- * descargan sus canciones y, cada vez que se refresca (al abrirla, al añadir una
- * canción desde la app, o al volver la app a primer plano), se descargan las que
- * falten.
+ * Playlists marked for AUTO DOWNLOAD (per profile). When enabled, their songs
+ * are downloaded and, each time they are refreshed (on open, on adding a song
+ * from the app, or when the app returns to foreground), the missing ones are
+ * downloaded.
  *
- * v1: solo AÑADE. Quitar una canción de la lista no borra su fichero (podría
- * estar en otra descarga; el borrado con recuento de referencias queda para más
- * adelante). Desactivar el toggle tampoco borra nada: solo deja de sincronizar.
+ * v1: only ADDS. Removing a song from the list does not delete its file (it could
+ * be in another download; reference-counted deletion is left for later).
+ * Disabling the toggle also doesn't delete anything: it just stops syncing.
  *
- * Reusa `downloadPlaylist`, que ya es idempotente (salta lo descargado, respeta
- * calidad/códec/solo-Wi-Fi) y refresca la playlist local `dl_<id>` con la nueva
- * composición, así que reconciliar es: pedir el tracklist actual + descargarlo.
+ * Reuses `downloadPlaylist`, which is already idempotent (skips already downloaded,
+ * respects quality/codec/Wi-Fi-only) and refreshes the local playlist `dl_<id>`
+ * with the new composition, so reconciling is: request current tracklist + download.
  */
 import { create } from 'zustand';
 
@@ -23,17 +23,17 @@ import { useDownloads } from '@/store/downloads';
 import { useNetworkType } from '@/store/networkType';
 import { useSettings } from '@/store/settings';
 
-// Por perfil: cada cuenta guarda sus playlists auto-descarga bajo
-// `resonus.autodl.<hash del perfil>`.
+// Per profile: each account stores its auto-download playlists under
+// `resonus.autodl.<profile hash>`.
 const KEY = 'resonus.autodl';
 function storeKey(): string {
   return `${KEY}.${hashKey(profileScopeId())}`;
 }
 
 /**
- * ¿Se puede reconciliar ahora? Sin conexión o sin cuenta, no. En segundo plano
- * (foreground/apertura/añadir) no molestamos con el toast de Wi-Fi: si el modo
- * "solo Wi-Fi" está activo y hay datos móviles, se deja para el próximo intento.
+ * Can we reconcile now? Without connection or account, no. In background
+ * (foreground/open/add) we don't bother with the Wi-Fi toast: if "Wi-Fi only"
+ * mode is on and there is mobile data, it's left for the next attempt.
  */
 function canRun(background: boolean): boolean {
   const { offline, auth } = useAuthStore.getState();
@@ -45,15 +45,15 @@ function canRun(background: boolean): boolean {
 }
 
 interface AutoDownloadsState {
-  /** id de playlist (de servidor) → marcada para auto-descarga. */
+  /** Server playlist id → marked for auto-download. */
   ids: Record<string, true>;
-  /** Activa/desactiva el flag (no reconcilia; quien llama decide con qué datos). */
+  /** Toggles the flag (does not reconcile; caller decides with what data). */
   toggle: (playlistId: string) => void;
-  /** Reconcilia pidiendo el tracklist actual al servidor. */
+  /** Reconciles by requesting the current tracklist from the server. */
   reconcile: (playlistId: string, background?: boolean) => Promise<void>;
-  /** Reconcilia con un tracklist ya en mano (evita re-pedirlo al servidor). */
+  /** Reconciles with a tracklist already in hand (avoids re-requesting from server). */
   reconcileKnown: (playlist: Playlist, songs: Song[], background?: boolean) => Promise<void>;
-  /** Reconcilia todas las marcadas (al volver a primer plano). */
+  /** Reconciles all marked (on returning to foreground). */
   reconcileAll: () => Promise<void>;
   hydrate: () => Promise<void>;
 }
@@ -75,7 +75,7 @@ export const useAutoDownloads = create<AutoDownloadsState>((set, get) => ({
       const { playlist, songs } = await getPlaylist(playlistId);
       await useDownloads.getState().downloadPlaylist(playlist, songs);
     } catch {
-      // Red caída u otra: se reintenta en el próximo disparo.
+      // Network down or other: retried on next trigger.
     }
   },
 
@@ -84,20 +84,20 @@ export const useAutoDownloads = create<AutoDownloadsState>((set, get) => ({
     try {
       await useDownloads.getState().downloadPlaylist(playlist, songs);
     } catch {
-      // idem: sin ruido, se reintenta.
+      // same: no noise, retried later.
     }
   },
 
   reconcileAll: async () => {
-    // Secuencial a propósito: no saturar red/disco arrancando todas a la vez.
+    // Sequential on purpose: don't saturate network/disk by starting all at once.
     for (const id of Object.keys(get().ids)) {
       await get().reconcile(id, true);
     }
   },
 
   hydrate: async () => {
-    // Se re-ejecuta al cambiar de perfil: RESETEAR a {} si el nuevo no tiene, o
-    // quedarían en memoria las del perfil anterior.
+    // Re-executed on profile change: RESET to {} if the new profile has none, or
+    // the previous profile's would remain in memory.
     try {
       const raw = await getItem(storeKey());
       set({ ids: raw ? (JSON.parse(raw) as Record<string, true>) : {} });

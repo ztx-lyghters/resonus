@@ -1,12 +1,13 @@
 /**
- * Cola de acciones offline (outbox) por perfil de servidor.
+ * Offline action queue (outbox) per server profile.
  *
- * Con cuenta de servidor en modo offline, las mutaciones (marcar favorito,
- * puntuar, editar listas…) no llegan al servidor: se apuntan aquí, se reflejan
- * al momento sobre el espejo de biblioteca, y al volver online se vuelcan al
- * servidor (ver auth.goOnline). El perfil local (sin cuenta) no usa esta cola.
+ * With a server account in offline mode, mutations (favorite, rate, edit
+ * playlists…) don't reach the server: they are recorded here, reflected
+ * immediately on the library mirror, and flushed to the server when going back
+ * online (see auth.goOnline). The local profile (no account) doesn't use this
+ * queue.
  *
- * Fases: favoritos y valoraciones. Las listas se añaden en una fase siguiente.
+ * Phases: favorites and ratings. Playlists are added in a subsequent phase.
  */
 import * as FileSystem from 'expo-file-system/legacy';
 import { create } from 'zustand';
@@ -18,39 +19,39 @@ import { useAuthStore } from './auth';
 
 const DIR = FileSystem.documentDirectory + 'offline-queue/';
 
-/** Estado deseado de un favorito (last-write-wins por id). */
+/** Desired state of a favorite (last-write-wins by id). */
 interface FavOp {
   type: StarType;
   starred: boolean;
 }
 
 /**
- * Estado deseado de una lista tras las ediciones offline. En vez de un log de
- * add/remove/reorder, guardamos el resultado final (Subsonic reescribe la lista
- * entera con `reorderPlaylist`, así evitamos el lío de índices al sincronizar).
- * La clave puede ser el id del servidor o un id temporal `tmp_…` (lista creada
- * offline, que recibe su id real al sincronizar).
+ * Desired state of a playlist after offline edits. Instead of a log of
+ * add/remove/reorder, we store the final result (Subsonic rewrites the entire
+ * playlist with `reorderPlaylist`, avoiding the mess of indices on sync). The
+ * key can be a server id or a temporary id `tmp_…` (playlist created offline,
+ * which gets its real id on sync).
  */
 interface QueuePlaylist {
-  /** Lista creada offline (la clave es un id temporal). */
+  /** Playlist created offline (key is a temporary id). */
   created?: boolean;
-  /** Marcada para borrar. */
+  /** Marked for deletion. */
   deleted?: boolean;
   name?: string;
   comment?: string;
   public?: boolean;
-  /** Tracklist final deseado (ids de canción); undefined = sin cambios. */
+  /** Desired final tracklist (song ids); undefined = no change. */
   songIds?: string[];
 }
 
 interface QueueData {
-  /** id → estado deseado del favorito. */
+  /** id → desired favorite state. */
   favs?: Record<string, FavOp>;
-  /** id de canción → valoración deseada (1-5; 0 = sin valorar). */
+  /** Song id → desired rating (1-5; 0 = unrated). */
   ratings?: Record<string, number>;
-  /** id de lista (servidor o `tmp_…`) → estado deseado tras editarla offline. */
+  /** Playlist id (server or `tmp_…`) → desired state after editing it offline. */
   playlists?: Record<string, QueuePlaylist>;
-  /** Metadatos de canciones añadidas offline, para mostrarlas en las listas. */
+  /** Metadata for songs added offline, to show them in playlists. */
   songMeta?: Record<string, Song>;
 }
 
@@ -69,23 +70,23 @@ interface QueueState {
   data: QueueData;
   loadedFile: string | null;
   load: () => Promise<void>;
-  /** Registra el estado deseado de un favorito (offline). */
+  /** Records the desired state of a favorite (offline). */
   setFav: (id: string, type: StarType, starred: boolean) => void;
-  /** Vacía la cola de favoritos (tras volcarla al servidor). */
+  /** Clears the favorites queue (after flushing to server). */
   clearFavs: () => void;
-  /** Registra la valoración deseada de una canción (offline). */
+  /** Records the desired rating for a song (offline). */
   setRating: (id: string, rating: number) => void;
-  /** Vacía la cola de valoraciones (tras volcarla al servidor). */
+  /** Clears the ratings queue (after flushing to server). */
   clearRatings: () => void;
-  /** Fusiona cambios en el estado deseado de una lista. */
+  /** Merges changes into the desired state of a playlist. */
   setPlaylist: (id: string, patch: Partial<QueuePlaylist>) => void;
-  /** Elimina la entrada de una lista de la cola (creada-y-borrada, o tras sync). */
+  /** Removes a playlist's queue entry (created-and-deleted, or after sync). */
   removePlaylistEntry: (id: string) => void;
-  /** Guarda metadatos de canciones para poder mostrarlas al editar listas offline. */
+  /** Stores song metadata to display them when editing playlists offline. */
   rememberSongs: (songs: Song[]) => void;
-  /** Vacía las ediciones de listas (tras volcarlas al servidor). */
+  /** Clears playlist edits (after flushing to server). */
   clearPlaylists: () => void;
-  /** ¿Hay algo pendiente de sincronizar? */
+  /** Is there anything pending to sync? */
   isEmpty: () => boolean;
 }
 
@@ -103,7 +104,7 @@ export const useOfflineQueue = create<QueueState>((set, get) => {
         await FileSystem.makeDirectoryAsync(DIR, { intermediates: true }).catch(() => {});
         await FileSystem.writeAsStringAsync(file, JSON.stringify(data));
       } catch {
-        // Si no se puede persistir, la cola de esta sesión se pierde al salir.
+        // If it can't be persisted, this session's queue is lost on exit.
       }
     });
   }
@@ -127,7 +128,7 @@ export const useOfflineQueue = create<QueueState>((set, get) => {
           const info = await FileSystem.getInfoAsync(file);
           if (info.exists) data = JSON.parse(await FileSystem.readAsStringAsync(file)) as QueueData;
         } catch {
-          // Fichero corrupto o ausente: cola vacía.
+          // Corrupt or missing file: empty queue.
         }
         set({ data, loadedFile: file });
       })().finally(() => {

@@ -1,4 +1,4 @@
-/** Ajustes de la app (persistidos): calidad de streaming e idioma. */
+/** App settings (persisted): streaming quality and language. */
 import { create } from 'zustand';
 
 import { LANGUAGE_NAMES, isLanguage, type Language } from '@/i18n/languages';
@@ -8,12 +8,13 @@ import { applyAccent, DEFAULT_ACCENT } from '@/theme';
 import { profileScopeId, useAuthStore } from './auth';
 import { queryClient } from '@/lib/query';
 
-// El campo se llama `color` (no `value`) a propósito: Reanimated warnea de más
-// al ver cualquier `.value` dentro de un estilo inline, aunque no sea un shared
-// value. Con `color` se evita ese falso positivo en el picker de Theme.
-/** Colores de acento elegibles (misma paleta viva; verde por defecto). */
+// The field is named `color` (not `value`) on purpose: Reanimated warns
+// excessively when it sees any `.value` inside an inline style, even if it's
+// not a shared value. Using `color` avoids that false positive in the Theme
+// picker.
+/** Selectable accent colors (same vibrant palette; green by default). */
 export const ACCENT_OPTIONS: { name: string; color: string }[] = [
-  // Ordenados por tono (arcoíris), con el verde por defecto el primero.
+  // Sorted by hue (rainbow), with the default green first.
   { name: 'Green', color: DEFAULT_ACCENT },
   { name: 'Teal', color: '#1FC7B6' },
   { name: 'Cyan', color: '#2CC4E0' },
@@ -28,22 +29,22 @@ export const ACCENT_OPTIONS: { name: string; color: string }[] = [
   { name: 'Lime', color: '#A6D93C' },
 ];
 
-// Base de la clave de ajustes. Los ajustes son POR PERFIL: cada uno guarda bajo
-// `resonus.settings.<id de perfil>`. La clave base a secas (`resonus.settings`)
-// es la de la versión antigua (compartida); se usa como respaldo/migración: un
-// perfil sin ajustes propios aún hereda los antiguos hasta que cambie algo.
+// Base settings key. Settings are PER PROFILE: each one stores under
+// `resonus.settings.<profile id>`. The bare base key (`resonus.settings`)
+// is the old (shared) version; it is used as a fallback/migration: a profile
+// without its own settings still inherits the old ones until something changes.
 const STORAGE_KEY = 'resonus.settings';
-// El idioma es GLOBAL (de la app, no del perfil): con el reset por cambio de
-// perfil, hacerlo por perfil pondría inglés en cada cuenta nueva.
+// Language is GLOBAL (app-wide, not per profile): with the reset on profile
+// switch, making it per-profile would set English on every new account.
 const LANG_KEY = 'resonus.language';
 
-/** Clave de ajustes del perfil activo (servidor, local o ninguno). El id se
- *  hashea: SecureStore solo admite [A-Za-z0-9._-] y la URL trae `:`, `/`, `|`. */
+/** Settings key for the active profile (server, local, or none). The id is
+ *  hashed: SecureStore only accepts [A-Za-z0-9._-] and the URL contains `:`, `/`, `|`. */
 function settingsKey(): string {
   return `${STORAGE_KEY}.${hashKey(profileScopeId())}`;
 }
 
-/** 0 = calidad original (sin transcodificar); el resto es el bitrate en kbps. */
+/** 0 = original quality (no transcoding); the rest is bitrate in kbps. */
 export const BITRATE_OPTIONS = [
   { label: 'Original', value: 0 },
   { label: '320 kbps', value: 320 },
@@ -55,66 +56,66 @@ export const BITRATE_OPTIONS = [
 ] as const;
 
 /**
- * Códec al que pedir la transcodificación (parámetro `format` de Subsonic).
- * '' = el transcoder por defecto del servidor (MP3 en Navidrome). Solo entra en
- * juego cuando hay bitrate elegido (con "Original" se sirve el fichero crudo).
+ * Codec to request for transcoding (Subsonic `format` parameter).
+ * '' = the server's default transcoder (MP3 on Navidrome). Only relevant
+ * when a bitrate is selected (with "Original" the raw file is served).
  */
 export type TranscodeFormat = '' | 'mp3' | 'opus' | 'aac';
 
-/** Opciones del selector de códec. Las etiquetas de códec son nombres propios;
- *  la de "por defecto" la traduce cada pantalla con `t('Server default')`. */
+/** Codec selector options. Codec labels are proper names; the "default" one
+ *  is translated on each screen with `t('Server default')`. */
 export const TRANSCODE_FORMATS: TranscodeFormat[] = ['', 'mp3', 'opus', 'aac'];
 
-// Los idiomas viven en un único sitio (`src/i18n/languages.ts`): añadir uno es
-// una sola fila allí. Se re-exportan aquí para no romper los imports existentes.
+// Languages live in a single place (`src/i18n/languages.ts`): adding one is
+// a single line there. Re-exported here to avoid breaking existing imports.
 export { LANGUAGE_NAMES, isLanguage };
 export type { Language };
 
-/** Orden de la Biblioteca, estilo Spotify. */
+/** Library sort order, Spotify style. */
 export type LibrarySort = 'recent' | 'added' | 'alpha';
 
-/** Disposición de una colección: lista (filas) o cuadrícula (tarjetas). */
+/** Collection layout: list (rows) or grid (cards). */
 export type ListLayout = 'list' | 'grid';
 
 /**
- * Tope del saludo personalizado de Inicio. Cabe de sobra en una línea junto a
- * los botones de la derecha; pasado eso los empujaría fuera. Es un tope de
- * cordura, no la garantía: la fuente la elige el usuario y "WWWW" ocupa mucho
- * más que "iiii", así que el saludo además se recorta solo (ver Inicio).
+ * Maximum length of the Home custom greeting. It easily fits in one line next
+ * to the right-side buttons; exceeding that would push them out. It's a sanity
+ * cap, not a guarantee: the font is user-chosen and "WWWW" takes much more
+ * space than "iiii", so the greeting also self-truncates (see Home).
  */
 export const GREETING_MAX = 15;
 
 /**
- * Normalización de volumen con las etiquetas ReplayGain de los ficheros.
- * `auto` = estilo Spotify: por álbum al escuchar un álbum entero (conserva su
- * dinámica interna) y por canción en playlists/shuffle.
+ * Volume normalization using ReplayGain tags from files.
+ * `auto` = Spotify style: per album when listening to a full album (preserves
+ * its internal dynamics) and per track in playlists/shuffle.
  */
 export type ReplayGainMode = 'off' | 'auto' | 'track' | 'album';
 
 /**
- * Fuente de la interfaz. Son familias del sistema Android (sin coste de
- * empaquetado ni descarga): `system` deja la fuente por defecto (Roboto).
+ * UI font. These are Android system font families (no packaging or download
+ * cost): `system` leaves the default font (Roboto).
  */
 export type AppFont = 'system' | 'condensed' | 'serif' | 'monospace' | 'casual' | 'typewriter';
 
-/** Qué hace tocar la carátula en el reproductor: nada, abrir la pantalla de
- *  letra, o mostrar la letra en el sitio de la carátula. */
+/** What tapping the cover in the player does: nothing, open the lyrics screen,
+ *  or show lyrics in place of the cover. */
 export type CoverTapAction = 'none' | 'screen' | 'inline';
 
-/** Pestaña en la que arranca la app (y a la que vuelve al reabrir tras un rato
- *  en segundo plano). Coincide con los nombres de ruta de `(tabs)`. */
+/** Tab the app starts on (and returns to after being in the background for a
+ *  while). Matches the `(tabs)` route names. */
 export type DefaultTab = 'index' | 'search' | 'library';
 
-/** Conducta del botón "anterior": reiniciar la pista pasados unos segundos (por
- *  defecto, como Spotify) o ir siempre a la pista previa (como YouTube). */
+/** "Previous" button behavior: restart the track after a few seconds (default,
+ *  like Spotify) or always go to the previous track (like YouTube). */
 export type PreviousButtonMode = 'restart' | 'always';
 
-/** Acción al deslizar una canción a la derecha en las listas (customizable). */
+/** Action when swiping a song right in lists (customizable). */
 export type SwipeAction = 'off' | 'queue' | 'next' | 'favorite' | 'menu';
 
-/** Fila de Inicio. `recentlyPlayed` y `discover` son solo servidor; `discover`
- *  redescubre álbumes escuchados hace tiempo; `randomAlbums`/`randomArtists`
- *  son al azar puro. */
+/** Home section row. `recentlyPlayed` and `discover` are server-only; `discover`
+ *  rediscovers albums played long ago; `randomAlbums`/`randomArtists`
+ *  are purely random. */
 export type HomeSectionKey =
   | 'recentlyAdded'
   | 'recentlyPlayed'
@@ -124,7 +125,7 @@ export type HomeSectionKey =
   | 'randomAlbums'
   | 'randomArtists';
 
-/** Sección de Inicio con su estado (el orden lo da la posición en la lista). */
+/** Home section with its state (order is determined by its position in the list). */
 export interface HomeSection {
   key: HomeSectionKey;
   enabled: boolean;
@@ -140,7 +141,7 @@ const HOME_SECTION_KEYS: HomeSectionKey[] = [
   'randomArtists',
 ];
 
-/** Orden y estado por defecto (las opcionales apagadas para no recargar Inicio). */
+/** Default order and state (optional ones off to avoid cluttering Home). */
 export const DEFAULT_HOME_SECTIONS: HomeSection[] = [
   { key: 'discover', enabled: true },
   { key: 'playlists', enabled: false },
@@ -152,9 +153,9 @@ export const DEFAULT_HOME_SECTIONS: HomeSection[] = [
 ];
 
 /**
- * Sanea la lista guardada: conserva el orden y estado del usuario, descarta
- * claves desconocidas y añade al final las secciones nuevas que no estuvieran
- * (así una versión futura con más secciones no rompe la config existente).
+ * Sanitizes the saved list: preserves user order and state, discards unknown
+ * keys, and appends new sections not present (so a future version with more
+ * sections doesn't break existing config).
  */
 export function normalizeHomeSections(raw: unknown): HomeSection[] {
   if (!Array.isArray(raw)) return DEFAULT_HOME_SECTIONS.map((s) => ({ ...s }));
@@ -173,7 +174,7 @@ export function normalizeHomeSections(raw: unknown): HomeSection[] {
   return out;
 }
 
-/** Chip de la fila de explorar de Inicio. `genres` y `radio` son solo servidor. */
+/** Home explore row chip. `genres` and `radio` are server-only. */
 export type ExploreChipKey =
   | 'shuffle'
   | 'favorites'
@@ -183,7 +184,7 @@ export type ExploreChipKey =
   | 'radio'
   | 'history';
 
-/** Chip con su estado (el orden lo da la posición en la lista). */
+/** Chip with its state (order is determined by its position in the list). */
 export interface ExploreChip {
   key: ExploreChipKey;
   enabled: boolean;
@@ -199,7 +200,7 @@ const EXPLORE_CHIP_KEYS: ExploreChipKey[] = [
   'history',
 ];
 
-/** Orden y estado por defecto: los de siempre, todos visibles. */
+/** Default order and state: the usual ones, all visible. */
 export const DEFAULT_EXPLORE_CHIPS: ExploreChip[] = [
   { key: 'shuffle', enabled: true },
   { key: 'favorites', enabled: false },
@@ -211,9 +212,9 @@ export const DEFAULT_EXPLORE_CHIPS: ExploreChip[] = [
 ];
 
 /**
- * Sanea la lista guardada: conserva el orden y estado del usuario, descarta
- * claves desconocidas y añade al final los chips nuevos que no estuvieran (así
- * una versión futura con más chips no rompe la config existente).
+ * Sanitizes the saved list: preserves user order and state, discards unknown
+ * keys, and appends new chips not present (so a future version with more chips
+ * doesn't break existing config).
  */
 export function normalizeExploreChips(raw: unknown): ExploreChip[] {
   if (!Array.isArray(raw)) return DEFAULT_EXPLORE_CHIPS.map((c) => ({ ...c }));
@@ -233,20 +234,20 @@ export function normalizeExploreChips(raw: unknown): ExploreChip[] {
 }
 
 /**
- * Acciones ocultables del menú ⋯ de una canción.
+ * Hideable actions from the song ⋯ menu.
  *
- * «Quitar de la lista» no está: solo aparece dentro de una playlist, así que
- * nunca estorba en el resto, y es la única vía para quitar una canción suelta
- * desde el menú. El criterio no es "esencial" sino "estorba en algún sitio":
- * el resto tiene además otro camino (el corazón de las filas y del reproductor,
- * la carátula y la tarjeta para la letra, la selección múltiple para descargar
- * y para añadir a una lista).
+ * «Remove from playlist» is not included: it only appears inside a playlist, so
+ * it never gets in the way elsewhere, and it's the only way to remove a single
+ * song from the menu. The criterion is not "essential" but "gets in the way
+ * somewhere": the rest also have another path (the heart on rows and the
+ * player, the cover and card for lyrics, multi-select for download and adding
+ * to a list).
  *
- * Salvo `sleepTimer`, que solo vive aquí: ocultarlo deja el temporizador sin
- * acceso hasta volver a activarlo. Es una decisión tomada, no un descuido — la
- * app ya deja apagar vías únicas (el gesto de deslizar, tocar la carátula). Si
- * algún día molesta, la salida buena es darle un segundo sitio (el ⋯ del
- * reproductor), no quitar el interruptor.
+ * Except `sleepTimer`, which only lives here: hiding it leaves the timer
+ * inaccessible until re-enabled. This is a deliberate choice, not an oversight —
+ * the app already allows disabling unique paths (swipe gesture, cover tap). If
+ * it ever becomes an issue, the right fix is giving it a second location (the
+ * player ⋯), not removing the toggle.
  */
 export type SongMenuActionKey =
   | 'playlist'
@@ -262,9 +263,9 @@ export type SongMenuActionKey =
   | 'sleepTimer';
 
 /**
- * Visibilidad de cada acción. Mapa y no lista (a diferencia de los chips y las
- * secciones de Inicio) a propósito: aquí el orden no se puede cambiar, así que
- * guardarlo sería insinuar que sí.
+ * Visibility of each action. Map instead of list (unlike chips and Home
+ * sections) on purpose: order cannot be changed here, so storing it would imply
+ * otherwise.
  */
 export type SongMenuActions = Record<SongMenuActionKey, boolean>;
 
@@ -282,7 +283,7 @@ const SONG_MENU_ACTION_KEYS: SongMenuActionKey[] = [
   'sleepTimer',
 ];
 
-/** Todas visibles menos «Valorar», que empieza oculta (la pediste tú). */
+/** All visible except «Rating», which starts hidden (you asked for it). */
 export const DEFAULT_SONG_MENU_ACTIONS: SongMenuActions = {
   playlist: true,
   artist: true,
@@ -298,8 +299,8 @@ export const DEFAULT_SONG_MENU_ACTIONS: SongMenuActions = {
 };
 
 /**
- * Sanea lo guardado: solo acepta booleanos de claves conocidas. Lo que falte
- * (p. ej. una acción nueva) se queda visible, que es el valor por defecto.
+ * Sanitizes saved data: only accepts booleans for known keys. Anything missing
+ * (e.g. a new action) stays visible, which is the default.
  */
 export function normalizeSongMenuActions(raw: unknown): SongMenuActions {
   const out = { ...DEFAULT_SONG_MENU_ACTIONS };
@@ -311,7 +312,7 @@ export function normalizeSongMenuActions(raw: unknown): SongMenuActions {
   return out;
 }
 
-/** Nombre visible de cada fuente (nombres propios: no se traducen). */
+/** Display name for each font (proper names: not translated). */
 export const APP_FONT_LABELS: Record<AppFont, string> = {
   system: 'Roboto',
   condensed: 'Condensed',
@@ -321,157 +322,157 @@ export const APP_FONT_LABELS: Record<AppFont, string> = {
   typewriter: 'Typewriter',
 };
 
-/** Familia real de cada opción; `undefined` = fuente por defecto del sistema. */
+/** Actual font family for each option; `undefined` = system default font. */
 export const APP_FONT_FAMILY: Record<AppFont, string | undefined> = {
   system: undefined,
   condensed: 'sans-serif-condensed',
   serif: 'serif',
   monospace: 'monospace',
   casual: 'casual',
-  // Cutive Mono (familia serif-monospace de AOSP): rollo máquina de escribir.
+  // Cutive Mono (AOSP serif-monospace family): typewriter style.
   typewriter: 'serif-monospace',
 };
 
 interface SettingsState {
-  /** Calidad de streaming en Wi-Fi (y cualquier red que no sean datos móviles). */
+  /** Streaming quality over Wi-Fi (and any non-cellular network). */
   maxBitRate: number;
-  /** Calidad de streaming con datos móviles. */
+  /** Streaming quality over cellular. */
   maxBitRateCellular: number;
-  /** Calidad de descarga: 0 = fichero original; resto, bitrate transcodificado. */
+  /** Download quality: 0 = original file; rest, transcoded bitrate. */
   downloadBitRate: number;
-  /** Códec de transcodificación en streaming ('' = el del servidor). */
+  /** Streaming transcode codec ('' = server default). */
   streamFormat: TranscodeFormat;
-  /** Códec de transcodificación en descargas ('' = el del servidor). */
+  /** Download transcode codec ('' = server default). */
   downloadFormat: TranscodeFormat;
-  /** Descargar solo con Wi-Fi (bloquea descargas con datos móviles). */
+  /** Download only over Wi-Fi (blocks downloads on cellular). */
   downloadWifiOnly: boolean;
   language: Language;
-  /** Mostrar la etiqueta de formato/bitrate/Hi-Res (solo en el reproductor). */
+  /** Show format/bitrate/Hi-Res label (player only). */
   showAudioQuality: boolean;
-  /** Barra de estrellas para valorar la canción en el reproductor. */
+  /** Star rating bar for the current song in the player. */
   showRating: boolean;
-  /** Mostrar álbum y año bajo el título/artista en el reproductor. */
+  /** Show album and year below title/artist in the player. */
   showAlbumInfo: boolean;
-  /** Mostrar en la cola las pistas ya reproducidas (atenuadas, tocables). */
+  /** Show already played tracks in the queue (dimmed, tappable). */
   showPlayedInQueue: boolean;
-  /** Mostrar la mini carátula del álbum en las listas (playlists/favoritos). */
+  /** Show mini album cover in lists (playlists/favorites). */
   showListArtwork: boolean;
-  /** Duración de cada canción en las listas (Spotify no la muestra). */
+  /** Song duration in lists (Spotify doesn't show it). */
   showSongDuration: boolean;
-  /** Estrellas de valoración de cada canción en las listas. */
+  /** Rating stars per song in lists. */
   showListRating: boolean;
-  /** Al acabar la cola, seguir con canciones parecidas (getSimilarSongs2). */
+  /** When the queue ends, continue with similar songs (getSimilarSongs2). */
   autoplaySimilar: boolean;
-  /** Segundos de fundido cruzado entre canciones (0 = desactivado). */
+  /** Crossfade seconds between songs (0 = disabled). */
   crossfadeSec: number;
   /**
-   * Calentar por adelantado el stream de las próximas pistas de la cola. Pensado
-   * para proxys tipo Octo Fiesta u orígenes lentos que bajan la pista al vuelo:
-   * pide su URL con antelación para que el servidor la tenga lista al llegar.
-   * Apagado por defecto: en un servidor normal no aporta y solo daría trabajo de
-   * más (transcodes, estadísticas) sin que el usuario lo pida.
+   * Pre-warm the stream for upcoming tracks in the queue. Designed for proxies
+   * like Octo Fiesta or slow origins that serve the track on the fly: requests
+   * the URL ahead of time so the server has it ready when needed. Off by
+   * default: on a normal server it adds no value and only creates extra work
+   * (transcodes, stats) without the user asking.
    */
   preloadUpcoming: boolean;
   /**
-   * Cambiar solo entre online y offline según la conectividad: caer a las
-   * descargas cuando el servidor no responde y reconectar cuando vuelve.
-   * Activado por defecto. Si se apaga, el usuario controla el modo a mano
-   * (Ajustes → "Offline mode" / "Back online") y la app nunca lo cambia sola.
+   * Auto-switch between online and offline based on connectivity: fall back to
+   * downloads when the server doesn't respond and reconnect when it comes back.
+   * On by default. If turned off, the user manually controls the mode
+   * (Settings → "Offline mode" / "Back online") and the app never switches it.
    */
   autoOfflineSwitch: boolean;
   /**
-   * En el modo offline de servidor, ocultar las canciones no descargadas en vez
-   * de mostrarlas en gris. Apagado por defecto (se ven en gris, como hasta
-   * ahora); si se activa, la biblioteca offline solo muestra lo reproducible.
+   * In server offline mode, hide non-downloaded songs instead of showing them
+   * grayed out. Off by default (shown grayed out, as before); when enabled, the
+   * offline library only shows playable content.
    */
   hideUnavailableOffline: boolean;
-  /** Normalización de volumen (ReplayGain): apagada, por canción o por álbum. */
+  /** Volume normalization (ReplayGain): off, per track, or per album. */
   replayGain: ReplayGainMode;
-  /** Mantener la pantalla encendida mientras la app está en primer plano. */
+  /** Keep screen on while the app is in the foreground. */
   keepScreenAwake: boolean;
-  /** Vibración sutil en acciones clave (favorito, long-press, arrastrar…). */
+  /** Subtle vibration on key actions (favorite, long-press, drag…). */
   hapticsEnabled: boolean;
-  /** Pantalla de letra teñida con el color dominante de la carátula. */
+  /** Lyrics screen tinted with the dominant color of the cover art. */
   lyricsColorBackground: boolean;
   /**
-   * Si una canción no tiene letra (ni el servidor, ni .lrc, ni USLT),
-   * pedirla a LRCLIB. Activado por defecto (mejor experiencia con letras);
-   * manda artista y título a un servicio externo, se puede desactivar.
+   * If a song has no lyrics (not from the server, .lrc, or USLT),
+   * fetch them from LRCLIB. On by default (better lyrics experience);
+   * sends artist and title to an external service; can be turned off.
    */
   lyricsOnlineFallback: boolean;
-  /** Foto circular del artista junto a su nombre en la pantalla de álbum. */
+  /** Circular artist photo next to the name on the album screen. */
   showArtistPhoto: boolean;
   /**
-   * Cabeceras de disco en álbumes multi-disco (separador + título del disco, o
-   * "Disc N" si no tiene título). Activado por defecto.
+   * Disc headers in multi-disc albums (separator + disc title, or "Disc N"
+   * if untitled). On by default.
    */
   showDiscHeaders: boolean;
-  /** Fondo del reproductor teñido con el color dominante de la carátula. */
+  /** Player background tinted with the dominant color of the cover art. */
   playerColorBackground: boolean;
-  /** Mini-reproductor teñido con el color dominante de la carátula. */
+  /** Mini-player tinted with the dominant color of the cover art. */
   miniPlayerColorBackground: boolean;
-  /** Tarjeta de letras bajo los controles del reproductor. */
+  /** Lyrics card below the player controls. */
   showLyricsCard: boolean;
-  /** Qué hace tocar la carátula del reproductor (nada / pantalla de letra /
-   *  letra en el sitio de la carátula). */
+  /** What tapping the player cover does (nothing / lyrics screen /
+   *  lyrics in place of the cover). */
   coverTapAction: CoverTapAction;
-  /** Marquee: los títulos largos del reproductor se desplazan solos. */
+  /** Marquee: long titles in the player auto-scroll. */
   marqueeTitles: boolean;
-  /** Botones inferiores del reproductor (cola y dispositivos). */
+  /** Player bottom buttons (queue and devices). */
   showQueueButton: boolean;
   showDevicesButton: boolean;
-  /** Botones de salto ±N segundos junto al play (0 = ocultos). Solo 5/10/30: son los iconos numerados que existen en MaterialIcons. */
+  /** Seek ±N seconds buttons next to play (0 = hidden). Only 5/10/30: these are the numbered icons that exist in MaterialIcons. */
   seekButtonsSec: number;
-  /** Conducta del botón "anterior" (reiniciar pista o ir siempre a la previa). */
+  /** "Previous" button behavior (restart track or always go to previous). */
   previousButtonMode: PreviousButtonMode;
-  /** Acción al deslizar una canción a la derecha en las listas. */
+  /** Action when swiping a song right in lists. */
   swipeAction: SwipeAction;
-  /** Acción al deslizar una canción a la izquierda en las listas. */
+  /** Action when swiping a song left in lists. */
   swipeLeftAction: SwipeAction;
-  /** Filas de álbumes de Inicio, en orden (cada una con su estado). */
+  /** Home album rows, in order (each with its state). */
   homeSections: HomeSection[];
-  /** Cuadrícula de acceso rápido (Favoritos + recientes) arriba en Inicio. */
+  /** Quick access grid (Favorites + recent) at the top of Home. */
   showQuickGrid: boolean;
-  /** Fijar el mosaico de Favoritos el primero en el quick grid. */
+  /** Pin the Favorites tile first in the quick grid. */
   quickGridFavorites: boolean;
-  /** Incluir álbumes recientes en el quick grid. */
+  /** Include recent albums in the quick grid. */
   quickGridAlbums: boolean;
-  /** Incluir playlists en el quick grid. */
+  /** Include playlists in the quick grid. */
   quickGridPlaylists: boolean;
-  /** Nº total de mosaicos del quick grid (4, 6 u 8). */
+  /** Total number of tiles in the quick grid (4, 6, or 8). */
   quickGridSize: number;
-  /** Mostrar el saludo ("Buenos días"…) en Inicio. */
+  /** Show the greeting ("Good morning"…) on Home. */
   showGreeting: boolean;
-  /** Saludo propio; vacío = el automático según la hora. */
+  /** Custom greeting; empty = the automatic one based on time of day. */
   customGreeting: string;
-  /** Chips de explorar de Inicio, en orden (cada uno con su estado). Sin
-   *  ninguno activo, la fila desaparece: eso sustituye al viejo interruptor. */
+  /** Home explore chips, in order (each with its state). With none active, the
+   *  row disappears: that replaces the old toggle. */
   exploreChips: ExploreChip[];
-  /** Qué acciones se ven en el menú ⋯ de una canción. */
+  /** Which actions are visible in the song ⋯ menu. */
   songMenuActions: SongMenuActions;
-  /** Sección "Carpetas" en la Biblioteca (navegación por directorios; Subsonic). */
+  /** "Folders" section in the Library (directory browsing; Subsonic). */
   showFolderBrowser: boolean;
-  /** Visibilidad de botones opcionales, para quien prefiera una UI mínima. */
+  /** Optional button visibility, for those who prefer a minimal UI. */
   showHistoryButton: boolean;
   showProfileButton: boolean;
-  /** Pestaña de arranque de la app (Inicio/Buscar/Biblioteca). */
+  /** App startup tab (Home/Search/Library). */
   defaultTab: DefaultTab;
-  /** Orden elegido en la Biblioteca (recientes/añadido/alfabético). */
+  /** Chosen Library sort order (recent/added/alphabetical). */
   librarySort: LibrarySort;
-  /** Lista o cuadrícula en la Biblioteca. */
+  /** List or grid in the Library. */
   libraryLayout: ListLayout;
   /**
-   * Lista o cuadrícula al explorar artistas. Aparte de `libraryLayout` a
-   * propósito: son colecciones distintas (aquí están TODOS los artistas, allí
-   * solo los favoritos), y compartirla haría que tocar el botón de una pantalla
-   * recolocara la otra sin avisar.
+   * List or grid when browsing artists. Separate from `libraryLayout` on
+   * purpose: they are different collections (here ALL artists, there only
+   * favorites), and sharing it would make toggling the button on one screen
+   * rearrange the other without warning.
    */
   browseArtistsLayout: ListLayout;
-  /** Lista o cuadrícula al explorar álbumes. Aparte por lo mismo que la anterior. */
+  /** List or grid when browsing albums. Separate for the same reason as above. */
   browseAlbumsLayout: ListLayout;
-  /** Color de acento (hex). */
+  /** Accent color (hex). */
   accentColor: string;
-  /** Fuente de la interfaz (familia del sistema; `system` = por defecto). */
+  /** UI font (system font family; `system` = default). */
   appFont: AppFont;
   setMaxBitRate: (value: number) => void;
   setMaxBitRateCellular: (value: number) => void;
@@ -511,7 +512,7 @@ interface SettingsState {
   setSwipeAction: (value: SwipeAction) => void;
   setSwipeLeftAction: (value: SwipeAction) => void;
   setHomeSection: (key: HomeSectionKey, value: boolean) => void;
-  /** Reemplaza la lista completa (para reordenar). */
+  /** Replace the full list (for reordering). */
   setHomeSections: (sections: HomeSection[]) => void;
   setShowQuickGrid: (value: boolean) => void;
   setQuickGridFavorites: (value: boolean) => void;
@@ -519,10 +520,10 @@ interface SettingsState {
   setQuickGridPlaylists: (value: boolean) => void;
   setQuickGridSize: (value: number) => void;
   setShowGreeting: (value: boolean) => void;
-  /** Recorta a GREETING_MAX por su cuenta: el tope no depende de quien llame. */
+  /** Trims to GREETING_MAX internally: the cap doesn't depend on the caller. */
   setCustomGreeting: (value: string) => void;
   setExploreChip: (key: ExploreChipKey, value: boolean) => void;
-  /** Reemplaza la lista completa (para reordenar). */
+  /** Replace the full list (for reordering). */
   setExploreChips: (chips: ExploreChip[]) => void;
   setSongMenuAction: (key: SongMenuActionKey, value: boolean) => void;
   setShowFolderBrowser: (value: boolean) => void;
@@ -535,7 +536,7 @@ interface SettingsState {
   setBrowseAlbumsLayout: (value: ListLayout) => void;
   setAccentColor: (value: string) => void;
   setAppFont: (value: AppFont) => void;
-  /** Vuelve a los valores de fábrica (el idioma se conserva). */
+  /** Resets to factory defaults (language is preserved). */
   resetToDefaults: () => void;
   hydrate: () => Promise<void>;
 }
@@ -553,7 +554,7 @@ function snapshot(get: () => SettingsState) {
     streamFormat: s.streamFormat,
     downloadFormat: s.downloadFormat,
     downloadWifiOnly: s.downloadWifiOnly,
-    // `language` no va en el blob del perfil: es global (ver LANG_KEY).
+    // `language` is not in the profile blob: it's global (see LANG_KEY).
     showAudioQuality: s.showAudioQuality,
     showRating: s.showRating,
     showAlbumInfo: s.showAlbumInfo,
@@ -607,7 +608,7 @@ function snapshot(get: () => SettingsState) {
   };
 }
 
-/** Valores de fábrica de todas las preferencias. */
+/** Factory default values for all preferences. */
 const DEFAULTS = {
   maxBitRate: 0,
   maxBitRateCellular: 0,
@@ -638,15 +639,15 @@ const DEFAULTS = {
   playerColorBackground: true,
   miniPlayerColorBackground: true,
   showLyricsCard: true,
-  // Por defecto, tocar la carátula abre la pantalla de letra (como siempre).
+  // By default, tapping the cover opens the lyrics screen (as always).
   coverTapAction: 'screen' as CoverTapAction,
   marqueeTitles: true,
   showQueueButton: true,
   showDevicesButton: true,
   seekButtonsSec: 0,
   previousButtonMode: 'restart' as PreviousButtonMode,
-  // Por defecto, deslizar a la derecha encola (comportamiento previo) y a la
-  // izquierda no hace nada (opt-in).
+  // By default, swiping right queues (previous behavior) and left does
+  // nothing (opt-in).
   swipeAction: 'queue' as SwipeAction,
   swipeLeftAction: 'off' as SwipeAction,
   homeSections: DEFAULT_HOME_SECTIONS.map((s) => ({ ...s })),
@@ -665,11 +666,11 @@ const DEFAULTS = {
   defaultTab: 'index' as DefaultTab,
   librarySort: 'recent' as LibrarySort,
   libraryLayout: 'list' as ListLayout,
-  // Cuadrícula por defecto: a un artista se le reconoce por la cara, y es como
-  // se pinta ya la pantalla. La lista es para quien prefiera escanear nombres.
+  // Grid by default: an artist is recognized by their face, and that's how the
+  // screen is already rendered. List is for those who prefer scanning names.
   browseArtistsLayout: 'grid' as ListLayout,
-  // Cuadrícula por defecto: la portada es lo que identifica un álbum, y es
-  // como se pinta ya la pantalla.
+  // Grid by default: the cover is what identifies an album, and that's how the
+  // screen is already rendered.
   browseAlbumsLayout: 'grid' as ListLayout,
   accentColor: DEFAULT_ACCENT,
   appFont: 'system' as AppFont,
@@ -710,7 +711,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
 
   setLanguage: (language) => {
     set({ language });
-    void setItem(LANG_KEY, language); // idioma global, no por perfil
+    void setItem(LANG_KEY, language); // global language, not per profile
   },
 
   setShowAudioQuality: (showAudioQuality) => {
@@ -771,8 +772,8 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setHideUnavailableOffline: (hideUnavailableOffline) => {
     set({ hideUnavailableOffline });
     persist(snapshot(get));
-    // Cambia lo que devuelven las queries offline (filtra o no las no
-    // descargadas): refresca las listas para que el cambio se vea al momento.
+    // Changes what offline queries return (filters out non-downloaded or not):
+    // refresh lists so the change is visible immediately.
     if (useAuthStore.getState().offline) queryClient.invalidateQueries();
   },
 
@@ -982,7 +983,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
   },
 
   resetToDefaults: () => {
-    // El idioma se conserva: restablecer no debería cambiarte de idioma.
+    // Language is preserved: resetting shouldn't change your language.
     set({ ...DEFAULTS, language: get().language });
     applyAccent(DEFAULT_ACCENT);
     persist(snapshot(get));
@@ -990,14 +991,14 @@ export const useSettings = create<SettingsState>((set, get) => ({
 
   hydrate: async () => {
     try {
-      // Reset a fábrica primero (conservando el idioma, que es global): al
-      // conmutar de perfil no debe heredar los ajustes del anterior. El acento
-      // se aplica a mano porque es efecto colateral (el blob lo re-aplica si lo
-      // trae); la fuente es reactiva y no lo necesita.
+      // Reset to factory first (preserving language, which is global): on
+      // profile switch it must not inherit the previous profile's settings.
+      // Accent is applied manually because it's a side effect (the blob
+      // re-applies it if present); the font is reactive and doesn't need it.
       set({ ...DEFAULTS, language: get().language });
       applyAccent(DEFAULT_ACCENT);
-      // Ajustes del perfil activo; si aún no tiene propios, hereda los antiguos
-      // (compartidos) como respaldo/migración.
+      // Active profile settings; if it doesn't have its own yet, inherits the
+      // old (shared) ones as fallback/migration.
       const raw = (await getItem(settingsKey())) ?? (await getItem(STORAGE_KEY));
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<{
@@ -1039,7 +1040,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
           swipeAction: SwipeAction;
           swipeLeftAction: SwipeAction;
           homeSections: unknown;
-          /** Ajuste antiguo (booleano); se migra a swipeAction. */
+          /** Old setting (boolean); migrated to swipeAction. */
           swipeToQueue: boolean;
           showQuickGrid: boolean;
           quickGridFavorites: boolean;
@@ -1068,9 +1069,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
         if (typeof parsed.maxBitRateCellular === 'number') {
           set({ maxBitRateCellular: parsed.maxBitRateCellular });
         } else if (typeof parsed.maxBitRate === 'number') {
-          // Antes había una sola calidad de streaming: quien la tuviera puesta
-          // hereda el mismo valor en datos móviles (comportamiento idéntico
-          // hasta que toque el ajuste nuevo).
+          // Previously there was a single streaming quality: whoever had it set
+          // inherits the same value for cellular (identical behavior until they
+          // touch the new setting).
           set({ maxBitRateCellular: parsed.maxBitRate });
         }
         if (typeof parsed.downloadBitRate === 'number') {
@@ -1085,10 +1086,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
         if (typeof parsed.downloadWifiOnly === 'boolean') {
           set({ downloadWifiOnly: parsed.downloadWifiOnly });
         }
-        // `language` ya no se aplica aquí: es global, se carga al final.
-        // Antes era un modo ('off'/'player'/'everywhere'); ahora un simple
-        // on/off. Mapeamos los valores viejos: cualquier modo que mostrara la
-        // etiqueta pasa a activado.
+        // `language` is no longer applied here: it's global, loaded at the end.
+        // It used to be a mode ('off'/'player'/'everywhere'); now a simple
+        // on/off. Map old values: any mode that showed the label maps to on.
         if (typeof parsed.showAudioQuality === 'boolean') {
           set({ showAudioQuality: parsed.showAudioQuality });
         } else if (parsed.showAudioQuality === 'player' || parsed.showAudioQuality === 'everywhere') {
@@ -1228,8 +1228,8 @@ export const useSettings = create<SettingsState>((set, get) => ({
         if (typeof parsed.showGreeting === 'boolean') {
           set({ showGreeting: parsed.showGreeting });
         }
-        // Se recorta al hidratar: un ajuste guardado por una versión con otro
-        // tope no debe colarse más largo de lo que cabe.
+        // Truncated on hydrate: a setting saved by a version with a different
+        // cap must not sneak in longer than what fits.
         if (typeof parsed.customGreeting === 'string') {
           set({ customGreeting: parsed.customGreeting.slice(0, GREETING_MAX) });
         }
@@ -1239,9 +1239,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
         if (Array.isArray(parsed.exploreChips)) {
           set({ exploreChips: normalizeExploreChips(parsed.exploreChips) });
         } else if (parsed.showExploreChips === false) {
-          // Migración del interruptor único que había antes: quien tuviera la
-          // fila oculta debe seguir sin verla, no encontrarse los chips de
-          // vuelta. Apagarlos todos es justo lo que la esconde ahora.
+          // Migration from the previous single toggle: whoever had the row
+          // hidden should still not see it, not find the chips back. Turning
+          // them all off is exactly what hides it now.
           set({ exploreChips: DEFAULT_EXPLORE_CHIPS.map((c) => ({ ...c, enabled: false })) });
         }
         if (typeof parsed.showFolderBrowser === 'boolean') {
@@ -1280,8 +1280,8 @@ export const useSettings = create<SettingsState>((set, get) => ({
           set({ appFont: parsed.appFont });
         }
       }
-      // Idioma: global (no por perfil). Si aún no está guardado aparte, se migra
-      // del blob antiguo (que lo incluía) la primera vez.
+      // Language: global (not per profile). If not yet saved separately, it is
+      // migrated from the old blob (which included it) on first run.
       let lang = await getItem(LANG_KEY);
       if (!lang) {
         const legacy = await getItem(STORAGE_KEY);
@@ -1301,7 +1301,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
         set({ language: lang });
       }
     } catch {
-      // valores por defecto si falla
+      // default values on failure
     }
   },
 }));

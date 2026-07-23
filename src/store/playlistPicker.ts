@@ -1,15 +1,15 @@
 /**
- * Selector global de playlist para "Añadir a una playlist". Cualquier sitio
- * (menú de álbum/artista, cola…) abre la hoja con un puñado de canciones sin
- * tener que renderizar su propia instancia. La hoja (`PlaylistPickerSheet`) se
- * monta una vez en el layout raíz y lee de aquí.
+ * Global playlist picker for "Add to playlist". Any place (album/artist menu,
+ * queue…) opens the sheet with a batch of songs without having to render its
+ * own instance. The sheet (`PlaylistPickerSheet`) is mounted once in the root
+ * layout and reads from here.
  */
 import { create } from 'zustand';
 
 import { type Song } from '@/api/subsonic';
 
 interface PlaylistPickerState {
-  /** Canciones a añadir; null = hoja cerrada. */
+  /** Songs to add; null = sheet closed. */
   songs: Song[] | null;
   open: (songs: Song[]) => void;
   close: () => void;

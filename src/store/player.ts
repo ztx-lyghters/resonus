@@ -1287,12 +1287,17 @@ interface StoredQueue {
   positionSec: number;
   /** The queue was a radio: when restoring it must keep extending itself. */
   radioMode?: boolean;
+  /** Where the queue came from, for the player's "playing from" header. */
+  source?: string | null;
+  /** Route of that origin, so tapping the header still navigates there. */
+  sourceHref?: string | null;
 }
 
 function saveQueueLocal() {
   const key = queueStorageKey();
   if (!key) return;
-  const { queue, index, positionSec, radioMode } = usePlayerStore.getState();
+  const { queue, index, positionSec, radioMode, source, sourceHref } =
+    usePlayerStore.getState();
   if (queue.length === 0) return;
   // Size cap as a precaution for SecureStore; 500 songs is more than enough.
   const payload: StoredQueue = {
@@ -1300,6 +1305,8 @@ function saveQueueLocal() {
     index: Math.min(index, 499),
     positionSec,
     radioMode,
+    source,
+    sourceHref,
   };
   void setItem(key, JSON.stringify(payload));
 }
@@ -2118,8 +2125,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       positionSec,
       durationSec: saved.queue[index]?.duration ?? 0,
       isPlaying: false,
-      source: null,
-      sourceHref: null,
+      // Restored like `radioMode`: without this the "playing from" header
+      // vanished once Android killed the app in the background and the queue
+      // came back from disk.
+      source: typeof saved.source === 'string' ? saved.source : null,
+      sourceHref: typeof saved.sourceHref === 'string' ? saved.sourceHref : null,
       // If it was a radio, it still is: closing the app should not leave it
       // silent when reaching the end of what was already queued.
       radioMode: saved.radioMode === true,

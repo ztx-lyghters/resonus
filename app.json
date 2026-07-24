@@ -2,7 +2,7 @@
   "expo": {
     "name": "Resonus",
     "slug": "resonus",
-    "version": "0.5.2",
+    "version": "0.5.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "resonus",
@@ -18,7 +18,7 @@
     },
     "android": {
       "package": "com.juananzzz.resonus",
-      "versionCode": 13,
+      "versionCode": 14,
       "adaptiveIcon": {
         "backgroundColor": "#1CD566",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

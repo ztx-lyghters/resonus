@@ -385,7 +385,12 @@ async function mirrorPlaylists(): Promise<Subsonic.Playlist[]> {
       ...p,
       name: edit?.name ?? p.name,
       songCount: haveTracks ? songIds.length : p.songCount,
-      coverArt: firstDl ? resolveSong(firstDl, catalog)?.albumId ?? p.coverArt : p.coverArt,
+      // The playlist's own cover comes first: it's the image the user set on
+      // the server, and replacing it with the album art of whichever track
+      // happened to be downloaded looked like a random cover offline. The
+      // downloaded album art is only a fallback for playlists without one,
+      // where it's better than nothing.
+      coverArt: p.coverArt ?? (firstDl ? resolveSong(firstDl, catalog)?.albumId : undefined),
     });
   }
   return out;

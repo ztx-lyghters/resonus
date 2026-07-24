@@ -79,19 +79,36 @@ const SORT_LABELS: Record<LibrarySort, string> = {
   alpha: 'Alphabetical',
 };
 
+/** Locale-aware name compare: right for accents/ñ (albums, artists). */
+const byLocale = (a: string, b: string) => a.localeCompare(b);
+
+/**
+ * Case-insensitive code-point compare. Leading symbols sort before letters by
+ * code point ("+" < "[" < a…), so playlists prefixed with "+" to pin them to
+ * the top land there — matching Navidrome, Feishin and other clients.
+ * localeCompare instead orders "[" before "+", burying the "+" playlists.
+ */
+function byCodepoint(a: string, b: string): number {
+  const x = a.toLowerCase();
+  const y = b.toLowerCase();
+  return x < y ? -1 : x > y ? 1 : 0;
+}
+
 /**
  * Sorts by the chosen criterion: alphabetical by name, or by descending score
  * (last play timestamp / added timestamp) with alphabetical tie-break — the
- * never-played ones end up last, in A-Z.
+ * never-played ones end up last, in A-Z. `compare` picks the name ordering
+ * (locale-aware by default; code point for playlists, see byCodepoint).
  */
 function sortItems<T>(
   items: T[],
   sort: LibrarySort,
   name: (x: T) => string,
   score: (x: T) => number,
+  compare: (a: string, b: string) => number = byLocale,
 ): T[] {
   const arr = items.slice();
-  const byName = (a: T, b: T) => name(a).localeCompare(name(b));
+  const byName = (a: T, b: T) => compare(name(a), name(b));
   if (sort === 'alpha') return arr.sort(byName);
   return arr.sort((a, b) => score(b) - score(a) || byName(a, b));
 }
@@ -220,6 +237,8 @@ function PlaylistsTab({ onNew }: { onNew?: () => void }) {
       sort === 'recent'
         ? (p) => times[`/playlist/${p.id}`] ?? 0
         : (p) => Date.parse(p.created ?? '') || 0,
+      // Code point so "+"-prefixed playlists pin to the top like on the server.
+      byCodepoint,
     ),
     (p) => `playlist:${p.id}`,
     pins,

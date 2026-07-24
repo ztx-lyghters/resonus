@@ -14,7 +14,7 @@
  */
 import { create } from 'zustand';
 
-import { getPlaylist } from '@/api/data';
+import { getPlaylist, getStarred } from '@/api/data';
 import { type Playlist, type Song } from '@/api/subsonic';
 import { hashKey } from '@/lib/localLibrary';
 import { getItem, setItem } from '@/lib/storage';
@@ -22,6 +22,11 @@ import { profileScopeId, useAuthStore } from '@/store/auth';
 import { useDownloads } from '@/store/downloads';
 import { useNetworkType } from '@/store/networkType';
 import { useSettings } from '@/store/settings';
+
+// Favorites are auto-downloaded too. They aren't a playlist (own tracklist via
+// getStarred / downloadFavorites), so they use this reserved id in the same
+// `ids` map. The sentinel can't collide with a real server playlist id.
+export const FAVORITES_AUTODL_ID = '__favorites__';
 
 // Per profile: each account stores its auto-download playlists under
 // `resonus.autodl.<profile hash>`.
@@ -53,6 +58,8 @@ interface AutoDownloadsState {
   reconcile: (playlistId: string, background?: boolean) => Promise<void>;
   /** Reconciles with a tracklist already in hand (avoids re-requesting from server). */
   reconcileKnown: (playlist: Playlist, songs: Song[], background?: boolean) => Promise<void>;
+  /** Reconciles favorites with a tracklist already in hand (favorites aren't a playlist). */
+  reconcileFavoritesKnown: (songs: Song[], background?: boolean) => Promise<void>;
   /** Reconciles all marked (on returning to foreground). */
   reconcileAll: () => Promise<void>;
   hydrate: () => Promise<void>;
@@ -72,8 +79,13 @@ export const useAutoDownloads = create<AutoDownloadsState>((set, get) => ({
   reconcile: async (playlistId, background = false) => {
     if (!get().ids[playlistId] || !canRun(background)) return;
     try {
-      const { playlist, songs } = await getPlaylist(playlistId);
-      await useDownloads.getState().downloadPlaylist(playlist, songs);
+      if (playlistId === FAVORITES_AUTODL_ID) {
+        const { songs } = await getStarred();
+        await useDownloads.getState().downloadFavorites(songs);
+      } else {
+        const { playlist, songs } = await getPlaylist(playlistId);
+        await useDownloads.getState().downloadPlaylist(playlist, songs);
+      }
     } catch {
       // Network down or other: retried on next trigger.
     }
@@ -83,6 +95,15 @@ export const useAutoDownloads = create<AutoDownloadsState>((set, get) => ({
     if (!get().ids[playlist.id] || !canRun(background)) return;
     try {
       await useDownloads.getState().downloadPlaylist(playlist, songs);
+    } catch {
+      // same: no noise, retried later.
+    }
+  },
+
+  reconcileFavoritesKnown: async (songs, background = false) => {
+    if (!get().ids[FAVORITES_AUTODL_ID] || !canRun(background)) return;
+    try {
+      await useDownloads.getState().downloadFavorites(songs);
     } catch {
       // same: no noise, retried later.
     }

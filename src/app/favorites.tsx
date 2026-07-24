@@ -1,8 +1,9 @@
 /** Favorites screen: starred songs, Spotify-style. */
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
 import { getStarred, unstar } from '@/api/data';
@@ -11,17 +12,19 @@ import { Dialog } from '@/components/Dialog';
 import { EmptyState } from '@/components/EmptyState';
 import { Message } from '@/components/Message';
 import { PlaylistPickerSheet } from '@/components/PlaylistPickerSheet';
+import { SheetModal } from '@/components/SheetModal';
 import { TrackListView } from '@/components/TrackListView';
 import { useDownloadMessage } from '@/hooks/useDownloadMessage';
 import { useSongSort } from '@/hooks/useSongSort';
 import { songsLabel, useT } from '@/i18n';
 import { formatTotalDuration } from '@/lib/format';
 import { useAuthStore } from '@/store/auth';
+import { FAVORITES_AUTODL_ID, useAutoDownloads } from '@/store/autoDownloads';
 import { groupDownloadState, useDownloads } from '@/store/downloads';
 import { currentSong, SOURCE_FAVORITES, usePlayerStore } from '@/store/player';
 import { useSettings } from '@/store/settings';
 import { showUndoToast, useToast } from '@/store/toast';
-import { colors } from '@/theme';
+import { colors, fontSize, spacing } from '@/theme';
 
 // Indigo → black header (Spotify's "Liked Songs" style): Favorites art's
 // indigo (#450af5, see FavoritesArt) darkened so white text is readable and the
@@ -34,13 +37,18 @@ export default function FavoritesScreen() {
   const router = useRouter();
   const canFetch = useAuthStore((s) => !!s.auth || s.offline);
   const offline = useAuthStore((s) => s.offline);
+  const hasAccount = useAuthStore((s) => !!s.auth);
   const t = useT();
   const lang = useSettings((s) => s.language);
   const showListArtwork = useSettings((s) => s.showListArtwork);
   const playing = usePlayerStore(currentSong);
   const playQueue = usePlayerStore((s) => s.playQueue);
+  const addToQueue = usePlayerStore((s) => s.addToQueue);
   const queryClient = useQueryClient();
   const toast = useToast((s) => s.show);
+
+  // The ⋯ menu lives in a SheetModal (opening/closing doesn't re-render the screen).
+  const menuRef = useRef<() => void>(() => {});
 
   const [confirmDownload, setConfirmDownload] = useState(false);
   const [confirmRemoveDl, setConfirmRemoveDl] = useState(false);
@@ -60,6 +68,17 @@ export default function FavoritesScreen() {
   const cancelDownload = useDownloads((s) => s.cancelDownload);
   const deleteSongs = useDownloads((s) => s.deleteSongs);
   const downloadSongs = useDownloads((s) => s.downloadSongs);
+
+  // Auto-download favorites: keep all starred songs downloaded, syncing on open
+  // and on returning to foreground. Only with a server account (offline / local
+  // profile has nothing to sync from).
+  const canAutoDownload = hasAccount && !offline;
+  const autoDownload = useAutoDownloads((s) => !!s.ids[FAVORITES_AUTODL_ID]);
+  useEffect(() => {
+    if (autoDownload && data) {
+      void useAutoDownloads.getState().reconcileFavoritesKnown(data.songs, true);
+    }
+  }, [autoDownload, data]);
   // Stable between progress ticks (only changes with status): prevents the
   // Pressable from losing its touch when its onPress is recreated on every update.
   const onDownloadPress = useCallback(() => {
@@ -150,6 +169,7 @@ export default function FavoritesScreen() {
         showArtwork={showListArtwork}
         searchable
         searchPlaceholder={t('Find in favorites')}
+        onMenu={displaySongs.length > 0 ? () => menuRef.current() : undefined}
         onSort={displaySongs.length > 1 ? openSort : undefined}
         addAction={{ label: t('Add to favorites'), onPress: () => router.push('/favorites-add') }}
         download={
@@ -171,6 +191,65 @@ export default function FavoritesScreen() {
       />
       <PlaylistPickerSheet songs={addingSongs} onClose={() => setAddingSongs(null)} />
       {sortSheet}
+
+      <SheetModal openRef={menuRef}>
+        {(close) => (
+          <>
+            <Pressable
+              style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
+              onPress={() => {
+                close();
+                // In the visible order (respects the order chosen with ⇅).
+                for (const s of displaySongs) addToQueue(s);
+                toast(t('Added to queue'));
+              }}
+            >
+              <Ionicons name="list" size={24} color={colors.text} />
+              <Text style={styles.actionText}>{t('Add to queue')}</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
+              onPress={() => {
+                close();
+                if (displaySongs.length > 0) setAddingSongs(displaySongs);
+              }}
+            >
+              <Ionicons name="add" size={24} color={colors.text} />
+              <Text style={styles.actionText}>{t('Add to a playlist')}</Text>
+            </Pressable>
+            {canAutoDownload ? (
+              <Pressable
+                style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
+                onPress={() => {
+                  close();
+                  const wasOn = !!useAutoDownloads.getState().ids[FAVORITES_AUTODL_ID];
+                  useAutoDownloads.getState().toggle(FAVORITES_AUTODL_ID);
+                  if (wasOn) {
+                    toast(t('Auto-download off'));
+                  } else {
+                    toast(t('Auto-download on'));
+                    // Download now with data in hand (not in background: if
+                    // Wi-Fi is required and there's cell data, the flow warns
+                    // with its own toast).
+                    if (data) {
+                      void useAutoDownloads.getState().reconcileFavoritesKnown(data.songs, false);
+                    }
+                  }
+                }}
+              >
+                <Ionicons
+                  name={autoDownload ? 'cloud-done' : 'cloud-download-outline'}
+                  size={24}
+                  color={autoDownload ? colors.accent : colors.text}
+                />
+                <Text style={[styles.actionText, autoDownload && { color: colors.accent }]}>
+                  {t('Auto-download')}
+                </Text>
+              </Pressable>
+            ) : null}
+          </>
+        )}
+      </SheetModal>
 
       <Dialog
         visible={confirmDownload}
@@ -214,4 +293,11 @@ export default function FavoritesScreen() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, backgroundColor: colors.background, justifyContent: 'center' },
+  action: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  actionText: { color: colors.text, fontSize: fontSize.md },
 });

@@ -18,6 +18,7 @@ export type {
   FolderContents,
   FolderEntry,
   Genre,
+  GuestAlbum,
   LyricLine,
   MusicFolder,
   Playlist,

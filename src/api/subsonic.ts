@@ -157,6 +157,16 @@ export interface Album {
   discTitles?: { disc: number; title: string; coverArt?: string }[];
 }
 
+/**
+ * Album in an artist's "Appears on". `confirmed` means the server named the
+ * album's artists and ours wasn't one of them, so it's a participation for
+ * certain. Without it we're only guessing from a name search, and the screen
+ * falls back to trusting the discography.
+ */
+export interface GuestAlbum extends Album {
+  confirmed: boolean;
+}
+
 export interface Artist {
   id: string;
   name: string;
@@ -655,15 +665,19 @@ export async function getArtist(
  * Albums by other artists where this one appears ("Appears On"). Subsonic
  * has no endpoint for this, so it's approximated with search3: songs that
  * match the name, filtered to those where the artist participates and whose
- * album is not theirs (via `albumArtists`; on servers without the extension,
- * the final discography-based filter is done by the screen).
+ * album is not theirs.
+ *
+ * `confirmed` says whether the server actually told us the album's artists
+ * (OpenSubsonic `albumArtists`) and ours wasn't among them. That distinction
+ * matters: some servers list participation albums inside `getArtist` too, so
+ * the screen can't just assume "already in the discography = own album".
  */
 export async function getAppearsOn(
   auth: SubsonicAuth,
   artistId: string,
   artistName: string,
   musicFolderId?: string,
-): Promise<Album[]> {
+): Promise<GuestAlbum[]> {
   const res = await request<{ searchResult3?: { song?: Song[] } }>(auth, 'search3.view', {
     query: artistName,
     songCount: 200,
@@ -671,7 +685,7 @@ export async function getAppearsOn(
     artistCount: 0,
     ...(musicFolderId ? { musicFolderId } : {}),
   });
-  const byAlbum = new Map<string, Album>();
+  const byAlbum = new Map<string, GuestAlbum>();
   for (const s of res.searchResult3?.song ?? []) {
     if (!s.albumId || byAlbum.has(s.albumId)) continue;
     const participates = s.artists
@@ -685,6 +699,9 @@ export async function getAppearsOn(
       artist: s.albumArtists?.map((a) => a.name).join(', ') || undefined,
       coverArt: s.coverArt,
       year: s.year,
+      // We got the album's artist list and ours isn't in it: this is a
+      // participation for certain, whatever the discography says.
+      confirmed: !!s.albumArtists?.length,
     });
   }
   return [...byAlbum.values()];

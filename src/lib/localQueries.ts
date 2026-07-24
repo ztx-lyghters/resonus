@@ -8,7 +8,7 @@ import { tg } from '@/i18n';
 import { profileScopeId, useAuthStore } from '@/store/auth';
 import { usePlayCounts } from '@/store/playCounts';
 import { usePlayHistory } from '@/store/playHistory';
-import { type Album, type Artist, type ArtistInfo, type Playlist, type SearchResult, type Song, type StarType, type Starred } from '@/api/subsonic';
+import { type Album, type Artist, type ArtistInfo, type GuestAlbum, type Playlist, type SearchResult, type Song, type StarType, type Starred } from '@/api/subsonic';
 import { queryClient } from '@/lib/query';
 import { deleteItem, getItem, setItem } from '@/lib/storage';
 import { getDownloadsCatalog } from '@/store/downloads';
@@ -332,7 +332,7 @@ export async function getArtist(artistId: string): Promise<{ artist: Artist; alb
 }
 
 /** Álbumes de otros artistas con canciones de este ("Aparece en"). */
-export async function getAppearsOn(artistId: string): Promise<Album[]> {
+export async function getAppearsOn(artistId: string): Promise<GuestAlbum[]> {
   const c = await ensureCatalog();
   if (!c) return [];
   const albumIds = new Set(
@@ -342,7 +342,8 @@ export async function getAppearsOn(artistId: string): Promise<Album[]> {
   );
   return c.albums
     .filter((a) => albumIds.has(a.id) && normKey(a.artist || 'Artista desconocido') !== artistId)
-    .map(toAlbum);
+    // The album's own artist is compared here, so there's no ambiguity.
+    .map((a) => ({ ...toAlbum(a), confirmed: true }));
 }
 
 export function getArtistInfo(_id: string): ArtistInfo {

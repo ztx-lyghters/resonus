@@ -235,7 +235,7 @@ export function getArtistInfo(id: string): Promise<Subsonic.ArtistInfo> {
 }
 
 /** Albums where the artist appears without being the album artist. */
-export function getAppearsOn(artistId: string, artistName: string): Promise<Subsonic.Album[]> {
+export function getAppearsOn(artistId: string, artistName: string): Promise<Subsonic.GuestAlbum[]> {
   if (isOffline()) return Local.getAppearsOn(artistId);
   const a = auth();
   const ids = enabledFolderIds(a);

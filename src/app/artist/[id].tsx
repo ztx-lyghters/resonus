@@ -155,11 +155,21 @@ export default function ArtistScreen() {
   }
 
   const top = topSongs ?? [];
-  const albums = [...data.albums].sort((a, b) => (b.year ?? 0) - (a.year ?? 0));
-  // Safety net: exclude own albums (servers without `albumArtists`).
+  // Some servers (Navidrome with artist participations on) list collaboration
+  // albums inside `getArtist` as well, so "already in the discography" does NOT
+  // mean "own album". When the server confirmed a participation we move the
+  // album out of the discography instead of dropping it — assuming otherwise is
+  // what made "Appears on" never show up on those servers.
+  const guests = appearsOn ?? [];
+  const confirmedIds = new Set(guests.filter((a) => a.confirmed).map((a) => a.id));
+  // Unconfirmed ones are guesses from a name search: there the discography is
+  // still the best evidence of what's the artist's own.
   const ownAlbumIds = new Set(data.albums.map((a) => a.id));
-  const guestAlbums = (appearsOn ?? [])
-    .filter((a) => !ownAlbumIds.has(a.id))
+  const albums = data.albums
+    .filter((a) => !confirmedIds.has(a.id))
+    .sort((a, b) => (b.year ?? 0) - (a.year ?? 0));
+  const guestAlbums = guests
+    .filter((a) => a.confirmed || !ownAlbumIds.has(a.id))
     .sort((a, b) => (b.year ?? 0) - (a.year ?? 0));
   const headerUri =
     info?.imageUrl ?? coverArtUrl( data.artist.coverArt ?? data.artist.id, 800);

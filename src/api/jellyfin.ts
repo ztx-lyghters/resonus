@@ -23,6 +23,7 @@ import {
   type Artist,
   type ArtistInfo,
   type Genre,
+  type GuestAlbum,
   type MusicFolder,
   type Playlist,
   type RadioStation,
@@ -400,7 +401,7 @@ export async function getAppearsOn(
   artistId: string,
   _artistName: string,
   _musicFolderId?: string,
-): Promise<Album[]> {
+): Promise<GuestAlbum[]> {
   const res = await request<JfItems>(auth, `/Users/${auth.jfUserId}/Items`, {
     IncludeItemTypes: 'MusicAlbum',
     Recursive: true,
@@ -409,7 +410,8 @@ export async function getAppearsOn(
     SortOrder: 'Descending',
     Fields: ALBUM_FIELDS,
   });
-  return (res.Items ?? []).map(toAlbum);
+  // Jellyfin answers this directly, so there is nothing to second-guess.
+  return (res.Items ?? []).map((i) => ({ ...toAlbum(i), confirmed: true }));
 }
 
 export async function getArtistInfo(auth: SubsonicAuth, id: string): Promise<ArtistInfo> {

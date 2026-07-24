@@ -58,7 +58,18 @@ import { colors, fontSize, spacing } from '@/theme';
 
 const SCREEN_W = Dimensions.get('window').width;
 const SCREEN_H = Dimensions.get('window').height;
-const COVER = SCREEN_W - spacing.xl * 2;
+/** Cover size when there's height to spare: a square as wide as the screen. */
+const COVER_MAX = SCREEN_W - spacing.xl * 2;
+/** Floor: below this the cover stops giving up space and the page scrolls. */
+const COVER_MIN = 200;
+/**
+ * Share of the spare height that goes ABOVE the cover; the rest falls below it,
+ * between the artwork and the info block. With few options enabled there is a
+ * lot of spare height and it has to go somewhere: piling it all on one side
+ * left an obvious hole there, so it gets split. Slightly under half so the
+ * cover sits a touch high, which reads better than dead centre.
+ */
+const COVER_TOP_SHARE = 0.4;
 const SWIPE_THRESHOLD = SCREEN_W * 0.25;
 const DISMISS_THRESHOLD = 120;
 // How much of the lyrics card peeks below the first page (invites swipe).
@@ -184,6 +195,18 @@ export default function PlayerScreen() {
   // screen and the lyrics card peeks below. The real height comes from the
   // ScrollView's onLayout; until then, an approximation.
   const [pageH, setPageH] = useState(0);
+  /**
+   * Height left over for the cover once everything else has taken its share.
+   * The cover is the ONLY elastic piece of the player: the title, the optional
+   * rows (rating, album, quality badge) and the controls all have a fixed
+   * height, so with every option enabled they stopped fitting. `coverWrap` is
+   * `flex: 1`, so this measurement already discounts whatever is above and
+   * below it — including any row added in the future, with no constants to
+   * keep in sync.
+   */
+  const [coverBoxH, setCoverBoxH] = useState(0);
+  /** Height of the rating row, measured so it can be subtracted from the slot. */
+  const [starsH, setStarsH] = useState(0);
   // The swipe-to-close gesture should only work when scrolled to the top;
   // otherwise it would steal the gesture when returning from the lyrics card.
   const [atTop, setAtTop] = useState(true);
@@ -334,6 +357,17 @@ export default function PlayerScreen() {
   // artist name goes to the artist, and «Album · Year» to the album.
   const artistName = song.artist ?? t('Unknown artist');
   const albumInfo = showAlbumInfo ? [song.album, song.year].filter(Boolean).join(' · ') : '';
+  // Square, capped at the width: it only shrinks when the height demands it, so
+  // on a tall screen with few options it looks exactly as it did before. The
+  // rating row shares the slot, so it comes off the top first.
+  const coverSize = coverBoxH
+    ? Math.max(COVER_MIN, Math.min(COVER_MAX, coverBoxH - (canRate ? starsH : 0)))
+    : COVER_MAX;
+  // Left-over height once the cover and the stars have taken their share, split
+  // between the two sides. Padding doesn't feed back into the measurement: the
+  // slot's height comes from `flex: 1`, not from its contents.
+  const coverSlack = Math.max(0, coverBoxH - coverSize - (canRate ? starsH : 0));
+  const coverTopPad = Math.round(coverSlack * COVER_TOP_SHARE);
   const duration = durationSec || song.duration || 0;
   const repeatActive = repeat !== 'off';
 
@@ -400,13 +434,16 @@ export default function PlayerScreen() {
           )}
         </View>
 
-        <View style={styles.coverWrap}>
+        <View
+          style={[styles.coverWrap, { paddingTop: coverTopPad }]}
+          onLayout={(e) => setCoverBoxH(e.nativeEvent.layout.height)}
+        >
           <GestureDetector gesture={coverGesture}>
             {/* Recycled carousel: the current cover centered and the neighbors at
                 one screen, already entering on drag. No fade (transition 0): a
                 panel's content only changes off-screen and a fade is pointless
                 here. */}
-            <Animated.View style={styles.coverRow}>
+            <Animated.View style={{ width: coverSize, height: coverSize }}>
               {paneStyles.map((paneStyle, k) => {
                 const rel = paneRel(k);
                 const paneSong = rel === 0 ? song : rel === 1 ? nextSong : prevSong;
@@ -418,7 +455,7 @@ export default function PlayerScreen() {
                     {paneSong && !inlineLyrics ? (
                       <Cover
                         uri={paneCover}
-                        size={COVER}
+                        size={coverSize}
                         transition={0}
                         placeholderIcon={paneSong.url ? 'radio' : 'musical-notes'}
                       />
@@ -430,12 +467,18 @@ export default function PlayerScreen() {
           </GestureDetector>
           {/* Lyrics in place of the cover (setting): same frame, on top. */}
           {inlineLyrics && hasLyrics ? (
-            <View style={styles.lyricsOverlay}>
-              <CoverLyrics size={COVER} onClose={() => setInlineLyrics(false)} />
+            <View style={[styles.lyricsOverlay, { height: coverSize }]}>
+              <CoverLyrics size={coverSize} onClose={() => setInlineLyrics(false)} />
             </View>
           ) : null}
+          {/* Inside the slot and right after the cover, so it hangs from the
+              artwork instead of from the title: the spare height falls below
+              both. Its measured height is discounted from `coverSize`. */}
           {canRate ? (
-            <View style={styles.belowCover}>
+            <View
+              style={styles.belowCover}
+              onLayout={(e) => setStarsH(e.nativeEvent.layout.height)}
+            >
               <StarRating
                 id={song.id}
                 rating={song.userRating}
@@ -473,17 +516,28 @@ export default function PlayerScreen() {
                   ? () => router.push(`/album/${song.albumId}` as never)
                   : undefined;
                 return (
-                  <Text style={styles.artist} numberOfLines={1}>
-                    <Text onPress={goArtist} suppressHighlighting>
+                  <>
+                    <Text
+                      style={styles.artist}
+                      numberOfLines={1}
+                      onPress={goArtist}
+                      suppressHighlighting
+                    >
                       {artistName}
                     </Text>
+                    {/* Its own line: next to the artist the two ran together and
+                        the album was hard to pick out. */}
                     {albumInfo ? (
-                      <Text onPress={goAlbum} suppressHighlighting>
-                        {'  ·  '}
+                      <Text
+                        style={styles.album}
+                        numberOfLines={1}
+                        onPress={goAlbum}
+                        suppressHighlighting
+                      >
                         {albumInfo}
                       </Text>
                     ) : null}
-                  </Text>
+                  </>
                 );
               })()}
             </View>
@@ -709,30 +763,35 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: '700',
   },
+  // The elastic slot: takes whatever the rest leaves over, and `coverSize` is
+  // measured from here. `minHeight: 0` so it can actually shrink.
+  // `flex-start` plus a computed `paddingTop` instead of `center`: this way the
+  // split of the spare height is ours to decide (see COVER_TOP_SHARE) rather
+  // than a fixed 50/50, which left too big a hole above the cover.
   coverWrap: {
+    flex: 1,
+    minHeight: 0,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     marginTop: spacing.lg,
   },
-  // Carousel panels are absolute (usePaneStyle positions them); the row
-  // reserves the cover art slot.
-  coverRow: { width: COVER, height: COVER },
+  // Carousel panels are absolute (usePaneStyle positions them); the row that
+  // reserves the cover art slot is sized inline, since it's dynamic now.
   coverPane: { position: 'absolute', top: 0, left: 0 },
-  // Lyrics overlay on top of the cover frame: same height (top 0, height COVER)
-  // and horizontally centered (coverWrap is wider than the cover; without this
-  // the lyrics would be left-aligned).
+  // Lyrics overlay on top of the cover frame: same height (set inline, it
+  // follows the cover) and horizontally centered (coverWrap is wider than the
+  // cover; without this the lyrics would be left-aligned).
   lyricsOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: COVER,
     alignItems: 'center',
   },
+  // Natural height (no `flex: 1`): the slack goes to `coverWrap`, which is what
+  // gives it up when the options don't fit.
   bottom: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    paddingBottom: spacing.lg,
+    paddingBottom: spacing.md,
     paddingHorizontal: spacing.xl,
   },
   meta: {
@@ -751,8 +810,15 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     marginTop: spacing.xs,
   },
+  // A step below the artist so the three lines read as a hierarchy
+  // (title → artist → album) instead of three rows of the same weight.
+  album: {
+    color: colors.textMuted,
+    fontSize: fontSize.sm,
+    marginTop: 2,
+  },
   subInfo: { marginTop: -spacing.sm, marginBottom: spacing.xs },
-  progress: { marginBottom: spacing.md },
+  progress: { marginBottom: spacing.xs },
   // Compensates for the slider's internal margin (~15px, where the thumb is
   // centered at the extremes): the visible track goes edge to edge of the
   // content, like Spotify, and the thumb extends into the gap without being
@@ -769,7 +835,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginVertical: spacing.lg,
+    marginVertical: spacing.sm,
   },
   playButton: {
     backgroundColor: colors.text,
@@ -786,7 +852,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.sm,
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
   },
   // Flexible slot for the devices button: keeps the queue in place even if
   // the button is hidden, and lets the device name expand.

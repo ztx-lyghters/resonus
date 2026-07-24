@@ -384,7 +384,11 @@ interface SettingsState {
    * still shows the state up there, and can still toggle from inside the menu).
    */
   swapPlayerButtons: boolean;
-  /** Show already played tracks in the queue (dimmed, tappable). */
+  /**
+   * Show the tracks before the current one in the queue (dimmed, tappable).
+   * The key still says "played" for historical reasons: they are simply the
+   * ones behind the cursor, which after jumping forward includes skipped ones.
+   */
   showPlayedInQueue: boolean;
   /** Show mini album cover in lists (playlists/favorites). */
   showListArtwork: boolean;

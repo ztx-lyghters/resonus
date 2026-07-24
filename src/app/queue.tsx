@@ -3,14 +3,15 @@
  *   · Now playing — the current song (fixed, can't be dragged or removed).
  *   · Next up — manually added items (`queuedCount` block).
  *   · Next from: {source} — the rest of what was playing.
- * Only current and upcoming are shown (already-played doesn't appear).
+ * Only current and upcoming are shown (the previous ones don't appear).
  * Drag to reorder, remove and clear. Section headers are derived from the
  * position, so they reposition themselves on reorder.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ReorderableList, {
   useReorderableDrag,
@@ -72,12 +73,12 @@ function NowPlayingRow({ song }: { song: Song }) {
   );
 }
 
-/** Fila ya reproducida (ajuste opcional): atenuada, tocar → vuelve a esa pista. */
-function PlayedRow({ item, absIndex }: { item: Song; absIndex: number }) {
+/** Row behind the cursor (optional setting): dimmed, tap → jump back to it. */
+function PreviousRow({ item, absIndex }: { item: Song; absIndex: number }) {
   const jumpTo = usePlayerStore((s) => s.jumpTo);
   const showListArtwork = useSettings((s) => s.showListArtwork);
   return (
-    <Pressable style={[styles.row, styles.played]} onPress={() => jumpTo(absIndex)}>
+    <Pressable style={[styles.row, styles.previous]} onPress={() => jumpTo(absIndex)}>
       <View style={styles.main}>
         {showListArtwork ? (
           <View style={styles.artwork}>
@@ -166,11 +167,29 @@ export default function QueueScreen() {
   // ⋯ menu (imperative: opening/closing doesn't re-render the screen).
   const menuRef = useRef<() => void>(() => {});
 
-  const showPlayed = useSettings((s) => s.showPlayedInQueue);
+  const showPrevious = useSettings((s) => s.showPlayedInQueue);
   const current = queue[index] ?? null;
   const upcoming = queue.slice(index + 1);
-  // Already played (setting): its absolute index is its own position 0..index-1.
-  const played = showPlayed ? queue.slice(0, index) : [];
+  // Everything behind the cursor (setting): its absolute index is its own
+  // position 0..index-1. Not necessarily heard — jumping forward leaves the
+  // skipped ones here too, which is why this isn't called "played".
+  const previous = showPrevious ? queue.slice(0, index) : [];
+  /**
+   * A stable key per queue entry: its id plus which occurrence of that id it is
+   * within the WHOLE queue, so the same song twice still gets distinct keys.
+   *
+   * The position can't be part of it. Every row shifts up when a track ends, so
+   * positional keys made React tear down and rebuild every row — and with it
+   * every cover, which then faded in from blank. That was the flicker.
+   */
+  const rowKeys = useMemo(() => {
+    const seen = new Map<string, number>();
+    return queue.map((s) => {
+      const n = seen.get(s.id) ?? 0;
+      seen.set(s.id, n + 1);
+      return `${s.id}#${n}`;
+    });
+  }, [queue]);
   const totalSec = upcoming.reduce((acc, s) => acc + (s.duration ?? 0), 0);
 
   // Source label for the "Next from:" section; favorites/history sentinels
@@ -183,7 +202,16 @@ export default function QueueScreen() {
         : source;
   const contextHeader = sourceName ? t('Next from {name}', { name: sourceName }) : null;
 
-  /** Section header for upcoming row `rel` (or null). */
+  /**
+   * Section header for upcoming row `rel` (or null).
+   *
+   * Headers live inside the rows, not as items of their own. That's why the
+   * list has no `itemLayoutAnimation`: when a track ends every row shifts, the
+   * one that carried the header loses it and another grows one, so animating
+   * row layout animated rows changing height and read as the list rebuilding
+   * itself. Making them real items would mean remapping the drag-to-reorder
+   * indices around them.
+   */
   const headerFor = (rel: number): string | null => {
     if (queuedCount > 0 && rel === 0) return t('Next in queue');
     if (rel === queuedCount && contextHeader) return contextHeader;
@@ -252,19 +280,25 @@ export default function QueueScreen() {
         <ReorderableList
           {...queueListPerf}
           data={upcoming}
-          keyExtractor={(item, i) => `${item.id}-${i}`}
+          keyExtractor={(item, i) => rowKeys[index + 1 + i] ?? `${item.id}-${i}`}
           ListHeaderComponent={
             <View>
-              {played.length > 0 ? (
+              {previous.length > 0 ? (
                 <View>
-                  <SectionHeader title={t('Played')} />
-                  {played.map((s, i) => (
-                    <PlayedRow key={`${s.id}-${i}`} item={s} absIndex={i} />
+                  <SectionHeader title={t('Previous::queue')} />
+                  {previous.map((s, i) => (
+                    <PreviousRow key={rowKeys[i] ?? `${s.id}-${i}`} item={s} absIndex={i} />
                   ))}
                 </View>
               ) : null}
-              <SectionHeader title={t('Now playing')} gap={played.length > 0} />
-              <NowPlayingRow song={current} />
+              <SectionHeader title={t('Now playing')} gap={previous.length > 0} />
+              {/* Keyed by song so changing track remounts it and the entrance
+                  plays: it slides up from below, the direction the next song
+                  actually comes from. The rest of the list can't animate — its
+                  keys carry the position, so every row is rebuilt on advance. */}
+              <Animated.View key={current.id} entering={FadeInDown.duration(240)}>
+                <NowPlayingRow song={current} />
+              </Animated.View>
             </View>
           }
           renderItem={({ item, index: rel }) => {
@@ -369,8 +403,8 @@ const styles = StyleSheet.create({
     // Opaque background so the dragged row covers the others while passing.
     backgroundColor: colors.background,
   },
-  // Already-played rows: dimmed to read as "past" without disappearing.
-  played: { opacity: 0.55 },
+  // Rows behind the cursor: dimmed to read as "past" without disappearing.
+  previous: { opacity: 0.55 },
   main: {
     flex: 1,
     flexDirection: 'row',

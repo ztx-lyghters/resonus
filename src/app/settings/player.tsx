@@ -148,8 +148,10 @@ export default function PlayerSettings() {
         <SwitchList
           options={[
             {
-              label: t('Show played tracks'),
-              description: t('Keep already-played tracks in the queue, dimmed. Tap one to go back.'),
+              label: t('Show previous tracks'),
+              description: t(
+                'Keep the tracks before the current one in the queue, dimmed. Tap one to go back.',
+              ),
               value: showPlayedInQueue,
               onChange: setShowPlayedInQueue,
             },

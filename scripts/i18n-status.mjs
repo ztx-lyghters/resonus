@@ -27,12 +27,21 @@ const locales = readdirSync(DIR)
   .map((f) => f.replace('.json', ''))
   .sort();
 
+// A key may carry an optional "::context" suffix (e.g. "About::artist"), an
+// override a language adds when the base term ("About") can't cover every use.
+// Only the base key lives in English; overrides are valid as long as their base
+// exists there, and they never count as missing (nobody is required to add them).
+const baseKey = (k) => {
+  const i = k.indexOf('::');
+  return i === -1 ? k : k.slice(0, i);
+};
+
 function analyze(code) {
   const dict = load(code);
   const keys = new Set(Object.keys(dict));
   const missing = enKeys.filter((k) => !keys.has(k));
   const same = enKeys.filter((k) => keys.has(k) && dict[k] === en[k]);
-  const stale = Object.keys(dict).filter((k) => !(k in en));
+  const stale = Object.keys(dict).filter((k) => !(baseKey(k) in en));
   const translated = enKeys.length - missing.length - same.length;
   return { code, dict, missing, same, stale, translated };
 }

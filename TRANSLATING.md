@@ -64,10 +64,29 @@ we'll move it into the plural system so it can be inflected properly.
 ## Gendered / context-dependent words
 
 A single English key sometimes maps to several words in another language
-depending on gender or context. "Unknown", for example, may need different forms
-for an unknown *artist* vs *album* vs *title*. If that's the case, ask and we'll
-**split the key** (e.g. `Unknown artist`, `Unknown album`) so each can be
-translated correctly.
+depending on gender or context. English `About` is one word, but Russian needs
+a different one for *About the artist* vs *About the app*.
+
+You don't have to burden every language with that. Most languages just translate
+the **base key** (`About`) once and it's used everywhere. If *your* language
+needs to distinguish a specific use, add an **override key** shaped
+`Base::context` — only in your file; other languages keep just the base:
+
+```jsonc
+"About": "Подробности",        // base — the fallback for every use
+"About::artist": "Об исполнителе",  // used only on the artist screen
+"About::app": "О приложении"        // used only on the About-app screen
+```
+
+The app looks up the `::context` key first and falls back to the base if you
+didn't add it, so overrides are always optional. Contexts available today:
+
+| Override key | Where it shows |
+| --- | --- |
+| `About::artist` | Artist screen: the **biography** section title |
+| `About::app` | Settings → the **About this app** page title |
+
+If a base key needs a context that doesn't exist yet, tell us and we'll add it.
 
 ## Checking what's left to translate
 

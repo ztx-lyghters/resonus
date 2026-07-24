@@ -20,7 +20,14 @@ type Vars = Record<string, string | number>;
 
 function translate(text: string, lang: Language, vars?: Vars): string {
   const table = DICTIONARIES[lang];
-  let out = table?.[text] ?? text;
+  // Optional per-context disambiguation: a key may carry a "::context" suffix
+  // (e.g. "About::artist", "About::app") so a language that needs different
+  // words per use can override just that one; any language that doesn't only
+  // defines the base key ("About") and every use falls back to it. English (the
+  // source) only ever needs the base. Never surface the raw suffixed key.
+  const sep = text.indexOf('::');
+  const base = sep === -1 ? text : text.slice(0, sep);
+  let out = table?.[text] ?? table?.[base] ?? base;
   if (vars) {
     for (const key of Object.keys(vars)) {
       out = out.split(`{${key}}`).join(String(vars[key]));

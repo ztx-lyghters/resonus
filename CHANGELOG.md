@@ -38,9 +38,8 @@ Releases before 0.2.1 are only listed on the
 - The "playing from" header vanished once Android killed the app.
 - Queue covers blinked on every track change.
 - Headphone next/previous buttons now skip through the queue.
-- The volume overlay while casting.
-- Skipping tracks from a Bluetooth device while casting.
-- Cast devices are found more reliably.
+- Casting finds devices more reliably, and fixes the volume overlay and
+  skipping from a Bluetooth device.
 - Various smaller fixes and polish throughout.
 
 ## [0.5.2] - 2026-07-22

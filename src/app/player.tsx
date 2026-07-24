@@ -330,10 +330,10 @@ export default function PlayerScreen() {
   // a non-Jellyfin server account; not applicable to radio (direct url) or
   // the local profile (no account). Offline queues and uploads on reconnect.
   const canRate = showRating && hasAccount && serverType !== 'jellyfin' && !song.url;
-  // Artist · Album · Year in a single line.
-  const artistText = showAlbumInfo
-    ? [song.artist ?? t('Unknown artist'), song.album, song.year].filter(Boolean).join(' · ')
-    : (song.artist ?? t('Unknown artist'));
+  // Artist · Album · Year on a single line, but with two tap targets: the
+  // artist name goes to the artist, and «Album · Year» to the album.
+  const artistName = song.artist ?? t('Unknown artist');
+  const albumInfo = showAlbumInfo ? [song.album, song.year].filter(Boolean).join(' · ') : '';
   const duration = durationSec || song.duration || 0;
   const repeatActive = repeat !== 'off';
 
@@ -462,31 +462,28 @@ export default function PlayerScreen() {
               )}
               {(() => {
                 const targets = artistTargets(song);
-                if (targets.length === 0) {
-                  return (
-                    <MarqueeText
-                      text={artistText}
-                      style={styles.artist}
-                      enabled={marqueeTitles}
-                    />
-                  );
-                }
+                const goArtist =
+                  targets.length === 0
+                    ? undefined
+                    : () =>
+                        targets.length > 1
+                          ? openArtistPicker(targets)
+                          : router.push(`/artist/${targets[0].id}`);
+                const goAlbum = song.albumId
+                  ? () => router.push(`/album/${song.albumId}` as never)
+                  : undefined;
                 return (
-                  <Pressable
-                    style={styles.tapText}
-                    hitSlop={6}
-                    onPress={() =>
-                      targets.length > 1
-                        ? openArtistPicker(targets)
-                        : router.push(`/artist/${targets[0].id}`)
-                    }
-                  >
-                    <MarqueeText
-                      text={artistText}
-                      style={styles.artist}
-                      enabled={marqueeTitles}
-                    />
-                  </Pressable>
+                  <Text style={styles.artist} numberOfLines={1}>
+                    <Text onPress={goArtist} suppressHighlighting>
+                      {artistName}
+                    </Text>
+                    {albumInfo ? (
+                      <Text onPress={goAlbum} suppressHighlighting>
+                        {'  ·  '}
+                        {albumInfo}
+                      </Text>
+                    ) : null}
+                  </Text>
                 );
               })()}
             </View>

@@ -118,7 +118,7 @@ export function SettingRow({
   );
 }
 
-/** Approximate height of each floating menu option (to calculate if it fits). */
+/** Minimum height of each floating menu option (grows if the label wraps). */
 const MENU_ITEM_H = 42;
 
 /**
@@ -257,7 +257,15 @@ export function SelectList<T extends string | number | boolean>({
             // seeing it jump when it opens upward.
             style={[
               settingsStyles.menu,
-              { top: menu.top, maxHeight: menu.maxHeight, opacity: menuH > 0 ? 1 : 0 },
+              // Cap the width so a very long label can't push the menu off the
+              // left edge (it's anchored to the right); below the cap it hugs
+              // its content and only wraps past it.
+              {
+                top: menu.top,
+                maxHeight: menu.maxHeight,
+                maxWidth: frame.width - spacing.lg * 2,
+                opacity: menuH > 0 ? 1 : 0,
+              },
             ]}
           >
             <ScrollView
@@ -518,11 +526,19 @@ export const settingsStyles = StyleSheet.create({
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    // space-between keeps the check pinned to the right edge now that the text
+    // no longer flex-grows to fill the row (see menuItemText).
+    justifyContent: 'space-between',
     gap: spacing.md,
     paddingHorizontal: spacing.lg,
-    height: MENU_ITEM_H,
+    // minHeight (not a fixed height) so options whose label wraps to several
+    // lines grow instead of clipping; the vertical padding keeps them readable.
+    minHeight: MENU_ITEM_H,
+    paddingVertical: spacing.sm,
   },
-  menuItemText: { color: colors.text, fontSize: fontSize.sm, flex: 1 },
+  // flexShrink (not flex: 1, whose flex-basis:0 collapses the text and wraps it
+  // aggressively): the menu hugs the widest label instead of squeezing it.
+  menuItemText: { color: colors.text, fontSize: fontSize.sm, flexShrink: 1 },
   field: { paddingVertical: spacing.md, paddingHorizontal: spacing.lg },
   fieldLabel: { color: colors.textMuted, fontSize: fontSize.xs, marginBottom: 2 },
   fieldValue: { color: colors.text, fontSize: fontSize.md },

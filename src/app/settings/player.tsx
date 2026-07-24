@@ -4,7 +4,12 @@ import { ScrollView, Text } from 'react-native';
 import { SelectList, SettingsPage, settingsStyles, SwitchList } from '@/components/SettingsUI';
 import { useT } from '@/i18n';
 import { useAuthStore } from '@/store/auth';
-import { type CoverTapAction, type PreviousButtonMode, useSettings } from '@/store/settings';
+import {
+  type CoverTapAction,
+  type LyricsSource,
+  type PreviousButtonMode,
+  useSettings,
+} from '@/store/settings';
 
 export default function PlayerSettings() {
   const t = useT();
@@ -34,6 +39,8 @@ export default function PlayerSettings() {
   const setShowLyricsCard = useSettings((s) => s.setShowLyricsCard);
   const coverTapAction = useSettings((s) => s.coverTapAction);
   const setCoverTapAction = useSettings((s) => s.setCoverTapAction);
+  const lyricsSource = useSettings((s) => s.lyricsSource);
+  const setLyricsSource = useSettings((s) => s.setLyricsSource);
   const marqueeTitles = useSettings((s) => s.marqueeTitles);
   const setMarqueeTitles = useSettings((s) => s.setMarqueeTitles);
   const showQueueButton = useSettings((s) => s.showQueueButton);
@@ -168,6 +175,19 @@ export default function PlayerSettings() {
         />
 
         <Text style={settingsStyles.sectionTitle}>{t('Lyrics')}</Text>
+        <SelectList<LyricsSource>
+          label={t('Lyrics source')}
+          description={t(
+            'Where to get lyrics from. Online search uses LRCLIB (sends the artist and title).',
+          )}
+          options={[
+            { value: 'local', label: t('Prefer local lyrics') },
+            { value: 'online', label: t('Prefer online search') },
+            { value: 'off', label: t('Disable online search') },
+          ]}
+          value={lyricsSource}
+          onChange={setLyricsSource}
+        />
         <SelectList<CoverTapAction>
           label={t('On cover tap')}
           description={t('What tapping the cover art in the player does.')}

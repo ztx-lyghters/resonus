@@ -102,6 +102,15 @@ export type AppFont = 'system' | 'condensed' | 'serif' | 'monospace' | 'casual' 
  *  or show lyrics in place of the cover. */
 export type CoverTapAction = 'none' | 'screen' | 'inline';
 
+/**
+ * Where lyrics come from:
+ * - 'local':  prefer server / .lrc / USLT, fall back to LRCLIB online.
+ * - 'online': prefer LRCLIB online search, fall back to local.
+ * - 'off':    never search LRCLIB (local / server only).
+ * 'local' and 'online' send the artist and title to an external service (LRCLIB).
+ */
+export type LyricsSource = 'local' | 'online' | 'off';
+
 /** Tab the app starts on (and returns to after being in the background for a
  *  while). Matches the `(tabs)` route names. */
 export type DefaultTab = 'index' | 'search' | 'library';
@@ -395,11 +404,10 @@ interface SettingsState {
   /** Lyrics screen tinted with the dominant color of the cover art. */
   lyricsColorBackground: boolean;
   /**
-   * If a song has no lyrics (not from the server, .lrc, or USLT),
-   * fetch them from LRCLIB. On by default (better lyrics experience);
-   * sends artist and title to an external service; can be turned off.
+   * Where lyrics come from: prefer local, prefer online (LRCLIB), or online
+   * disabled. Defaults to 'local' (local first, LRCLIB as fallback).
    */
-  lyricsOnlineFallback: boolean;
+  lyricsSource: LyricsSource;
   /** Circular artist photo next to the name on the album screen. */
   showArtistPhoto: boolean;
   /**
@@ -497,7 +505,7 @@ interface SettingsState {
   setKeepScreenAwake: (value: boolean) => void;
   setHapticsEnabled: (value: boolean) => void;
   setLyricsColorBackground: (value: boolean) => void;
-  setLyricsOnlineFallback: (value: boolean) => void;
+  setLyricsSource: (value: LyricsSource) => void;
   setShowArtistPhoto: (value: boolean) => void;
   setShowDiscHeaders: (value: boolean) => void;
   setPlayerColorBackground: (value: boolean) => void;
@@ -571,7 +579,7 @@ function snapshot(get: () => SettingsState) {
     keepScreenAwake: s.keepScreenAwake,
     hapticsEnabled: s.hapticsEnabled,
     lyricsColorBackground: s.lyricsColorBackground,
-    lyricsOnlineFallback: s.lyricsOnlineFallback,
+    lyricsSource: s.lyricsSource,
     showArtistPhoto: s.showArtistPhoto,
     showDiscHeaders: s.showDiscHeaders,
     playerColorBackground: s.playerColorBackground,
@@ -633,7 +641,7 @@ const DEFAULTS = {
   keepScreenAwake: false,
   hapticsEnabled: false,
   lyricsColorBackground: true,
-  lyricsOnlineFallback: true,
+  lyricsSource: 'local' as LyricsSource,
   showArtistPhoto: true,
   showDiscHeaders: true,
   playerColorBackground: true,
@@ -797,8 +805,8 @@ export const useSettings = create<SettingsState>((set, get) => ({
     persist(snapshot(get));
   },
 
-  setLyricsOnlineFallback: (lyricsOnlineFallback) => {
-    set({ lyricsOnlineFallback });
+  setLyricsSource: (lyricsSource) => {
+    set({ lyricsSource });
     persist(snapshot(get));
   },
 
@@ -1025,7 +1033,8 @@ export const useSettings = create<SettingsState>((set, get) => ({
           keepScreenAwake: boolean;
           hapticsEnabled: boolean;
           lyricsColorBackground: boolean;
-          lyricsOnlineFallback: boolean;
+          lyricsSource?: LyricsSource;
+          lyricsOnlineFallback?: boolean;
           showArtistPhoto: boolean;
           showDiscHeaders: boolean;
           playerColorBackground: boolean;
@@ -1146,8 +1155,15 @@ export const useSettings = create<SettingsState>((set, get) => ({
         if (typeof parsed.lyricsColorBackground === 'boolean') {
           set({ lyricsColorBackground: parsed.lyricsColorBackground });
         }
-        if (typeof parsed.lyricsOnlineFallback === 'boolean') {
-          set({ lyricsOnlineFallback: parsed.lyricsOnlineFallback });
+        if (
+          parsed.lyricsSource === 'local' ||
+          parsed.lyricsSource === 'online' ||
+          parsed.lyricsSource === 'off'
+        ) {
+          set({ lyricsSource: parsed.lyricsSource });
+        } else if (typeof parsed.lyricsOnlineFallback === 'boolean') {
+          // Migrate the old boolean: on = local first with online fallback, off = no online.
+          set({ lyricsSource: parsed.lyricsOnlineFallback ? 'local' : 'off' });
         }
         if (typeof parsed.showArtistPhoto === 'boolean') {
           set({ showArtistPhoto: parsed.showArtistPhoto });

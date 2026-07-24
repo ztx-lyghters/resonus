@@ -32,22 +32,36 @@ async function readTextIfExists(uri: string): Promise<string | null> {
   }
 }
 
-export async function getLocalLyrics(song: Song, allowOnline: boolean): Promise<SongLyrics | null> {
+/** Reads on-device lyrics only: sibling `.lrc` then embedded USLT. */
+async function getFileLyrics(song: Song): Promise<SongLyrics | null> {
   const uri = song.localUri;
-  if (uri) {
-    // 1) .lrc next to the audio file.
-    const lrcUri = siblingLrcUri(uri);
-    const lrcText = lrcUri ? await readTextIfExists(lrcUri) : null;
-    const fromFile = lrcText ? parseLrc(lrcText) : null;
-    if (fromFile) return fromFile;
+  if (!uri) return null;
+  // 1) .lrc next to the audio file.
+  const lrcUri = siblingLrcUri(uri);
+  const lrcText = lrcUri ? await readTextIfExists(lrcUri) : null;
+  const fromFile = lrcText ? parseLrc(lrcText) : null;
+  if (fromFile) return fromFile;
 
-    // 2) Embedded USLT (may contain LRC-style timestamps inside).
-    const tags = await readTags(uri);
-    const fromTag = tags?.lyrics ? parseLrc(tags.lyrics) : null;
-    if (fromTag) return fromTag;
+  // 2) Embedded USLT (may contain LRC-style timestamps inside).
+  const tags = await readTags(uri);
+  return tags?.lyrics ? parseLrc(tags.lyrics) : null;
+}
+
+/**
+ * Local/offline lyrics. Normally on-device first with LRCLIB as fallback; with
+ * `preferOnline` the order flips (LRCLIB first, on-device as fallback). LRCLIB
+ * is only used when `allowOnline` is set.
+ */
+export async function getLocalLyrics(
+  song: Song,
+  allowOnline: boolean,
+  preferOnline = false,
+): Promise<SongLyrics | null> {
+  if (allowOnline && preferOnline) {
+    return (await getOnlineLyrics(song)) ?? (await getFileLyrics(song));
   }
-
-  // 3) LRCLIB, if the user allows it.
+  const fromFile = await getFileLyrics(song);
+  if (fromFile) return fromFile;
   if (allowOnline) return getOnlineLyrics(song);
   return null;
 }

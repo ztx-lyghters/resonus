@@ -1,8 +1,8 @@
 /**
- * Settings › Quality & playback: streaming bitrate, crossfade, autoplay and
- * online lyrics. In offline mode only settings that apply locally are shown
- * (crossfade and online lyrics); the rest is server-side. Download-related
- * settings live in Settings › Downloads.
+ * Settings › Quality & playback: streaming bitrate, crossfade and autoplay. In
+ * offline mode only settings that apply locally are shown (crossfade, normalize,
+ * keep screen on); the rest is server-side. Download-related settings live in
+ * Settings › Downloads, and lyrics options in Settings › Player.
  */
 import { useRouter } from 'expo-router';
 import { ScrollView, Text } from 'react-native';
@@ -37,8 +37,6 @@ export default function PlaybackSettings() {
   const setPreloadUpcoming = useSettings((s) => s.setPreloadUpcoming);
   const replayGain = useSettings((s) => s.replayGain);
   const setReplayGain = useSettings((s) => s.setReplayGain);
-  const lyricsOnlineFallback = useSettings((s) => s.lyricsOnlineFallback);
-  const setLyricsOnlineFallback = useSettings((s) => s.setLyricsOnlineFallback);
   const keepScreenAwake = useSettings((s) => s.keepScreenAwake);
   const setKeepScreenAwake = useSettings((s) => s.setKeepScreenAwake);
 
@@ -131,14 +129,6 @@ export default function PlaybackSettings() {
         <Text style={settingsStyles.sectionTitle}>{t('Extras')}</Text>
         <SwitchList
           options={[
-            {
-              label: t('Find lyrics online'),
-              description: t(
-                'When a song has no lyrics, look them up on LRCLIB (sends the artist and title).',
-              ),
-              value: lyricsOnlineFallback,
-              onChange: setLyricsOnlineFallback,
-            },
             {
               label: t('Keep screen on'),
               description: t('The screen never turns off while the app is visible.'),

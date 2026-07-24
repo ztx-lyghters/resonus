@@ -27,6 +27,8 @@ export default function PlayerSettings() {
   const setShowRating = useSettings((s) => s.setShowRating);
   const showAlbumInfo = useSettings((s) => s.showAlbumInfo);
   const setShowAlbumInfo = useSettings((s) => s.setShowAlbumInfo);
+  const swapPlayerButtons = useSettings((s) => s.swapPlayerButtons);
+  const setSwapPlayerButtons = useSettings((s) => s.setSwapPlayerButtons);
   const showPlayedInQueue = useSettings((s) => s.showPlayedInQueue);
   const setShowPlayedInQueue = useSettings((s) => s.setShowPlayedInQueue);
   const playerColorBackground = useSettings((s) => s.playerColorBackground);
@@ -149,6 +151,14 @@ export default function PlayerSettings() {
                     onChange: setShowDevicesButton,
                   },
                 ]),
+            {
+              label: t('Swap favorite and menu'),
+              description: t(
+                'Put the ⋯ menu next to the title and the heart in the top bar, easier to reach one-handed.',
+              ),
+              value: swapPlayerButtons,
+              onChange: setSwapPlayerButtons,
+            },
           ]}
         />
         <SelectList

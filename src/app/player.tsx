@@ -146,6 +146,9 @@ export default function PlayerScreen() {
   const showRating = useSettings((s) => s.showRating);
   const showAlbumInfo = useSettings((s) => s.showAlbumInfo);
   const showLyricsCard = useSettings((s) => s.showLyricsCard);
+  // Ignored on a local profile over a server: there is no heart there, so there
+  // is nothing to swap and moving the ⋯ down would just leave the corner empty.
+  const swapButtons = useSettings((s) => s.swapPlayerButtons);
   const coverTapAction = useSettings((s) => s.coverTapAction);
   const marqueeTitles = useSettings((s) => s.marqueeTitles);
   const showQueueButton = useSettings((s) => s.showQueueButton);
@@ -429,6 +432,12 @@ export default function PlayerScreen() {
           </Pressable>
           {isLocal && !offline ? (
             <View style={{ width: 40 }} />
+          ) : swapButtons ? (
+            // Swapped: the heart takes the corner. It only reports state here —
+            // tapping it still works, it's just the awkward spot to reach.
+            <View style={styles.topFavorite}>
+              <FavoriteButton id={song.id} starred={favorited} size={24} />
+            </View>
           ) : (
             <CircleButton name="ellipsis-vertical" label={t('More options')} onPress={() => openMenu(song, undefined, { showLyrics: hasLyrics })} />
           )}
@@ -541,7 +550,15 @@ export default function PlayerScreen() {
                 );
               })()}
             </View>
-            {(isLocal && !offline) ? null : <FavoriteButton id={song.id} starred={favorited} size={26} />}
+            {isLocal && !offline ? null : swapButtons ? (
+              <CircleButton
+                name="ellipsis-vertical"
+                label={t('More options')}
+                onPress={() => openMenu(song, undefined, { showLyrics: hasLyrics })}
+              />
+            ) : (
+              <FavoriteButton id={song.id} starred={favorited} size={26} />
+            )}
           </View>
 
           {showQualityBadge ? (
@@ -847,6 +864,9 @@ const styles = StyleSheet.create({
   },
   // Stars centered below the cover (optional element).
   belowCover: { alignItems: 'center', marginTop: spacing.md },
+  // Same footprint as the CircleButton it replaces when swapped, so the
+  // centered title doesn't shift.
+  topFavorite: { width: 40, alignItems: 'center', justifyContent: 'center' },
   bottomRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -362,6 +362,13 @@ interface SettingsState {
   showRating: boolean;
   /** Show album and year below title/artist in the player. */
   showAlbumInfo: boolean;
+  /**
+   * Swap the player's ⋯ menu and favorite button: the menu next to the title
+   * and the heart in the top bar. The top-right corner is the hardest spot to
+   * reach one-handed, and the menu gets used more often than the heart (which
+   * still shows the state up there, and can still toggle from inside the menu).
+   */
+  swapPlayerButtons: boolean;
   /** Show already played tracks in the queue (dimmed, tappable). */
   showPlayedInQueue: boolean;
   /** Show mini album cover in lists (playlists/favorites). */
@@ -492,6 +499,7 @@ interface SettingsState {
   setShowAudioQuality: (value: boolean) => void;
   setShowRating: (value: boolean) => void;
   setShowAlbumInfo: (value: boolean) => void;
+  setSwapPlayerButtons: (value: boolean) => void;
   setShowPlayedInQueue: (value: boolean) => void;
   setShowListArtwork: (value: boolean) => void;
   setShowSongDuration: (value: boolean) => void;
@@ -566,6 +574,7 @@ function snapshot(get: () => SettingsState) {
     showAudioQuality: s.showAudioQuality,
     showRating: s.showRating,
     showAlbumInfo: s.showAlbumInfo,
+    swapPlayerButtons: s.swapPlayerButtons,
     showPlayedInQueue: s.showPlayedInQueue,
     showListArtwork: s.showListArtwork,
     showSongDuration: s.showSongDuration,
@@ -628,6 +637,7 @@ const DEFAULTS = {
   showAudioQuality: false,
   showRating: false,
   showAlbumInfo: false,
+  swapPlayerButtons: false,
   showPlayedInQueue: false,
   showListArtwork: true,
   showSongDuration: false,
@@ -729,6 +739,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
 
   setShowAlbumInfo: (showAlbumInfo) => {
     set({ showAlbumInfo });
+    persist(snapshot(get));
+  },
+
+  setSwapPlayerButtons: (swapPlayerButtons) => {
+    set({ swapPlayerButtons });
     persist(snapshot(get));
   },
 
@@ -1020,6 +1035,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
           showAudioQuality: string | boolean;
           showRating: boolean;
           showAlbumInfo: boolean;
+          swapPlayerButtons: boolean;
           showPlayedInQueue: boolean;
           showListArtwork: boolean;
           showSongDuration: boolean;
@@ -1110,6 +1126,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
         }
         if (typeof parsed.showAlbumInfo === 'boolean') {
           set({ showAlbumInfo: parsed.showAlbumInfo });
+        }
+        if (typeof parsed.swapPlayerButtons === 'boolean') {
+          set({ swapPlayerButtons: parsed.swapPlayerButtons });
         }
         if (typeof parsed.showPlayedInQueue === 'boolean') {
           set({ showPlayedInQueue: parsed.showPlayedInQueue });

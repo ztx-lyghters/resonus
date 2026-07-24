@@ -427,6 +427,9 @@ export function SongMenuSheet() {
                 onPress={() => {
                   close();
                   void startRadio(song, t('Mix of “{name}”', { name: song.title }));
+                  // The queue changes underneath without the song restarting, so
+                  // without this nothing on screen says the mix actually began.
+                  toast(t('Mix started'));
                 }}
               />
             ) : null}

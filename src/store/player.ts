@@ -1604,6 +1604,32 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   startRadio: async (seed, source) => {
+    const cur = currentSong(get());
+    if (cur && cur.id === seed.id) {
+      // Mix seeded by what's already playing: only the queue AROUND it changes,
+      // so we swap the context without touching the player. Going through
+      // `playQueue` would `replace()` the source and throw the track back to
+      // 0:00, which is not what "start mix" means when you're already listening
+      // to that song. We keep `cur` (not `seed`) in the queue: same song, but
+      // the object the player is already loaded with.
+      pushHistory();
+      autoplayFetchedFor = null;
+      resetWarmed();
+      set({
+        queue: [cur],
+        index: 0,
+        queuedCount: 0,
+        shuffle: false,
+        originalQueue: null,
+        source,
+        sourceHref: null,
+        radioMode: true,
+      });
+      // `loadIndex` isn't running, so nothing else is going to persist this.
+      scheduleSync();
+      void maybeQueueAutoplay();
+      return;
+    }
     // Play the seed immediately and similar tracks are requested later: waiting
     // for the server to respond before pressing play would make "start mix" feel
     // broken. `maybeQueueAutoplay` fills the queue in the background.

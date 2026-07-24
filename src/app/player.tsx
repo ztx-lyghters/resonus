@@ -21,7 +21,6 @@ import Animated, {
   Extrapolation,
   interpolate,
   ReduceMotion,
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -29,6 +28,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { coverArtUrl, type Song } from '@/api/data';
 import { AudioQualityBadge } from '@/components/AudioQualityBadge';
@@ -254,7 +254,7 @@ export default function PlayerScreen() {
           target,
           { duration: 220, easing: Easing.out(Easing.cubic) },
           (finished) => {
-            if (finished) runOnJS(commitSwipe)(advance as 1 | -1);
+            if (finished) scheduleOnRN(commitSwipe, advance as 1 | -1);
           },
         );
       } else {
@@ -279,7 +279,7 @@ export default function PlayerScreen() {
   const coverTap = Gesture.Tap()
     .maxDistance(10)
     .onEnd((_e, success) => {
-      if (success && hasLyrics) runOnJS(openLyrics)();
+      if (success && hasLyrics) scheduleOnRN(openLyrics);
     });
   const coverGesture = Gesture.Race(coverPan, coverTap);
   const paneStyles = [usePaneStyle(offset, 0), usePaneStyle(offset, 1), usePaneStyle(offset, 2)];
@@ -301,7 +301,7 @@ export default function PlayerScreen() {
     .onEnd((e) => {
       if (e.translationY > DISMISS_THRESHOLD || e.velocityY > 800) {
         transY.value = withTiming(SCREEN_H, { duration: 220 }, (f) => {
-          if (f) runOnJS(closePlayer)();
+          if (f) scheduleOnRN(closePlayer);
         });
       } else {
         transY.value = withSpring(0, { damping: 20, stiffness: 200 });

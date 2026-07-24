@@ -15,7 +15,6 @@ import Animated, {
   cancelAnimation,
   Easing,
   ReduceMotion,
-  runOnJS,
   scrollTo,
   useAnimatedReaction,
   useAnimatedRef,
@@ -25,6 +24,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { coverArtUrl } from '@/api/data';
 import { type LyricLine } from '@/api/subsonic';
@@ -216,7 +216,7 @@ export function SyncedLyricsView({
   const tapGesture = Gesture.Tap()
     .maxDuration(300)
     .onEnd((e) => {
-      runOnJS(handleTap)(e.y);
+      scheduleOnRN(handleTap, e.y);
     });
 
   useEffect(() => {

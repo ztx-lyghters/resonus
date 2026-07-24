@@ -10,11 +10,11 @@ import { Dimensions, type LayoutChangeEvent } from 'react-native';
 import {
   Easing,
   ReduceMotion,
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 // Sheets always animate, even when the system has "remove animations" enabled:
 // without a transition they appear abruptly with a visible layout jump (and
@@ -41,7 +41,7 @@ export function useBottomSheetAnim(open: boolean) {
 
   const dismiss = (after: () => void) => {
     progress.value = withTiming(0, TIMING_OUT, (f) => {
-      if (f) runOnJS(after)();
+      if (f) scheduleOnRN(after);
     });
   };
 

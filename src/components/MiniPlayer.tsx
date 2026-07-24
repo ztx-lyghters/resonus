@@ -10,12 +10,12 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Extrapolation,
   interpolate,
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { coverArtUrl, type Song } from '@/api/data';
 import { useDominantColor } from '@/hooks/useDominantColor';
@@ -85,13 +85,13 @@ export function MiniPlayer() {
     .onEnd((e) => {
       const horizontal = Math.abs(e.translationX) > Math.abs(e.translationY);
       if (horizontal) {
-        if (e.translationX < -SWIPE_X || e.velocityX < -800) runOnJS(next)();
-        else if (e.translationX > SWIPE_X || e.velocityX > 800) runOnJS(previous)();
+        if (e.translationX < -SWIPE_X || e.velocityX < -800) scheduleOnRN(next);
+        else if (e.translationX > SWIPE_X || e.velocityX > 800) scheduleOnRN(previous);
         translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
         translateY.value = 0;
       } else if (e.translationY > DISMISS_Y || e.velocityY > 800) {
         translateY.value = withTiming(SCREEN_H, { duration: 220 }, (finished) => {
-          if (finished) runOnJS(reset)();
+          if (finished) scheduleOnRN(reset);
         });
       } else {
         translateX.value = withSpring(0, { damping: 20, stiffness: 200 });

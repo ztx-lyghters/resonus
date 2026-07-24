@@ -195,9 +195,24 @@ export default function RootLayout() {
                   Open from the bottom but with the short variant
                   (fade_from_bottom): native slide_from_bottom takes ~350 ms
                   fixed and opening the player felt slow. */}
+              {/* containedTransparentModal (not plain modal nor transparentModal)
+                  so the screen behind stays composited within the same stack
+                  container and shows through while dragging the player down to
+                  dismiss (Spotify-style reveal). On Android a plain
+                  transparentModal is a separate window and only black shows
+                  behind. The custom drag lives in player.tsx and translates the
+                  opaque surface over it. */}
               <Stack.Screen
                 name="player"
-                options={{ presentation: 'modal', animation: 'fade_from_bottom' }}
+                options={{
+                  presentation: 'containedTransparentModal',
+                  animation: 'fade_from_bottom',
+                  // Override the global opaque contentStyle: without this the
+                  // modal container itself is painted with colors.background and
+                  // dragging the player only exposes that dark surface, never the
+                  // screen behind.
+                  contentStyle: { backgroundColor: 'transparent' },
+                }}
               />
               <Stack.Screen
                 name="queue"

@@ -1275,7 +1275,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
         ) {
           set({ swipeAction: parsed.swipeAction });
         } else if (typeof parsed.swipeToQueue === 'boolean') {
-          // Migración del ajuste antiguo: activado → encolar, desactivado → nada.
+          // Migration from the old setting: on → queue, off → nothing.
           set({ swipeAction: parsed.swipeToQueue ? 'queue' : 'off' });
         }
         if (

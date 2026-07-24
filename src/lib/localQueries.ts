@@ -1,6 +1,6 @@
 /**
- * Consultas del catálogo local que replican la API Subsonic.
- * Si el catálogo aún no se ha cargado, lo carga bajo demanda.
+ * Local catalog queries mirroring the Subsonic API.
+ * Loads the catalog on demand if it isn't in memory yet.
  */
 import * as FileSystem from 'expo-file-system/legacy';
 
@@ -23,12 +23,12 @@ import {
   registerCover,
 } from './localLibrary';
 
-// Favoritos y playlists locales son POR PERFIL (cada cuenta/perfil los suyos):
-// se guardan bajo `<base>.<hash del perfil>`. La clave base a secas es la de la
-// versión antigua (compartida); solo el perfil local la hereda (migración).
+// Local favorites and playlists are PER PROFILE (each account/profile has its
+// own): stored under `<base>.<profile hash>`. The bare base key is the old
+// (shared) version; only the local profile inherits it (migration).
 const FAVS_KEY = 'resonus.localFavorites';
 
-/** Clave de favoritos del perfil activo. */
+/** Favorites key for the active profile. */
 function favsKey(): string {
   return `${FAVS_KEY}.${hashKey(profileScopeId())}`;
 }
@@ -39,9 +39,9 @@ interface LocalFavStore {
   artists: string[];
 }
 
-// La caché se etiqueta con la clave del perfil para el que se cargó: si cambia
-// el perfil, `loadFavs` la descarta y relee sola (sin depender de que alguien
-// llame a clearLocalFavs en cada transición).
+// The cache is tagged with the profile key it was loaded for: if the profile
+// changes, `loadFavs` discards it and re-reads on its own (without relying on
+// someone calling clearLocalFavs on every transition).
 let favCache: LocalFavStore | null = null;
 let favCacheKey: string | null = null;
 
@@ -50,8 +50,8 @@ async function loadFavs(): Promise<LocalFavStore> {
   if (favCache && favCacheKey === key) return favCache;
   favCacheKey = key;
   try {
-    // El perfil local hereda los favoritos de la versión antigua (clave global)
-    // hasta que cambie algo; el resto de perfiles parten en blanco.
+    // The local profile inherits the favorites from the old (global) key until
+    // something changes; every other profile starts empty.
     const raw =
       (await getItem(key)) ??
       (profileScopeId() === 'local' ? await getItem(FAVS_KEY) : null);
@@ -67,7 +67,7 @@ async function saveFavs(favs: LocalFavStore) {
   favCache = favs;
   favCacheKey = key;
   await setItem(key, JSON.stringify(favs));
-  // Migración: al escribir ya en la clave del perfil, retira la global heredada.
+  // Migration: now that we write under the profile key, drop the inherited global one.
   if (profileScopeId() === 'local') await deleteItem(FAVS_KEY);
 }
 
@@ -98,7 +98,7 @@ export async function unstarLocal(id: string, type?: StarType) {
   await saveFavs(favs);
 }
 
-/** Limpia la caché de favoritos (al cambiar de origen). */
+/** Clears the favorites cache (on source change). */
 export function clearLocalFavs() {
   favCache = null;
   favCacheKey = null;
@@ -114,7 +114,7 @@ function sourceInfo() {
 
 let loadingPromise: Promise<any> | null = null;
 
-/** Forma mínima común de álbum/artista entre el escaneo y las descargas. */
+/** Minimal shape shared by album/artist between the scan and the downloads. */
 interface CatAlbum {
   id: string;
   name: string;
@@ -136,7 +136,7 @@ interface MergedCatalog {
   artists: CatArtist[];
 }
 
-/** Catálogo del origen elegido (device/folder), cargándolo si hace falta. */
+/** Catalog for the chosen source (device/folder), loading it if needed. */
 async function ensureScanCatalog() {
   const { mode, key } = sourceInfo();
   const cached = getLocalCatalog(mode, key);
@@ -152,10 +152,10 @@ async function ensureScanCatalog() {
       } finally {
         loadingPromise = null;
       }
-      // Acaba de aparecer un catálogo donde no había ninguno, así que lo que
-      // las pantallas tengan cacheado es de antes de existir la música: sin
-      // esto, Inicio se queda vacío hasta que lo refrescas a mano. Es lo mismo
-      // que hacen las descargas y las bibliotecas al cambiar su catálogo.
+      // A catalog just appeared where there was none, so whatever the screens
+      // have cached predates the music existing: without this, Home stays empty
+      // until you refresh it by hand. Same as what downloads and libraries do
+      // when their catalog changes.
       void queryClient.invalidateQueries();
     })();
   }
@@ -164,13 +164,13 @@ async function ensureScanCatalog() {
 }
 
 /**
- * Catálogo del modo sin conexión, según quién esté activo:
- *   - Cuenta de servidor offline (hay `auth`): SOLO las descargas del servidor.
- *   - Perfil local (sin `auth`): SOLO la música del dispositivo/carpeta elegida.
+ * Offline-mode catalog, depending on who is active:
+ *   - Server account offline (`auth` present): ONLY the server's downloads.
+ *   - Local profile (no `auth`): ONLY the music on the chosen device/folder.
  *
- * Son cosas distintas: el perfil local es para música que tienes en el móvil, y
- * las descargas del servidor tienen su propio modo (la cuenta de servidor sin
- * conexión). Por eso ya no se fusionan.
+ * They are different things: the local profile is for music you have on the
+ * phone, and the server's downloads have their own mode (the server account
+ * without a connection). That's why they are no longer merged.
  */
 async function ensureCatalog(): Promise<MergedCatalog | null> {
   if (useAuthStore.getState().auth) {
@@ -178,15 +178,15 @@ async function ensureCatalog(): Promise<MergedCatalog | null> {
     if (dl.songs.length === 0) return null;
     return { songs: dl.songs, albums: dl.albums, artists: dl.artists };
   }
-  // Perfil local: solo el escaneo del origen elegido (sin descargas).
+  // Local profile: only the scan of the chosen source (no downloads).
   if (!useAuthStore.getState().offlineSource) return null;
   return (await ensureScanCatalog().catch(() => undefined)) ?? null;
 }
 
 /**
- * Vuelve a escanear el origen local: descarta el catálogo cacheado (y las
- * carátulas) y lo reconstruye leyendo de nuevo las etiquetas de los ficheros.
- * Útil tras añadir o cambiar música sin reiniciar la app.
+ * Rescans the local source: discards the cached catalog (and the covers) and
+ * rebuilds it by reading the files' tags again. Useful after adding or
+ * changing music without restarting the app.
  */
 export async function rescan(): Promise<void> {
   clearLocalCatalog();
@@ -224,14 +224,14 @@ export async function getAlbumList(type: string, size = 20, offset = 0): Promise
   let albums = [...c.albums];
   switch (type) {
     case 'newest':
-      // Añadidos recientemente: por fecha del fichero (si falta, por año).
+      // Recently added: by file date (by year when missing).
       albums.sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0) || (b.year ?? 0) - (a.year ?? 0));
       break;
     case 'recent': {
-      // Escuchados recientemente, por el historial local (que registra igual
-      // en este modo). Solo álbumes que han sonado, como hace el servidor; con
-      // historial vacío la lista queda vacía y la sección de Inicio no sale.
-      // Más superficial que en servidor: el historial guarda ~100 canciones.
+      // Recently played, from the local history (which records in this mode
+      // too). Only albums that have actually played, like the server does; with
+      // an empty history the list is empty and the Home section doesn't show.
+      // Shallower than on a server: the history keeps ~100 songs.
       const lastPlayed = new Map<string, number>();
       for (const e of usePlayHistory.getState().entries) {
         const id = e.song.albumId;
@@ -243,7 +243,7 @@ export async function getAlbumList(type: string, size = 20, offset = 0): Promise
       break;
     }
     case 'frequent': {
-      // Más escuchados: por nº de reproducciones locales acumuladas del álbum.
+      // Most played: by the album's accumulated local play count.
       const counts = usePlayCounts.getState().counts;
       const albumPlays = new Map<string, number>();
       for (const s of c.songs) {
@@ -270,7 +270,7 @@ export async function getAlbumList(type: string, size = 20, offset = 0): Promise
   return albums.slice(offset, offset + size).map(toAlbum);
 }
 
-/** Todos los álbumes del catálogo local, ordenados alfabéticamente. */
+/** Every album in the local catalog, sorted alphabetically. */
 export async function getAllAlbums(): Promise<Album[]> {
   const c = await ensureCatalog();
   if (!c) return [];
@@ -281,7 +281,7 @@ export async function getAlbum(albumId: string): Promise<{ album: Album; songs: 
   const c = await ensureCatalog();
   const songs = (c?.songs ?? [])
     .filter((s) => (s.albumId || normKey(s.album || 'Álbum desconocido')) === albumId)
-    // Orden por nº de pista (las que no lo tengan, al final por título).
+    // Sorted by track number (those without one go last, by title).
     .sort((a, b) => {
       const ta = a.track ?? Infinity;
       const tb = b.track ?? Infinity;
@@ -290,11 +290,11 @@ export async function getAlbum(albumId: string): Promise<{ album: Album; songs: 
     });
   const album = c?.albums.find((a) => a.id === albumId);
   return {
-    // Sin entrada en el catálogo tiramos del tag de sus canciones; el id JAMÁS
-    // vale como nombre — en las descargas es el id opaco del servidor y se veía
-    // un churro en la cabecera. Con 0 canciones el álbum ya no existe (los
-    // álbumes locales se derivan de ellas) y la pantalla se sale sola, así que
-    // este nombre es un cinturón para cualquier otro camino, no lo normal.
+    // Without a catalog entry we fall back to the songs' tag; the id is NEVER
+    // good as a name — in downloads it's the server's opaque id and the header
+    // showed gibberish. With 0 songs the album no longer exists (local albums
+    // are derived from them) and the screen exits on its own, so this name is
+    // a belt for any other path, not the usual one.
     album: album
       ? toAlbum(album)
       : {
@@ -319,11 +319,10 @@ export async function getArtist(artistId: string): Promise<{ artist: Artist; alb
   );
   const artist = c?.artists.find((a) => a.id === artistId);
   return {
-    // Aquí el id SÍ sirve de último recurso, al revés que en getAlbum: en modo
-    // local el id de un artista es su propio nombre normalizado, así que lo peor
-    // que pasa es verlo en minúsculas. Mejor eso que un "desconocido" que tira
-    // el nombre a la basura. Aun así preferimos el de sus álbumes, que conserva
-    // las mayúsculas.
+    // Here the id IS fine as a last resort, unlike in getAlbum: in local mode
+    // an artist's id is their own normalized name, so the worst case is seeing
+    // it lowercased. Better that than an "unknown" that throws the name away.
+    // We still prefer the one from their albums, which keeps the capitals.
     artist: artist
       ? toArtist(artist)
       : { id: artistId, name: albums[0]?.artist || artistId, albumCount: albums.length },
@@ -331,7 +330,7 @@ export async function getArtist(artistId: string): Promise<{ artist: Artist; alb
   };
 }
 
-/** Álbumes de otros artistas con canciones de este ("Aparece en"). */
+/** Albums by other artists containing songs by this one ("Appears on"). */
 export async function getAppearsOn(artistId: string): Promise<GuestAlbum[]> {
   const c = await ensureCatalog();
   if (!c) return [];
@@ -350,7 +349,7 @@ export function getArtistInfo(_id: string): ArtistInfo {
   return { similarArtists: [] };
 }
 
-/** Canciones más escuchadas según el contador local de reproducciones. */
+/** Most played songs according to the local play counter. */
 export async function getMostPlayedSongs(size = 50): Promise<Song[]> {
   const c = await ensureCatalog();
   if (!c) return [];
@@ -362,16 +361,16 @@ export async function getMostPlayedSongs(size = 50): Promise<Song[]> {
 }
 
 /**
- * Canciones al azar del catálogo local (la mezcla de Inicio).
+ * Random songs from the local catalog (Home's shuffle).
  *
- * Sin filtro de género a diferencia del servidor: los géneros son cosa del
- * servidor en toda la app (no hay pantalla de géneros en local), así que aquí
- * no habría con qué filtrar.
+ * No genre filter unlike the server: genres are a server thing throughout the
+ * app (there's no genres screen in local mode), so there would be nothing to
+ * filter by here.
  */
 export async function getRandomSongs(size = 200): Promise<Song[]> {
   const c = await ensureCatalog();
   if (!c) return [];
-  // Fisher-Yates sobre una copia: `c.songs` es el catálogo vivo.
+  // Fisher-Yates over a copy: `c.songs` is the live catalog.
   const a = c.songs.slice();
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -383,8 +382,8 @@ export async function getRandomSongs(size = 200): Promise<Song[]> {
 export async function getTopSongs(artist: string, count = 10): Promise<Song[]> {
   const c = await ensureCatalog();
   if (!c) return [];
-  // Por reproducciones locales, como ordena el servidor las suyas; el sort es
-  // estable, así que sin escuchas se conserva el orden del catálogo de antes.
+  // By local play counts, the way the server sorts its own; the sort is stable,
+  // so with no plays the catalog's previous order is preserved.
   const counts = usePlayCounts.getState().counts;
   return c.songs
     .filter((s) => s.artist === artist)
@@ -392,13 +391,13 @@ export async function getTopSongs(artist: string, count = 10): Promise<Song[]> {
     .slice(0, count);
 }
 
-// ---- Listas de reproducción locales (modo sin conexión) -------------------
-// Se guardan como ids de canción; se resuelven contra el catálogo al leerlas,
-// así que canciones que ya no existan en el origen actual se omiten.
-// Por perfil, como los favoritos: `<base>.<hash del perfil>`.
+// ---- Local playlists (offline mode) ---------------------------------------
+// Stored as song ids; resolved against the catalog when read, so songs that no
+// longer exist in the current source are skipped.
+// Per profile, like the favorites: `<base>.<profile hash>`.
 const PLAYLISTS_KEY = 'resonus.localPlaylists';
 
-/** Clave de playlists del perfil activo. */
+/** Playlists key for the active profile. */
 function playlistsKey(): string {
   return `${PLAYLISTS_KEY}.${hashKey(profileScopeId())}`;
 }
@@ -409,11 +408,11 @@ interface LocalPlaylistRec {
   comment?: string;
   songIds: string[];
   createdAt: number;
-  /** Carátula personalizada (file:// copiado a PLAYLIST_COVERS_DIR). */
+  /** Custom cover (file:// copied into PLAYLIST_COVERS_DIR). */
   coverUri?: string;
 }
 
-// Caché etiquetada con la clave del perfil: se relee sola al cambiar de perfil.
+// Cache tagged with the profile key: re-reads itself when the profile changes.
 let playlistCache: LocalPlaylistRec[] | null = null;
 let playlistCacheKey: string | null = null;
 
@@ -426,9 +425,9 @@ async function loadPlaylists(): Promise<LocalPlaylistRec[]> {
     if (raw) {
       playlistCache = JSON.parse(raw) as LocalPlaylistRec[];
     } else {
-      // Migración de la versión antigua (clave global compartida): cada perfil
-      // hereda solo lo suyo por prefijo de id — el local las creadas a mano
-      // (`lp_`), la cuenta de servidor las descargadas de sus playlists (`dl_`).
+      // Migration from the old (shared global key) version: each profile
+      // inherits only its own by id prefix — the local one the hand-made ones
+      // (`lp_`), the server account those downloaded from its playlists (`dl_`).
       const legacy = await getItem(PLAYLISTS_KEY);
       const all = legacy ? (JSON.parse(legacy) as LocalPlaylistRec[]) : [];
       const local = profileScopeId() === 'local';
@@ -449,7 +448,7 @@ async function savePlaylists(list: LocalPlaylistRec[]) {
   await setItem(key, JSON.stringify(list));
 }
 
-/** Limpia la caché de playlists (al cambiar de origen/perfil). */
+/** Clears the playlists cache (on source/profile change). */
 export function clearLocalPlaylists() {
   playlistCache = null;
   playlistCacheKey = null;
@@ -471,7 +470,7 @@ function toPlaylist(rec: LocalPlaylistRec, songs: Song[]): Playlist {
   };
 }
 
-/** Lista de listas locales (orden por creación, más recientes primero). */
+/** The local playlists (in creation order, newest first). */
 export async function getPlaylists(): Promise<Playlist[]> {
   const [list, c] = await Promise.all([loadPlaylists(), ensureCatalog()]);
   const byId = new Map((c?.songs ?? []).map((s) => [s.id, s]));
@@ -513,7 +512,7 @@ export async function removeFromPlaylist(id: string, index: number): Promise<voi
   );
 }
 
-/** Reescribe el orden de una lista local con la nueva secuencia de ids. */
+/** Rewrites a local playlist's order with the new sequence of ids. */
 export async function reorderPlaylist(id: string, songIds: string[]): Promise<void> {
   const list = await loadPlaylists();
   await savePlaylists(list.map((p) => (p.id === id ? { ...p, songIds } : p)));
@@ -525,9 +524,9 @@ export async function deletePlaylist(id: string): Promise<void> {
   await savePlaylists(list.filter((p) => p.id !== id));
 }
 
-// ── Carátula personalizada de listas locales ────────────────────────────────
-// La imagen elegida se copia a un directorio propio: fuera de local-catalog/,
-// que "Volver a escanear" borra entero y se llevaría la carátula por delante.
+// ── Custom cover for local playlists ────────────────────────────────────────
+// The chosen image is copied to a directory of its own: outside local-catalog/,
+// which "Rescan" wipes entirely and would take the cover down with it.
 const PLAYLIST_COVERS_DIR = FileSystem.documentDirectory + 'playlist-covers/';
 
 function deleteCoverFile(uri?: string) {
@@ -536,8 +535,8 @@ function deleteCoverFile(uri?: string) {
 
 export async function setLocalPlaylistCover(id: string, srcUri: string): Promise<void> {
   await FileSystem.makeDirectoryAsync(PLAYLIST_COVERS_DIR, { intermediates: true }).catch(() => {});
-  // Nombre nuevo en cada cambio: si se reutilizara la misma URI, expo-image
-  // seguiría enseñando la imagen anterior que tiene cacheada.
+  // A new name on every change: reusing the same URI would leave expo-image
+  // showing the previous image it has cached.
   const safe = id.replace(/[^a-zA-Z0-9_-]/g, '_');
   const dest = `${PLAYLIST_COVERS_DIR}${safe}-${Date.now()}.jpg`;
   await FileSystem.copyAsync({ from: srcUri, to: dest });
@@ -552,7 +551,7 @@ export async function removeLocalPlaylistCover(id: string): Promise<void> {
   await savePlaylists(list.map((p) => (p.id === id ? { ...p, coverUri: undefined } : p)));
 }
 
-/** Crea o actualiza una lista local (la usan las descargas de playlists). */
+/** Creates or updates a local playlist (used by playlist downloads). */
 export async function upsertLocalPlaylist(
   id: string,
   name: string,
@@ -567,7 +566,7 @@ export async function upsertLocalPlaylist(
   }
 }
 
-/** Borra las listas locales con ese prefijo de id (limpieza de descargas). */
+/** Deletes the local playlists with that id prefix (downloads cleanup). */
 export async function deleteLocalPlaylistsByPrefix(prefix: string): Promise<void> {
   const list = await loadPlaylists();
   for (const p of list) if (p.id.startsWith(prefix)) deleteCoverFile(p.coverUri);
@@ -624,9 +623,9 @@ export async function search(query: string): Promise<SearchResult> {
 }
 
 /**
- * Búsqueda solo de álbumes, la gemela local de `Subsonic.searchAlbums`. Mira
- * el nombre y el artista del álbum, no las canciones: quien filtra álbumes
- * busca el álbum, y `search` ya cubre encontrarlo por una canción suya.
+ * Albums-only search, the local twin of `Subsonic.searchAlbums`. Looks at the
+ * album's name and artist, not its songs: whoever filters albums is after the
+ * album, and `search` already covers finding it by one of its songs.
  */
 export async function searchAlbums(query: string, count = 50): Promise<Album[]> {
   const c = await ensureCatalog();

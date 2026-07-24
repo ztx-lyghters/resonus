@@ -318,8 +318,8 @@ export default function PlayerScreen() {
   // committed advances; same recycling formula as the UI position.
   const paneRel = (k: number) => k + 3 * Math.round((spins - k) / 3) - spins;
 
-  // Deslizar hacia abajo cierra el reproductor (gesto propio: el modal nativo
-  // no lo soporta en Android).
+  // Swiping down closes the player (our own gesture: the native modal
+  // doesn't support it on Android).
   const transY = useSharedValue(0);
   const closePlayer = () => router.back();
   const dismissPan = Gesture.Pan()

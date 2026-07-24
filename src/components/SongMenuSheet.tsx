@@ -208,7 +208,7 @@ export function SongMenuSheet() {
     if (prev) {
       const nextSongs = prev.songs.filter((_, i) => i !== index);
       queryClient.setQueryData(key, { ...prev, songs: nextSongs });
-      // Conteo optimista en la Biblioteca ('{n} canciones').
+      // Optimistic count in the Library ('{n} songs').
       queryClient.setQueryData<{ id: string; songCount?: number }[]>(['playlists'], (list) =>
         list?.map((p) => (p.id === playlistId ? { ...p, songCount: nextSongs.length } : p)),
       );
@@ -490,7 +490,7 @@ export function SongMenuSheet() {
                     icon="arrow-down-circle"
                     label={t('Remove download')}
                     onPress={() => {
-                      // El fichero se borra ya; «Deshacer» vuelve a descargarlo
+                      // The file is deleted right away; «Undo» downloads it again
                       // (offline not offered: there'd be nowhere to download from).
                       void deleteDownloads([song.id]);
                       toast(

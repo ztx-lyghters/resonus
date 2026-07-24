@@ -185,7 +185,7 @@ function fireSleepTimer() {
   usePlayerStore.setState({ isPlaying: false, sleepEndsAt: null });
 }
 
-// ── Motor de audio (expo-audio) ─────────────────────────────────────────────
+// ── Audio engine (expo-audio) ───────────────────────────────────────────────
 const players: (AudioPlayer | null)[] = [null, null];
 let activeIdx = 0;
 let audioModeReady = false;

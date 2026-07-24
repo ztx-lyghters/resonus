@@ -81,7 +81,7 @@ export default function SettingsScreen() {
     // Network: multiple server URLs and automatic switching. Server only.
     ...(offline
       ? []
-      : [{ key: 'network', title: 'Network (experimental)', icon: 'git-network-outline' as const }]),
+      : [{ key: 'network', title: 'Network', icon: 'git-network-outline' as const }]),
     // Theme lives inside Appearance (row with chevron, like Language).
     { key: 'personalization', title: 'Appearance', icon: 'color-palette-outline' as const },
     { key: 'about', title: 'About', icon: 'information-circle-outline' as const },

@@ -57,7 +57,7 @@ export default function NetworkSettings() {
   }, [auth, activeUrl]);
 
   if (!auth) {
-    return <SettingsPage title={t('Network (experimental)')}>{null}</SettingsPage>;
+    return <SettingsPage title={t('Network')}>{null}</SettingsPage>;
   }
 
   const urls = auth.urls ?? [activeUrl];
@@ -72,7 +72,7 @@ export default function NetworkSettings() {
   }
 
   return (
-    <SettingsPage title={t('Network (experimental)')}>
+    <SettingsPage title={t('Network')}>
       <ScrollView contentContainerStyle={settingsStyles.content}>
         <Text style={[settingsStyles.sectionTitle, { marginTop: 0 }]}>
           {t('Current server address')}

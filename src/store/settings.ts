@@ -441,6 +441,12 @@ interface SettingsState {
   showDiscHeaders: boolean;
   /** Player background: flat, cover color, or blurred cover art. */
   playerBackground: ScreenBackground;
+  /**
+   * Show non-square artwork whole in the player instead of cropping it to a
+   * square. Off by default: cropping is what it has always done, and every
+   * other place in the app (lists, cards, grids) keeps cropping regardless.
+   */
+  fitCoverArt: boolean;
   /** Mini-player tinted with the dominant color of the cover art. */
   miniPlayerColorBackground: boolean;
   /** Lyrics card below the player controls. */
@@ -535,6 +541,7 @@ interface SettingsState {
   setShowArtistPhoto: (value: boolean) => void;
   setShowDiscHeaders: (value: boolean) => void;
   setPlayerBackground: (value: ScreenBackground) => void;
+  setFitCoverArt: (value: boolean) => void;
   setMiniPlayerColorBackground: (value: boolean) => void;
   setShowLyricsCard: (value: boolean) => void;
   setCoverTapAction: (value: CoverTapAction) => void;
@@ -611,6 +618,7 @@ function snapshot(get: () => SettingsState) {
     showArtistPhoto: s.showArtistPhoto,
     showDiscHeaders: s.showDiscHeaders,
     playerBackground: s.playerBackground,
+    fitCoverArt: s.fitCoverArt,
     miniPlayerColorBackground: s.miniPlayerColorBackground,
     showLyricsCard: s.showLyricsCard,
     coverTapAction: s.coverTapAction,
@@ -675,6 +683,7 @@ const DEFAULTS = {
   showArtistPhoto: true,
   showDiscHeaders: true,
   playerBackground: 'color' as ScreenBackground,
+  fitCoverArt: false,
   miniPlayerColorBackground: true,
   showLyricsCard: true,
   // By default, tapping the cover opens the lyrics screen (as always).
@@ -857,6 +866,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
 
   setShowArtistPhoto: (showArtistPhoto) => {
     set({ showArtistPhoto });
+    persist(snapshot(get));
+  },
+
+  setFitCoverArt: (fitCoverArt) => {
+    set({ fitCoverArt });
     persist(snapshot(get));
   },
 
@@ -1081,6 +1095,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
           showArtistPhoto: boolean;
           showDiscHeaders: boolean;
           playerBackground: ScreenBackground;
+          fitCoverArt: boolean;
           playerColorBackground: boolean;
           miniPlayerColorBackground: boolean;
           showLyricsCard: boolean;
@@ -1229,6 +1244,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
         }
         if (typeof parsed.showDiscHeaders === 'boolean') {
           set({ showDiscHeaders: parsed.showDiscHeaders });
+        }
+        if (typeof parsed.fitCoverArt === 'boolean') {
+          set({ fitCoverArt: parsed.fitCoverArt });
         }
         if (parsed.playerBackground === 'none' || parsed.playerBackground === 'color' || parsed.playerBackground === 'cover') {
           set({ playerBackground: parsed.playerBackground });

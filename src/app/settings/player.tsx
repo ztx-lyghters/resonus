@@ -35,6 +35,8 @@ export default function PlayerSettings() {
   const setShowPlayedInQueue = useSettings((s) => s.setShowPlayedInQueue);
   const playerBackground = useSettings((s) => s.playerBackground);
   const setPlayerBackground = useSettings((s) => s.setPlayerBackground);
+  const fitCoverArt = useSettings((s) => s.fitCoverArt);
+  const setFitCoverArt = useSettings((s) => s.setFitCoverArt);
   const miniPlayerColorBackground = useSettings((s) => s.miniPlayerColorBackground);
   const setMiniPlayerColorBackground = useSettings((s) => s.setMiniPlayerColorBackground);
   const lyricsBackground = useSettings((s) => s.lyricsBackground);
@@ -62,7 +64,7 @@ export default function PlayerSettings() {
     <SettingsPage title={t('Player')}>
       <ScrollView contentContainerStyle={settingsStyles.content}>
         {/* The first title sticks to the header (no section margin). */}
-        <Text style={[settingsStyles.sectionTitle, { marginTop: 0 }]}>{t('Color')}</Text>
+        <Text style={[settingsStyles.sectionTitle, { marginTop: 0 }]}>{t('Background')}</Text>
         <SelectList<ScreenBackground>
           label={t('Player background')}
           description={t('What fills the space behind the player.')}
@@ -84,26 +86,28 @@ export default function PlayerSettings() {
             },
           ]}
         />
-        <SelectList<ScreenBackground>
-          label={t('Lyrics background')}
-          description={t('What fills the space behind the lyrics screen.')}
+
+        <Text style={settingsStyles.sectionTitle}>{t('Cover art')}</Text>
+        <SwitchList
           options={[
-            { value: 'none', label: t('Plain') },
-            { value: 'color', label: t('Cover color') },
-            { value: 'cover', label: t('Blurred cover') },
+            {
+              label: t('Fit cover art'),
+              description: t('Show the whole artwork instead of cropping it to a square.'),
+              value: fitCoverArt,
+              onChange: setFitCoverArt,
+            },
           ]}
-          value={lyricsBackground}
-          onChange={setLyricsBackground}
         />
-        <SelectList<CardBackground>
-          label={t('Lyrics card background')}
-          description={t('The card that peeks below the player controls.')}
+        <SelectList<CoverTapAction>
+          label={t('On cover tap')}
+          description={t('What tapping the cover art in the player does.')}
           options={[
-            { value: 'none', label: t('Plain') },
-            { value: 'color', label: t('Cover color') },
+            { value: 'none', label: t('Nothing') },
+            { value: 'screen', label: t('Open lyrics screen') },
+            { value: 'inline', label: t('Show lyrics on the cover') },
           ]}
-          value={lyricsCardBackground}
-          onChange={setLyricsCardBackground}
+          value={coverTapAction}
+          onChange={setCoverTapAction}
         />
 
         <Text style={settingsStyles.sectionTitle}>{t('Elements')}</Text>
@@ -131,12 +135,6 @@ export default function PlayerSettings() {
                   },
                 ]
               : []),
-            {
-              label: t('Show lyrics card'),
-              description: t('The lyrics card below the player controls.'),
-              value: showLyricsCard,
-              onChange: setShowLyricsCard,
-            },
             {
               label: t('Scroll long titles'),
               description: t("Song and artist names that don't fit scroll across."),
@@ -222,16 +220,36 @@ export default function PlayerSettings() {
           value={lyricsSource}
           onChange={setLyricsSource}
         />
-        <SelectList<CoverTapAction>
-          label={t('On cover tap')}
-          description={t('What tapping the cover art in the player does.')}
+        <SwitchList
           options={[
-            { value: 'none', label: t('Nothing') },
-            { value: 'screen', label: t('Open lyrics screen') },
-            { value: 'inline', label: t('Show lyrics on the cover') },
+            {
+              label: t('Show lyrics card'),
+              description: t('The lyrics card below the player controls.'),
+              value: showLyricsCard,
+              onChange: setShowLyricsCard,
+            },
           ]}
-          value={coverTapAction}
-          onChange={setCoverTapAction}
+        />
+        <SelectList<ScreenBackground>
+          label={t('Lyrics background')}
+          description={t('What fills the space behind the lyrics screen.')}
+          options={[
+            { value: 'none', label: t('Plain') },
+            { value: 'color', label: t('Cover color') },
+            { value: 'cover', label: t('Blurred cover') },
+          ]}
+          value={lyricsBackground}
+          onChange={setLyricsBackground}
+        />
+        <SelectList<CardBackground>
+          label={t('Lyrics card background')}
+          description={t('The card that peeks below the player controls.')}
+          options={[
+            { value: 'none', label: t('Plain') },
+            { value: 'color', label: t('Cover color') },
+          ]}
+          value={lyricsCardBackground}
+          onChange={setLyricsCardBackground}
         />
       </ScrollView>
     </SettingsPage>

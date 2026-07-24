@@ -150,6 +150,9 @@ export default function PlayerScreen() {
   // Ignored on a local profile over a server: there is no heart there, so there
   // is nothing to swap and moving the ⋯ down would just leave the corner empty.
   const swapButtons = useSettings((s) => s.swapPlayerButtons);
+  // Only the player honours this: in lists and grids letterboxing every cover
+  // would leave each row a different size and look ragged.
+  const fitCoverArt = useSettings((s) => s.fitCoverArt);
   const coverTapAction = useSettings((s) => s.coverTapAction);
   const marqueeTitles = useSettings((s) => s.marqueeTitles);
   const showQueueButton = useSettings((s) => s.showQueueButton);
@@ -488,6 +491,7 @@ export default function PlayerScreen() {
                       <Cover
                         uri={paneCover}
                         size={coverSize}
+                        contentFit={fitCoverArt ? 'contain' : 'cover'}
                         transition={0}
                         placeholderIcon={paneSong.url ? 'radio' : 'musical-notes'}
                       />

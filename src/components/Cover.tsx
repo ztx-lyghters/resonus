@@ -1,6 +1,6 @@
 /** Square cover art with placeholder when no image. */
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Image, type ImageStyle } from 'expo-image';
+import { Image, type ImageContentFit, type ImageStyle } from 'expo-image';
 import { useEffect, useState } from 'react';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
 
@@ -14,6 +14,12 @@ interface Props {
   transition?: number;
   /** Placeholder icon when no image (e.g. radio). */
   placeholderIcon?: keyof typeof Ionicons.glyphMap;
+  /**
+   * How the artwork fills its square. Defaults to `cover` (fills and crops),
+   * which is what every list, card and grid wants. The player can ask for
+   * `contain` so non-square artwork is shown whole, letterboxed.
+   */
+  contentFit?: ImageContentFit;
   style?: StyleProp<ViewStyle | ImageStyle>;
 }
 
@@ -23,6 +29,7 @@ export function Cover({
   rounded,
   transition = 200,
   placeholderIcon = 'musical-notes',
+  contentFit = 'cover',
   style,
 }: Props) {
   // If the image fails to load (e.g. offline without cache or download), we fall
@@ -56,7 +63,7 @@ export function Cover({
     <Image
       source={{ uri }}
       style={[{ width: size, height: size, borderRadius }, style as StyleProp<ImageStyle>]}
-      contentFit="cover"
+      contentFit={contentFit}
       transition={transition}
       recyclingKey={uri}
       onError={() => setFailed(true)}

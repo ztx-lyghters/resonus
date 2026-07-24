@@ -41,6 +41,7 @@ Releases before 0.2.1 are only listed on the
 - The volume overlay while casting.
 - Skipping tracks from a Bluetooth device while casting.
 - Cast devices are found more reliably.
+- Various smaller fixes and polish throughout.
 
 ## [0.5.2] - 2026-07-22
 

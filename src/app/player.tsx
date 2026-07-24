@@ -482,7 +482,7 @@ export default function PlayerScreen() {
               <StarRating
                 id={song.id}
                 rating={song.userRating}
-                size={18}
+                size={20}
                 onRated={(r) => rateSong(song.id, r)}
               />
             </View>

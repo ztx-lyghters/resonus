@@ -5,6 +5,7 @@ import { SelectList, SettingsPage, settingsStyles, SwitchList } from '@/componen
 import { useT } from '@/i18n';
 import { useAuthStore } from '@/store/auth';
 import {
+  type CardBackground,
   type CoverTapAction,
   type LyricsSource,
   type ScreenBackground,
@@ -38,6 +39,8 @@ export default function PlayerSettings() {
   const setMiniPlayerColorBackground = useSettings((s) => s.setMiniPlayerColorBackground);
   const lyricsBackground = useSettings((s) => s.lyricsBackground);
   const setLyricsBackground = useSettings((s) => s.setLyricsBackground);
+  const lyricsCardBackground = useSettings((s) => s.lyricsCardBackground);
+  const setLyricsCardBackground = useSettings((s) => s.setLyricsCardBackground);
   const showLyricsCard = useSettings((s) => s.showLyricsCard);
   const setShowLyricsCard = useSettings((s) => s.setShowLyricsCard);
   const coverTapAction = useSettings((s) => s.coverTapAction);
@@ -91,6 +94,16 @@ export default function PlayerSettings() {
           ]}
           value={lyricsBackground}
           onChange={setLyricsBackground}
+        />
+        <SelectList<CardBackground>
+          label={t('Lyrics card background')}
+          description={t('The card that peeks below the player controls.')}
+          options={[
+            { value: 'none', label: t('Plain') },
+            { value: 'color', label: t('Cover color') },
+          ]}
+          value={lyricsCardBackground}
+          onChange={setLyricsCardBackground}
         />
 
         <Text style={settingsStyles.sectionTitle}>{t('Elements')}</Text>

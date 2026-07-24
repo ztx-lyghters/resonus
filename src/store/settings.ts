@@ -106,6 +106,13 @@ export type AppFont = 'system' | 'condensed' | 'serif' | 'monospace' | 'casual' 
  */
 export type ScreenBackground = 'none' | 'color' | 'cover';
 
+/**
+ * Backdrop for the lyrics card under the player controls. No 'cover' here: its
+ * background doubles as the solid colour the synced lyrics fade into, which an
+ * image can't provide.
+ */
+export type CardBackground = 'none' | 'color';
+
 /** What tapping the cover in the player does: nothing, open the lyrics screen,
  *  or show lyrics in place of the cover. */
 export type CoverTapAction = 'none' | 'screen' | 'inline';
@@ -418,6 +425,8 @@ interface SettingsState {
   hapticsEnabled: boolean;
   /** Lyrics screen background: flat, cover color, or blurred cover art. */
   lyricsBackground: ScreenBackground;
+  /** Lyrics card (under the player controls): flat or cover color. */
+  lyricsCardBackground: CardBackground;
   /**
    * Where lyrics come from: prefer local, prefer online (LRCLIB), or online
    * disabled. Defaults to 'local' (local first, LRCLIB as fallback).
@@ -521,6 +530,7 @@ interface SettingsState {
   setKeepScreenAwake: (value: boolean) => void;
   setHapticsEnabled: (value: boolean) => void;
   setLyricsBackground: (value: ScreenBackground) => void;
+  setLyricsCardBackground: (value: CardBackground) => void;
   setLyricsSource: (value: LyricsSource) => void;
   setShowArtistPhoto: (value: boolean) => void;
   setShowDiscHeaders: (value: boolean) => void;
@@ -596,6 +606,7 @@ function snapshot(get: () => SettingsState) {
     keepScreenAwake: s.keepScreenAwake,
     hapticsEnabled: s.hapticsEnabled,
     lyricsBackground: s.lyricsBackground,
+    lyricsCardBackground: s.lyricsCardBackground,
     lyricsSource: s.lyricsSource,
     showArtistPhoto: s.showArtistPhoto,
     showDiscHeaders: s.showDiscHeaders,
@@ -659,6 +670,7 @@ const DEFAULTS = {
   keepScreenAwake: false,
   hapticsEnabled: false,
   lyricsBackground: 'color' as ScreenBackground,
+  lyricsCardBackground: 'color' as CardBackground,
   lyricsSource: 'local' as LyricsSource,
   showArtistPhoto: true,
   showDiscHeaders: true,
@@ -820,6 +832,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
 
   setHapticsEnabled: (hapticsEnabled) => {
     set({ hapticsEnabled });
+    persist(snapshot(get));
+  },
+
+  setLyricsCardBackground: (lyricsCardBackground) => {
+    set({ lyricsCardBackground });
     persist(snapshot(get));
   },
 
@@ -1057,6 +1074,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
           keepScreenAwake: boolean;
           hapticsEnabled: boolean;
           lyricsBackground: ScreenBackground;
+          lyricsCardBackground: CardBackground;
           lyricsColorBackground: boolean;
           lyricsSource?: LyricsSource;
           lyricsOnlineFallback?: boolean;
@@ -1186,6 +1204,15 @@ export const useSettings = create<SettingsState>((set, get) => ({
         } else if (typeof parsed.lyricsColorBackground === 'boolean') {
           // Same migration as the player's: on → tinted, off → flat.
           set({ lyricsBackground: parsed.lyricsColorBackground ? 'color' : 'none' });
+        }
+        // The card used to follow the lyrics screen's setting, so a profile
+        // without its own value inherits whatever the screen had.
+        if (parsed.lyricsCardBackground === 'none' || parsed.lyricsCardBackground === 'color') {
+          set({ lyricsCardBackground: parsed.lyricsCardBackground });
+        } else if (parsed.lyricsBackground === 'none') {
+          set({ lyricsCardBackground: 'none' });
+        } else if (typeof parsed.lyricsColorBackground === 'boolean') {
+          set({ lyricsCardBackground: parsed.lyricsColorBackground ? 'color' : 'none' });
         }
         if (
           parsed.lyricsSource === 'local' ||

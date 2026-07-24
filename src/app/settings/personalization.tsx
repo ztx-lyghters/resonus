@@ -97,6 +97,18 @@ export default function AppearanceSettings() {
               value: showListRating,
               onChange: setShowListRating,
             },
+            {
+              label: t('Show artist photo'),
+              description: t('Show a round artist photo next to the name on album screens.'),
+              value: showArtistPhoto,
+              onChange: setShowArtistPhoto,
+            },
+            {
+              label: t('Show disc titles'),
+              description: t('Separate discs with a header on multi-disc albums.'),
+              value: showDiscHeaders,
+              onChange: setShowDiscHeaders,
+            },
           ]}
         />
 
@@ -158,41 +170,22 @@ export default function AppearanceSettings() {
           value={defaultTab}
           onChange={setDefaultTab}
         />
-        <SwitchList
-          options={[
-            {
-              label: t('Show artist photo'),
-              description: t('Show a round artist photo next to the name on album screens.'),
-              value: showArtistPhoto,
-              onChange: setShowArtistPhoto,
-            },
-            {
-              label: t('Show disc titles'),
-              description: t('Separate discs with a header on multi-disc albums.'),
-              value: showDiscHeaders,
-              onChange: setShowDiscHeaders,
-            },
-            ...(canBrowseFolders
-              ? [
-                  {
-                    label: t('Folder browsing'),
-                    description: t(
-                      'Browse your library by folders in a Folders tab (Subsonic servers).',
-                    ),
-                    value: showFolderBrowser,
-                    onChange: setShowFolderBrowser,
-                  },
-                ]
-              : []),
-          ]}
-        />
-
-        <SettingRow
-          label={t('Song menu')}
-          description={t('Choose which actions show in a song\u2019s ⋯ menu.')}
-          chevron
-          onPress={() => router.push('/settings/song-menu')}
-        />
+        {/* Guarded as a whole, not with a spread inside the list: SwitchList
+            always draws its card, so an empty array left a blank box. */}
+        {canBrowseFolders ? (
+          <SwitchList
+            options={[
+              {
+                label: t('Folder browsing'),
+                description: t(
+                  'Browse your library by folders in a Folders tab (Subsonic servers).',
+                ),
+                value: showFolderBrowser,
+                onChange: setShowFolderBrowser,
+              },
+            ]}
+          />
+        ) : null}
 
         <Text style={settingsStyles.sectionTitle}>{t('Interaction')}</Text>
         <SelectList<SwipeAction>
@@ -220,6 +213,12 @@ export default function AppearanceSettings() {
           ]}
           value={swipeLeftAction}
           onChange={setSwipeLeftAction}
+        />
+        <SettingRow
+          label={t('Song menu')}
+          description={t('Choose which actions show in a song\u2019s ⋯ menu.')}
+          chevron
+          onPress={() => router.push('/settings/song-menu')}
         />
         <SwitchList
           options={[

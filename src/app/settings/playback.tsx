@@ -73,12 +73,22 @@ export default function PlaybackSettings() {
               value={maxBitRateCellular}
               onChange={setMaxBitRateCellular}
             />
+            <SwitchList
+              options={[
+                {
+                  label: t('Preload upcoming tracks'),
+                  description: t('Request the next few tracks ahead of time so they start instantly. Helps with proxy servers like Octo-Fiesta or slow sources that fetch tracks on demand.'),
+                  value: preloadUpcoming,
+                  onChange: setPreloadUpcoming,
+                },
+              ]}
+            />
           </>
         )}
 
         {/* In offline there's no Streaming section: this becomes the first title. */}
         <Text style={[settingsStyles.sectionTitle, offline && { marginTop: 0 }]}>
-          {t('Playback')}
+          {t('Sound')}
         </Text>
         <SliderRow
           label={t('Crossfade')}
@@ -100,25 +110,6 @@ export default function PlaybackSettings() {
           value={replayGain}
           onChange={setReplayGain}
         />
-        {offline ? null : (
-          <SwitchList
-            options={[
-              {
-                label: t('Autoplay'),
-                description: t('Keep playing similar songs when your queue ends. A mix you start yourself always does, even with this off.'),
-                value: autoplaySimilar,
-                onChange: setAutoplaySimilar,
-              },
-              {
-                label: t('Preload upcoming tracks'),
-                description: t('Request the next few tracks ahead of time so they start instantly. Helps with proxy servers like Octo-Fiesta or slow sources that fetch tracks on demand.'),
-                value: preloadUpcoming,
-                onChange: setPreloadUpcoming,
-              },
-            ]}
-          />
-        )}
-
         <SettingRow
           label={t('Equalizer')}
           description={t('Tune the sound band by band.')}
@@ -126,9 +117,19 @@ export default function PlaybackSettings() {
           onPress={() => router.push('/settings/equalizer')}
         />
 
-        <Text style={settingsStyles.sectionTitle}>{t('Extras')}</Text>
+        <Text style={settingsStyles.sectionTitle}>{t('Playback')}</Text>
         <SwitchList
           options={[
+            ...(offline
+              ? []
+              : [
+                  {
+                    label: t('Autoplay'),
+                    description: t('Keep playing similar songs when your queue ends. A mix you start yourself always does, even with this off.'),
+                    value: autoplaySimilar,
+                    onChange: setAutoplaySimilar,
+                  },
+                ]),
             {
               label: t('Keep screen on'),
               description: t('The screen never turns off while the app is visible.'),
@@ -137,6 +138,8 @@ export default function PlaybackSettings() {
             },
           ]}
         />
+
+
       </ScrollView>
     </SettingsPage>
   );

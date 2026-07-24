@@ -80,6 +80,7 @@ export default function ArtistScreen() {
   const [confirmStop, setConfirmStop] = useState(false);
   /** While fetching each album's songs, before downloading anything. */
   const [gathering, setGathering] = useState(false);
+  const [shuffling, setShuffling] = useState(false);
   /** Songs already gathered, awaiting dialog confirmation. */
   const [pending, setPending] = useState<Song[] | null>(null);
   const downloadMsg = useDownloadMessage(pending ?? []);
@@ -164,25 +165,38 @@ export default function ArtistScreen() {
     info?.imageUrl ?? coverArtUrl( data.artist.coverArt ?? data.artist.id, 800);
 
   async function shufflePlay() {
-    if (top.length === 0) return;
+    if (shuffling) return;
+    // Shuffle the artist's whole discography (own albums only; "Appears on" is
+    // excluded so unrelated tracks don't land in the queue). Falls back to the
+    // top tracks when there are no albums to gather.
     // Random initial track and THEN shuffle mode, like the rest of the screens:
-    // shuffle mode only shuffles what's left to play, so starting at 0 made
-    // track #1 of the top songs always play first.
-    // We await playQueue (it resets `shuffle`, hence reading it fresh after).
-    await playQueue(top, Math.floor(Math.random() * top.length), name, `/artist/${id}`);
-    if (!usePlayerStore.getState().shuffle) toggleShuffle();
+    // shuffle mode only shuffles what's left to play, so starting at 0 made the
+    // first track always play first. We await playQueue (it resets `shuffle`,
+    // hence reading it fresh after).
+    if (albums.length === 0) {
+      if (top.length === 0) return;
+      await playQueue(top, Math.floor(Math.random() * top.length), name, `/artist/${id}`);
+      if (!usePlayerStore.getState().shuffle) toggleShuffle();
+      return;
+    }
+    setShuffling(true);
+    try {
+      const songs = await fetchAlbumSongs();
+      if (!songs || songs.length === 0) return;
+      await playQueue(songs, Math.floor(Math.random() * songs.length), name, `/artist/${id}`);
+      if (!usePlayerStore.getState().shuffle) toggleShuffle();
+    } finally {
+      setShuffling(false);
+    }
   }
 
   /**
-   * Fetches the songs for each album in their discography. Not the "Appears on"
-   * ones: those albums belong to another artist, and downloading another
-   * artist's full album because this one sings on a track is not what was asked.
-   *
-   * `gathering` covers ONLY this phase: if it stretched to cover the download,
-   * the button would be deaf while downloading and couldn't be stopped.
+   * Fetches the songs of every album in the discography. Not the "Appears on"
+   * ones: those albums belong to another artist, and pulling another artist's
+   * full album because this one sings on a track is not what was asked. Shared
+   * by download, add-to-playlist and shuffle-all.
    */
-  async function gatherSongs() {
-    setGathering(true);
+  async function fetchAlbumSongs(): Promise<Song[] | null> {
     try {
       const parts = await Promise.all(
         albums.map((a) =>
@@ -195,6 +209,18 @@ export default function ArtistScreen() {
     } catch {
       toast(t("Couldn't load albums."));
       return null;
+    }
+  }
+
+  /**
+   * `gatherSongs` wraps the fetch in the download button's `gathering` spinner.
+   * It covers ONLY this phase: if it stretched to cover the download, the button
+   * would be deaf while downloading and couldn't be stopped.
+   */
+  async function gatherSongs() {
+    setGathering(true);
+    try {
+      return await fetchAlbumSongs();
     } finally {
       setGathering(false);
     }
@@ -271,7 +297,11 @@ export default function ArtistScreen() {
             accessibilityLabel={t('Shuffle')}
             onPress={shufflePlay}
           >
-            <Ionicons name="shuffle" size={28} color={colors.text} />
+            {shuffling ? (
+              <ActivityIndicator size="small" color={colors.text} />
+            ) : (
+              <Ionicons name="shuffle" size={28} color={colors.text} />
+            )}
           </Pressable>
           {/* Locally no: what's here is already on the device. Same criteria
               (and same look) as the album and playlist header. */}

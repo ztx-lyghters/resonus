@@ -233,7 +233,8 @@ export function parseID3(buffer: Uint8Array): ID3Tags {
   try {
     const v2 = parseID3v2(buffer);
     if (v2.title) return v2; // ID3v2 takes priority if it found a title
-    // If ID3v2 found nothing useful, try ID3v1
+    // If ID3v2 found nothing useful, fall back to ID3v1 (last 128 bytes).
+    const v1 = parseID3v1(buffer);
     return { ...v1, ...v2 }; // v2 overrides v1 where data exists
   } catch {
     return {};

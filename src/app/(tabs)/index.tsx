@@ -428,7 +428,9 @@ function ScanningPanel() {
       <Text style={styles.scanTitle}>{title}</Text>
       {total > 0 ? (
         <View style={styles.scanBarTrack}>
-          <View style={[styles.scanBarFill, { width, backgroundColor: colors.accent }]} />
+          <View
+            style={[styles.scanBarFill, { width: `${fraction * 100}%`, backgroundColor: colors.accent }]}
+          />
         </View>
       ) : (
         <ActivityIndicator color={colors.accent} />

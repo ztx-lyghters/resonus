@@ -42,12 +42,15 @@ export function LyricsCard() {
   const { data } = useLyrics(song ?? undefined);
   // Same setting as the full screen; without color, neutral gray (surface)
   // so the card still stands out from the player background.
-  const colorBackground = useSettings((s) => s.lyricsColorBackground);
+  // 'cover' (blurred artwork) is treated as 'color' here: this is a small card
+  // and its `bg` doubles as the solid `fadeColor` for the synced lyrics, which
+  // an image can't provide. The full screen does get the blurred art.
+  const tinted = useSettings((s) => s.lyricsBackground) !== 'none';
   const dominant = useDominantColor(
     // Without color the palette is not extracted (same savings the player does).
-    colorBackground ? coverArtUrl(song?.coverArt ?? song?.albumId, 600) : undefined,
+    tinted ? coverArtUrl(song?.coverArt ?? song?.albumId, 600) : undefined,
   );
-  const bg = colorBackground ? dominant : colors.surface;
+  const bg = tinted ? dominant : colors.surface;
 
   if (!data) return null;
 

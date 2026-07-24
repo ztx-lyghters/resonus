@@ -5,6 +5,7 @@
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Slider from '@react-native-community/slider';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -31,13 +32,36 @@ export default function LyricsScreen() {
   const previous = usePlayerStore((s) => s.previous);
   const next = usePlayerStore((s) => s.next);
   const { data, isLoading } = useLyrics(song ?? undefined);
-  const colorBackground = useSettings((s) => s.lyricsColorBackground);
-  const dominant = useDominantColor(coverArtUrl(song?.coverArt ?? song?.albumId, 600));
-  const bg = colorBackground ? dominant : colors.background;
+  const background = useSettings((s) => s.lyricsBackground);
+  const cover = coverArtUrl(song?.coverArt ?? song?.albumId, 600);
+  // Only extract the palette when it's actually going to be used.
+  const dominant = useDominantColor(background === 'color' ? cover : undefined);
+  const bg = background === 'color' ? dominant : colors.background;
+  // No edge fade over the artwork: that effect paints a gradient from a SOLID
+  // colour, and with an image behind there is no colour to fade into — it came
+  // out as two black bands with hard edges, only as wide as the lyrics body.
+  // The scrim already keeps the text readable, so the fade just goes away.
+  const fadeColor = background === 'cover' ? undefined : bg;
   const duration = durationSec || song?.duration || 0;
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: bg }]} edges={['top', 'bottom']}>
+    <View style={[styles.root, { backgroundColor: bg }]}>
+      {background === 'cover' && cover ? (
+        <>
+          <Image
+            source={{ uri: cover }}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            blurRadius={60}
+            transition={600}
+            recyclingKey={cover}
+          />
+          {/* Same scrim as the player: blur alone doesn't guarantee the lyrics
+              stay readable over a bright cover. */}
+          <View style={styles.coverScrim} />
+        </>
+      ) : null}
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.header}>
         <Pressable hitSlop={12} accessibilityRole="button" accessibilityLabel={t('Close')} onPress={() => router.back()}>
           <Ionicons name="close" size={26} color={colors.text} />
@@ -59,7 +83,7 @@ export default function LyricsScreen() {
         {isLoading ? (
           <ActivityIndicator style={{ marginTop: spacing.xxl }} color={colors.text} />
         ) : data?.synced ? (
-          <SyncedLyricsView lines={data.lines} large fadeColor={bg} />
+          <SyncedLyricsView lines={data.lines} large fadeColor={fadeColor} />
         ) : data ? (
           <ScrollView contentContainerStyle={styles.plainContent} showsVerticalScrollIndicator={false}>
             <Text style={[lyricsStyles.line, lyricsStyles.lineLarge]}>
@@ -118,12 +142,15 @@ export default function LyricsScreen() {
           </Pressable>
         </View>
       </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+  root: { flex: 1, backgroundColor: colors.background },
+  safe: { flex: 1 },
+  coverScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

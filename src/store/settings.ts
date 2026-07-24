@@ -98,6 +98,14 @@ export type ReplayGainMode = 'off' | 'auto' | 'track' | 'album';
  */
 export type AppFont = 'system' | 'condensed' | 'serif' | 'monospace' | 'casual' | 'typewriter';
 
+/**
+ * Backdrop for the player and the lyrics screen: flat dark, tinted with the
+ * cover's dominant color, or the cover art itself blurred behind everything.
+ * They're mutually exclusive, which is why this replaced the old
+ * `playerColorBackground` / `lyricsColorBackground` booleans.
+ */
+export type ScreenBackground = 'none' | 'color' | 'cover';
+
 /** What tapping the cover in the player does: nothing, open the lyrics screen,
  *  or show lyrics in place of the cover. */
 export type CoverTapAction = 'none' | 'screen' | 'inline';
@@ -408,8 +416,8 @@ interface SettingsState {
   keepScreenAwake: boolean;
   /** Subtle vibration on key actions (favorite, long-press, drag…). */
   hapticsEnabled: boolean;
-  /** Lyrics screen tinted with the dominant color of the cover art. */
-  lyricsColorBackground: boolean;
+  /** Lyrics screen background: flat, cover color, or blurred cover art. */
+  lyricsBackground: ScreenBackground;
   /**
    * Where lyrics come from: prefer local, prefer online (LRCLIB), or online
    * disabled. Defaults to 'local' (local first, LRCLIB as fallback).
@@ -422,8 +430,8 @@ interface SettingsState {
    * if untitled). On by default.
    */
   showDiscHeaders: boolean;
-  /** Player background tinted with the dominant color of the cover art. */
-  playerColorBackground: boolean;
+  /** Player background: flat, cover color, or blurred cover art. */
+  playerBackground: ScreenBackground;
   /** Mini-player tinted with the dominant color of the cover art. */
   miniPlayerColorBackground: boolean;
   /** Lyrics card below the player controls. */
@@ -512,11 +520,11 @@ interface SettingsState {
   setReplayGain: (value: ReplayGainMode) => void;
   setKeepScreenAwake: (value: boolean) => void;
   setHapticsEnabled: (value: boolean) => void;
-  setLyricsColorBackground: (value: boolean) => void;
+  setLyricsBackground: (value: ScreenBackground) => void;
   setLyricsSource: (value: LyricsSource) => void;
   setShowArtistPhoto: (value: boolean) => void;
   setShowDiscHeaders: (value: boolean) => void;
-  setPlayerColorBackground: (value: boolean) => void;
+  setPlayerBackground: (value: ScreenBackground) => void;
   setMiniPlayerColorBackground: (value: boolean) => void;
   setShowLyricsCard: (value: boolean) => void;
   setCoverTapAction: (value: CoverTapAction) => void;
@@ -587,11 +595,11 @@ function snapshot(get: () => SettingsState) {
     replayGain: s.replayGain,
     keepScreenAwake: s.keepScreenAwake,
     hapticsEnabled: s.hapticsEnabled,
-    lyricsColorBackground: s.lyricsColorBackground,
+    lyricsBackground: s.lyricsBackground,
     lyricsSource: s.lyricsSource,
     showArtistPhoto: s.showArtistPhoto,
     showDiscHeaders: s.showDiscHeaders,
-    playerColorBackground: s.playerColorBackground,
+    playerBackground: s.playerBackground,
     miniPlayerColorBackground: s.miniPlayerColorBackground,
     showLyricsCard: s.showLyricsCard,
     coverTapAction: s.coverTapAction,
@@ -650,11 +658,11 @@ const DEFAULTS = {
   replayGain: 'off' as ReplayGainMode,
   keepScreenAwake: false,
   hapticsEnabled: false,
-  lyricsColorBackground: true,
+  lyricsBackground: 'color' as ScreenBackground,
   lyricsSource: 'local' as LyricsSource,
   showArtistPhoto: true,
   showDiscHeaders: true,
-  playerColorBackground: true,
+  playerBackground: 'color' as ScreenBackground,
   miniPlayerColorBackground: true,
   showLyricsCard: true,
   // By default, tapping the cover opens the lyrics screen (as always).
@@ -815,8 +823,8 @@ export const useSettings = create<SettingsState>((set, get) => ({
     persist(snapshot(get));
   },
 
-  setLyricsColorBackground: (lyricsColorBackground) => {
-    set({ lyricsColorBackground });
+  setLyricsBackground: (lyricsBackground) => {
+    set({ lyricsBackground });
     persist(snapshot(get));
   },
 
@@ -835,8 +843,8 @@ export const useSettings = create<SettingsState>((set, get) => ({
     persist(snapshot(get));
   },
 
-  setPlayerColorBackground: (playerColorBackground) => {
-    set({ playerColorBackground });
+  setPlayerBackground: (playerBackground) => {
+    set({ playerBackground });
     persist(snapshot(get));
   },
 
@@ -1048,11 +1056,13 @@ export const useSettings = create<SettingsState>((set, get) => ({
           replayGain: ReplayGainMode;
           keepScreenAwake: boolean;
           hapticsEnabled: boolean;
+          lyricsBackground: ScreenBackground;
           lyricsColorBackground: boolean;
           lyricsSource?: LyricsSource;
           lyricsOnlineFallback?: boolean;
           showArtistPhoto: boolean;
           showDiscHeaders: boolean;
+          playerBackground: ScreenBackground;
           playerColorBackground: boolean;
           miniPlayerColorBackground: boolean;
           showLyricsCard: boolean;
@@ -1171,8 +1181,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
         if (typeof parsed.hapticsEnabled === 'boolean') {
           set({ hapticsEnabled: parsed.hapticsEnabled });
         }
-        if (typeof parsed.lyricsColorBackground === 'boolean') {
-          set({ lyricsColorBackground: parsed.lyricsColorBackground });
+        if (parsed.lyricsBackground === 'none' || parsed.lyricsBackground === 'color' || parsed.lyricsBackground === 'cover') {
+          set({ lyricsBackground: parsed.lyricsBackground });
+        } else if (typeof parsed.lyricsColorBackground === 'boolean') {
+          // Same migration as the player's: on → tinted, off → flat.
+          set({ lyricsBackground: parsed.lyricsColorBackground ? 'color' : 'none' });
         }
         if (
           parsed.lyricsSource === 'local' ||
@@ -1190,8 +1203,13 @@ export const useSettings = create<SettingsState>((set, get) => ({
         if (typeof parsed.showDiscHeaders === 'boolean') {
           set({ showDiscHeaders: parsed.showDiscHeaders });
         }
-        if (typeof parsed.playerColorBackground === 'boolean') {
-          set({ playerColorBackground: parsed.playerColorBackground });
+        if (parsed.playerBackground === 'none' || parsed.playerBackground === 'color' || parsed.playerBackground === 'cover') {
+          set({ playerBackground: parsed.playerBackground });
+        } else if (typeof parsed.playerColorBackground === 'boolean') {
+          // Migration from the old boolean: on → the tinted background it
+          // already had, off → flat. Profiles saved before the blurred cover
+          // option existed keep looking exactly the same.
+          set({ playerBackground: parsed.playerColorBackground ? 'color' : 'none' });
         }
         if (typeof parsed.miniPlayerColorBackground === 'boolean') {
           set({ miniPlayerColorBackground: parsed.miniPlayerColorBackground });

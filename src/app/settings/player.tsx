@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/auth';
 import {
   type CoverTapAction,
   type LyricsSource,
+  type ScreenBackground,
   type PreviousButtonMode,
   useSettings,
 } from '@/store/settings';
@@ -31,12 +32,12 @@ export default function PlayerSettings() {
   const setSwapPlayerButtons = useSettings((s) => s.setSwapPlayerButtons);
   const showPlayedInQueue = useSettings((s) => s.showPlayedInQueue);
   const setShowPlayedInQueue = useSettings((s) => s.setShowPlayedInQueue);
-  const playerColorBackground = useSettings((s) => s.playerColorBackground);
-  const setPlayerColorBackground = useSettings((s) => s.setPlayerColorBackground);
+  const playerBackground = useSettings((s) => s.playerBackground);
+  const setPlayerBackground = useSettings((s) => s.setPlayerBackground);
   const miniPlayerColorBackground = useSettings((s) => s.miniPlayerColorBackground);
   const setMiniPlayerColorBackground = useSettings((s) => s.setMiniPlayerColorBackground);
-  const lyricsColorBackground = useSettings((s) => s.lyricsColorBackground);
-  const setLyricsColorBackground = useSettings((s) => s.setLyricsColorBackground);
+  const lyricsBackground = useSettings((s) => s.lyricsBackground);
+  const setLyricsBackground = useSettings((s) => s.setLyricsBackground);
   const showLyricsCard = useSettings((s) => s.showLyricsCard);
   const setShowLyricsCard = useSettings((s) => s.setShowLyricsCard);
   const coverTapAction = useSettings((s) => s.coverTapAction);
@@ -59,27 +60,37 @@ export default function PlayerSettings() {
       <ScrollView contentContainerStyle={settingsStyles.content}>
         {/* The first title sticks to the header (no section margin). */}
         <Text style={[settingsStyles.sectionTitle, { marginTop: 0 }]}>{t('Color')}</Text>
+        <SelectList<ScreenBackground>
+          label={t('Player background')}
+          description={t('What fills the space behind the player.')}
+          options={[
+            { value: 'none', label: t('Plain') },
+            { value: 'color', label: t('Cover color') },
+            { value: 'cover', label: t('Blurred cover') },
+          ]}
+          value={playerBackground}
+          onChange={setPlayerBackground}
+        />
         <SwitchList
           options={[
-            {
-              label: t('Colored background'),
-              description: t('Tint the player background with the cover color.'),
-              value: playerColorBackground,
-              onChange: setPlayerColorBackground,
-            },
             {
               label: t('Colored mini player'),
               description: t('Tint the mini player with the cover color.'),
               value: miniPlayerColorBackground,
               onChange: setMiniPlayerColorBackground,
             },
-            {
-              label: t('Colored lyrics screen'),
-              description: t('Tint the lyrics screen with the cover color.'),
-              value: lyricsColorBackground,
-              onChange: setLyricsColorBackground,
-            },
           ]}
+        />
+        <SelectList<ScreenBackground>
+          label={t('Lyrics background')}
+          description={t('What fills the space behind the lyrics screen.')}
+          options={[
+            { value: 'none', label: t('Plain') },
+            { value: 'color', label: t('Cover color') },
+            { value: 'cover', label: t('Blurred cover') },
+          ]}
+          value={lyricsBackground}
+          onChange={setLyricsBackground}
         />
 
         <Text style={settingsStyles.sectionTitle}>{t('Elements')}</Text>

@@ -2,6 +2,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Slider from '@react-native-community/slider';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useIsFocused, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -180,9 +181,13 @@ export default function PlayerScreen() {
   // (toggle in Settings → Theme). The color transitions smoothly on song
   // change: a flat color is animated and the gradient toward the background is
   // a fixed overlay (same look as animating the gradient, which can't be done).
-  const colorBackground = useSettings((s) => s.playerColorBackground);
+  const background = useSettings((s) => s.playerBackground);
+  const colorBackground = background === 'color';
   const dominant = useDominantColor(colorBackground ? cover : undefined);
-  const targetBg = colorBackground ? dominant : '#3a4042';
+  // Under the blurred artwork the flat colour is irrelevant, but it still
+  // paints the frame before the image decodes, so it stays dark rather than
+  // flashing the old grey.
+  const targetBg = colorBackground ? dominant : background === 'cover' ? colors.background : '#3a4042';
   const bgColor = useSharedValue(targetBg);
   useEffect(() => {
     // reduceMotion Never: the color fade is part of the look and some devices
@@ -378,6 +383,24 @@ export default function PlayerScreen() {
     <GestureDetector gesture={dismissPan}>
       <Animated.View style={[styles.root, rootStyle]}>
         <Animated.View style={[StyleSheet.absoluteFill, bgStyle]} />
+        {background === 'cover' && cover ? (
+          <>
+            {/* The artwork itself, blurred, filling the screen. `recyclingKey`
+                so switching songs swaps the image instead of reusing the old
+                one, and the transition crossfades between them. */}
+            <Image
+              source={{ uri: cover }}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              blurRadius={60}
+              transition={600}
+              recyclingKey={cover}
+            />
+            {/* Scrim: blurring alone doesn't guarantee contrast — a bright or
+                busy cover would swallow the white text. */}
+            <View style={styles.coverScrim} />
+          </>
+        ) : null}
         <LinearGradient
           colors={[colors.background + '00', colors.background] as const}
           style={StyleSheet.absoluteFill}
@@ -742,6 +765,9 @@ export default function PlayerScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
+  // Darkens the blurred artwork so the white text keeps its contrast whatever
+  // the cover is. Tuned by eye: any lighter and pale covers wash the title out.
+  coverScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
   // Horizontal padding lives in each section (not here): so the slider can
   // overshoot its internal margin without the ScrollView clipping the thumb.
   safe: { flex: 1 },

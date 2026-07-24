@@ -14,35 +14,33 @@ Releases before 0.2.1 are only listed on the
 ### Added
 
 - Blurred cover art as a background for the player and the lyrics screen.
-- Option to show non-square artwork whole instead of cropped to a square.
-- Option to swap the player's favourite and ⋯ buttons, putting the menu within
-  thumb's reach.
+- Show non-square artwork whole instead of cropped to a square.
+- Swap the player's favourite and ⋯ buttons, putting the menu within reach.
 - Album and year on their own line in the player.
-- Refresh a playlist from its ⋯ menu, so smart playlists hand out a new
-  selection without waiting for the cache.
+- Refresh a playlist from its ⋯ menu, so smart playlists pick again.
 - Close a song's ⋯ menu by swiping it down.
-- A ⋯ menu on Favourites: queue, add to playlist and auto-download.
+- A ⋯ menu on Favourites, with the same actions as a playlist's.
 - Italian translation, and fixes to the Russian one.
 
 ### Changed
 
 - Player, Quality & playback and Appearance settings regrouped by what they
   affect.
-- The artist's shuffle button now shuffles the whole discography, not just the
-  top tracks.
+- The artist's shuffle now covers the whole discography, not just top tracks.
 - Dragging the player down reveals the screen behind it.
-- Library chips scroll horizontally when they don't fit.
+- Library chips scroll when they don't fit.
 
 ### Fixed
 
-- "Appears on" showed nothing on servers that also list collaborations in the
-  artist's discography.
-- Playlist covers were replaced by a track's album art in offline mode.
-- Starting a mix from the song already playing restarted it.
-- The "playing from" header disappeared once Android killed the app.
+- "Appears on" was empty on servers that list collaborations in the discography.
+- Playlist covers were replaced by a track's album art offline.
+- Starting a mix from the current song restarted it.
+- The "playing from" header vanished once Android killed the app.
 - Queue covers blinked on every track change.
-- Hardware next/previous buttons on headphones now skip through the queue.
-- Casting: volume overlay, skipping over Bluetooth, steadier discovery.
+- Headphone next/previous buttons now skip through the queue.
+- The volume overlay while casting.
+- Skipping tracks from a Bluetooth device while casting.
+- Cast devices are found more reliably.
 
 ## [0.5.2] - 2026-07-22
 

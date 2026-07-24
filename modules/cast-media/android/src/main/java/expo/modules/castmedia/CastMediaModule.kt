@@ -57,6 +57,11 @@ class CastMediaModule : Module() {
       CastMediaService.instance?.setState(isPlaying, positionMs.toLong())
     }
 
+    /** Sincroniza el volumen que muestra el overlay del sistema (fracción 0..1). */
+    Function("setVolumeLevel") { fraction: Double ->
+      CastMediaService.instance?.setVolumeLevel(fraction)
+    }
+
     /** Cierra la sesión y retira la notificación. */
     Function("stop") {
       CastMediaService.instance?.stopEverything()

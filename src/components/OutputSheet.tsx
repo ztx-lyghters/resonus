@@ -44,10 +44,14 @@ export function OutputSheet({ visible, onClose }: { visible: boolean; onClose: (
   const close = () => dismiss(onClose);
 
   useEffect(() => {
-    if (visible) {
-      void upnpSearch();
-      void refreshJukeboxAvailability();
-    }
+    if (!visible) return;
+    void upnpSearch();
+    void refreshJukeboxAvailability();
+    // Re-scan periodically while the sheet is open: SSDP is lossy, so repeating
+    // the search lets renderers that missed the first round appear on their own
+    // (upnpSearch merges results and no-ops if a scan is still running).
+    const id = setInterval(() => void upnpSearch(), 7000);
+    return () => clearInterval(id);
   }, [visible]);
 
   async function pickPhone() {

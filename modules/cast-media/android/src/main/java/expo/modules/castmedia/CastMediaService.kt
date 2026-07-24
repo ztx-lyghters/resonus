@@ -15,6 +15,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.SystemClock
+import android.view.KeyEvent
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
@@ -58,7 +59,12 @@ class CastMediaService : Service() {
     ) {
       override fun onAdjustVolume(direction: Int) {
         // direction: +1 subir, -1 bajar, 0 (mute toggle) lo ignoramos.
-        if (direction != 0) CastMediaModule.instance?.emitCommand("volume", direction.toDouble())
+        if (direction == 0) return
+        // Optimista: mueve el overlay del sistema en el acto (antes era fijo a
+        // 50% porque currentVolume nunca se tocaba). JS reenvía el valor exacto
+        // por setVolumeLevel tras aplicarlo en el renderer.
+        currentVolume = (currentVolume + direction).coerceIn(0, MAX_VOLUME)
+        CastMediaModule.instance?.emitCommand("volume", direction.toDouble())
       }
     }
 
@@ -139,6 +145,15 @@ class CastMediaService : Service() {
     // que rehacer la notificación cuando cambia el botón play/pausa (no cada
     // segundo por el progreso).
     if (playingChanged) renotify()
+  }
+
+  /**
+   * Fija el volumen que muestra el overlay del sistema (fracción 0..1 desde JS).
+   * Sin esto el provider se quedaba clavado en 50% aunque el volumen real
+   * cambiara en el renderer.
+   */
+  fun setVolumeLevel(fraction: Double) = mainHandler.post {
+    volumeProvider.currentVolume = (fraction * MAX_VOLUME).toInt().coerceIn(0, MAX_VOLUME)
   }
 
   fun stopEverything() = mainHandler.post {
@@ -294,6 +309,38 @@ class CastMediaService : Service() {
   }
 
   private inner class SessionCallback : MediaSessionCompat.Callback() {
+    /**
+     * Algunos mandos Bluetooth/AVRCP mandan el comando como KeyEvent crudo
+     * (KEYCODE_MEDIA_NEXT/PREVIOUS) que el callback por defecto no siempre
+     * traduce a onSkipToNext/Previous — de ahí que el skip no funcionara aunque
+     * play/pausa sí. Lo enrutamos explícitamente. Solo ACTION_DOWN para no
+     * disparar dos veces (down + up).
+     */
+    override fun onMediaButtonEvent(mediaButtonEvent: Intent): Boolean {
+      val ke: KeyEvent? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+          mediaButtonEvent.getParcelableExtra(Intent.EXTRA_KEY_EVENT, KeyEvent::class.java)
+        } else {
+          @Suppress("DEPRECATION")
+          mediaButtonEvent.getParcelableExtra(Intent.EXTRA_KEY_EVENT)
+        }
+      if (ke != null && ke.action == KeyEvent.ACTION_DOWN) {
+        when (ke.keyCode) {
+          KeyEvent.KEYCODE_MEDIA_NEXT -> { onSkipToNext(); return true }
+          KeyEvent.KEYCODE_MEDIA_PREVIOUS -> { onSkipToPrevious(); return true }
+          KeyEvent.KEYCODE_MEDIA_PLAY -> { onPlay(); return true }
+          KeyEvent.KEYCODE_MEDIA_PAUSE -> { onPause(); return true }
+          KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+          KeyEvent.KEYCODE_HEADSETHOOK -> {
+            if (info.isPlaying) onPause() else onPlay()
+            return true
+          }
+          KeyEvent.KEYCODE_MEDIA_STOP -> { onStop(); return true }
+        }
+      }
+      return super.onMediaButtonEvent(mediaButtonEvent)
+    }
+
     override fun onPlay() {
       CastMediaModule.instance?.emitCommand("play", null)
     }

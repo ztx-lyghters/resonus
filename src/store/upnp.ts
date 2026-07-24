@@ -129,13 +129,25 @@ function onNativeState(e: NativeState) {
   }
 }
 
-/** Searches for renderers on the network (~5 s) and updates the store list. */
+/**
+ * Searches for renderers on the network (~5 s) and merges them into the list.
+ *
+ * SSDP discovery runs over UDP and is lossy: a device that didn't answer this
+ * round would vanish if we replaced the list, then reappear on the next scan
+ * (the flakiness users report). So we MERGE by id and keep everything seen this
+ * session; a re-answer refreshes the entry. Truly-gone devices just fail to
+ * connect (handled gracefully). Use `upnpClearDevices` to start a fresh list.
+ */
 export async function upnpSearch(): Promise<void> {
   if (!native || useUpnp.getState().scanning) return;
   useUpnp.setState({ scanning: true });
   try {
     const found = (await native.search(5000)) as UpnpDevice[];
-    useUpnp.setState({ devices: found });
+    useUpnp.setState((s) => {
+      const byId = new Map(s.devices.map((d) => [d.id, d]));
+      for (const d of found) byId.set(d.id, d);
+      return { devices: Array.from(byId.values()) };
+    });
   } catch {
     // keep the previous list
   } finally {

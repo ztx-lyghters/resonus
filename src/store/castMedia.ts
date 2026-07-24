@@ -65,6 +65,19 @@ export function castUpdate(info: CastNowPlaying): void {
   }
 }
 
+/**
+ * Syncs the remote volume shown by the system volume overlay (0..1). Without
+ * this the native VolumeProviderCompat stayed at its initial 50% no matter the
+ * real renderer volume.
+ */
+export function castSetVolumeLevel(volume: number): void {
+  try {
+    native?.setVolumeLevel(Math.max(0, Math.min(1, volume)));
+  } catch {
+    // ignore
+  }
+}
+
 /** Refreshes only playback state (play/pause + progress). */
 export function castSetState(isPlaying: boolean, positionMs: number): void {
   try {

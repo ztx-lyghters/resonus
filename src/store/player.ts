@@ -67,7 +67,7 @@ import {
   jukeboxSeek,
   jukeboxSetVolume,
 } from './jukebox';
-import { castSetState, castUpdate, initCastMedia } from './castMedia';
+import { castSetState, castSetVolumeLevel, castUpdate, initCastMedia } from './castMedia';
 import { useDownloads } from './downloads';
 import { useNetworkType } from './networkType';
 import { usePlayCounts } from './playCounts';
@@ -390,7 +390,12 @@ function remoteSeek(sec: number) {
 
 function remoteSetVolume(volume: number) {
   if (isJukeboxActive()) jukeboxSetVolume(volume);
-  else upnpSetVolume(volume);
+  else {
+    upnpSetVolume(volume);
+    // Reflect the exact value back in the system volume overlay (UPnP casts
+    // through the CastMedia session; Jukebox plays on the server, no overlay).
+    castSetVolumeLevel(volume);
+  }
 }
 
 /**
@@ -412,6 +417,9 @@ function syncCastMedia(): void {
     positionMs: st.positionSec * 1000,
     isPlaying: st.isPlaying,
   });
+  // Seed the system volume overlay with the current level (otherwise it shows
+  // the provider's initial 50% until the first hardware button press).
+  castSetVolumeLevel(st.volume);
 }
 
 /** Loads the track at `index` into the remote output and syncs state. */

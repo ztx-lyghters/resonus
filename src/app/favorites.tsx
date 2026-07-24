@@ -56,7 +56,7 @@ export default function FavoritesScreen() {
   // Songs selected in selection mode pending "add to another playlist".
   const [addingSongs, setAddingSongs] = useState<Song[] | null>(null);
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, refetch } = useQuery({
     queryKey: ['starred'],
     queryFn: () => getStarred(),
     enabled: canFetch,
@@ -133,7 +133,9 @@ export default function FavoritesScreen() {
     );
   }
 
-  if (isError || !data) {
+  // Only when there's nothing to show: a failed refresh with data already
+  // loaded keeps the list on screen (the toast reports the failure).
+  if (!data) {
     return (
       <View style={styles.center}>
         <Message text={t("Couldn't load favorites.")} onRetry={() => refetch()} />

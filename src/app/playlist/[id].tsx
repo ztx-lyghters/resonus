@@ -71,7 +71,7 @@ export default function PlaylistScreen() {
     localCoverId: offline ? id : undefined,
   });
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, refetch } = useQuery({
     queryKey: ['playlist', id],
     queryFn: () => getPlaylist(id),
     enabled: (!!auth || offline) && !!id,
@@ -184,6 +184,18 @@ export default function PlaylistScreen() {
     }
   }
 
+  /**
+   * Re-reads the playlist from the server, ignoring the cache (global staleTime
+   * of 5 min). Mainly for smart playlists, which return a different selection on
+   * each query: without this you'd see the same one until the cache expires.
+   */
+  async function onRefresh() {
+    const res = await refetch();
+    // The Library list also shows the name, cover and song count.
+    queryClient.invalidateQueries({ queryKey: ['playlists'] });
+    toast(res.isError ? t("Couldn't complete the action") : t('Updated'));
+  }
+
   /** Reordering available on Subsonic servers and locally (Jellyfin doesn't support it). */
   const canReorder =
     (data?.songs.length ?? 0) > 1 && (offline || (!!auth && auth.serverType !== 'jellyfin'));
@@ -251,7 +263,9 @@ export default function PlaylistScreen() {
     return <TrackListSkeleton />;
   }
 
-  if (isError || !data) {
+  // Only when there's nothing to show: a failed refresh with data already
+  // loaded keeps the list on screen (the toast reports the failure).
+  if (!data) {
     return (
       <View style={styles.center}>
         <Message
@@ -440,6 +454,18 @@ export default function PlaylistScreen() {
                 <Text style={[styles.actionText, autoDownload && { color: colors.accent }]}>
                   {t('Auto-download')}
                 </Text>
+              </Pressable>
+            ) : null}
+            {!offline ? (
+              <Pressable
+                style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
+                onPress={() => {
+                  close();
+                  void onRefresh();
+                }}
+              >
+                <Ionicons name="refresh" size={24} color={colors.text} />
+                <Text style={styles.actionText}>{t('Refresh')}</Text>
               </Pressable>
             ) : null}
             <View style={styles.actionDivider} />
